@@ -1,0 +1,16 @@
+{
+  "name": "TODO AI",
+  "short_name": "TODO AI",
+  "description": "AI-Powered TODO Application with Clerk Authentication",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
