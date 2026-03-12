@@ -106,7 +106,7 @@ allowed_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3000",
-    "https://hackathon-2-phase-3-giaic.vercel.app",
+    "https://todo-ai-iota.vercel.app",
 ]
 
 # Add custom frontend URL if provided
