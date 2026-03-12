@@ -40,6 +40,28 @@ engine = create_engine(DATABASE_URL, echo=sql_echo, pool_pre_ping=True, connect_
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create PostgreSQL enum types if using PostgreSQL
+    if DATABASE_URL and "postgres" in DATABASE_URL:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            # Create priorityenum if not exists
+            conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE TYPE priorityenum AS ENUM ('HIGH', 'MEDIUM', 'LOW');
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """))
+            # Create recurrenceruleenum if not exists
+            conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE TYPE recurrenceruleenum AS ENUM ('DAILY', 'WEEKLY', 'MONTHLY');
+                EXCEPTION
+                    WHEN duplicate_object THEN null;
+                END $$;
+            """))
+            conn.commit()
+
     # Create database tables on startup
     SQLModel.metadata.create_all(bind=engine)
 
