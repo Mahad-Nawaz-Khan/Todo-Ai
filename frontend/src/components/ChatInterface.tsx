@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useChat } from '@/hooks/useChat';
+import ReactMarkdown from 'react-markdown';
 
 // Define TypeScript interfaces
 interface Message {
@@ -151,8 +152,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     : 'bg-white/10 text-white rounded-bl-md border border-white/10'
                 }`}
               >
-                <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                  {formatMessage(message.text)}
+                <div className="text-sm leading-relaxed markdown-content">
+                  {message.sender === 'ai' ? (
+                    <ReactMarkdown>{message.text}</ReactMarkdown>
+                  ) : (
+                    formatMessage(message.text)
+                  )}
                 </div>
                 <div
                   className={`text-xs mt-2 flex items-center gap-2 ${

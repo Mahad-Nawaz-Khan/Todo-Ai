@@ -30,3 +30,66 @@ select option {
   background-color: #020617;
   color: #ffffff;
 }
+
+/* Markdown content styling */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content p {
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content code {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.markdown-content pre {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content a {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  padding-left: 0.75rem;
+  margin-left: 0;
+  color: rgba(255, 255, 255, 0.7);
+}
