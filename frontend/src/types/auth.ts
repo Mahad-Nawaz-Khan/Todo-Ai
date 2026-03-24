@@ -4,6 +4,7 @@ export interface AuthUser {
   firstName: string | null;
   lastName: string | null;
   name: string | null;
+  imageUrl: string | null;
   provider: string;
   providerUserId: string;
 }

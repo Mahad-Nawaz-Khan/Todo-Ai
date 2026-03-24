@@ -6,6 +6,7 @@ export interface AppUser {
   firstName: string | null;
   lastName: string | null;
   name: string | null;
+  imageUrl: string | null;
   provider: string;
   providerUserId: string;
 }
@@ -93,6 +94,7 @@ export function buildUserFromProfile(params: {
   firstName?: string | null;
   lastName?: string | null;
   name?: string | null;
+  imageUrl?: string | null;
 }): AppUser {
   const email = params.email ?? null;
   const fallbackName = [params.firstName, params.lastName].filter(Boolean).join(" ") || email || null;
@@ -103,6 +105,7 @@ export function buildUserFromProfile(params: {
     firstName: params.firstName ?? null,
     lastName: params.lastName ?? null,
     name: params.name ?? fallbackName,
+    imageUrl: params.imageUrl ?? null,
     provider: params.provider,
     providerUserId: params.providerUserId,
   };

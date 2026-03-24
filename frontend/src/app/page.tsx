@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -124,8 +125,23 @@ export default function Dashboard() {
             <p className="mt-2 text-white/70">Manage your tasks below.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/profile" className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
-              Profile
+            <Link
+              href="/profile"
+              className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-sm text-white/80"
+              aria-label="Profile"
+            >
+              {user?.imageUrl ? (
+                <Image
+                  src={user.imageUrl}
+                  alt={user.name || user.email || "Profile"}
+                  width={44}
+                  height={44}
+                  className="h-full w-full object-cover"
+                  unoptimized
+                />
+              ) : (
+                <span className="font-medium">{(user?.firstName || user?.name || user?.email || "U").charAt(0).toUpperCase()}</span>
+              )}
             </Link>
             <button type="button" onClick={signOut} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
               Sign out
