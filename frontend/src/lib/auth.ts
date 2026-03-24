@@ -56,7 +56,7 @@ export function mintAccessToken(user: AppUser): string {
   const secret = requireEnv("APP_JWT_SECRET");
   const issuer = process.env.APP_JWT_ISSUER || "todo-ai-auth";
   const audience = process.env.APP_JWT_AUDIENCE;
-  const subject = user.id;
+  const subject = user.providerUserId;
   const signOptions: jwt.SignOptions = {
     algorithm: "HS256",
     issuer,

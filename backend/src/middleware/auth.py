@@ -1,9 +1,7 @@
 import logging
 import os
-import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
-import httpx
 from dotenv import load_dotenv
 from fastapi import HTTPException, Request
 from fastapi.security import HTTPBearer
@@ -18,11 +16,6 @@ security = HTTPBearer()
 
 class AuthMiddleware:
     def __init__(self):
-        self.jwks_cache: dict[str, dict[str, Any]] = {}
-        self.cache_duration = 300
-        self.clerk_jwks_url = os.getenv("CLERK_JWKS_URL")
-        self.clerk_issuer = os.getenv("CLERK_ISSUER")
-        self.clerk_audience = os.getenv("CLERK_JWT_AUDIENCE")
         self.app_jwt_secret = os.getenv("APP_JWT_SECRET")
         self.app_jwt_issuer = os.getenv("APP_JWT_ISSUER", "todo-ai-auth")
         self.app_jwt_audience = os.getenv("APP_JWT_AUDIENCE")
@@ -46,27 +39,6 @@ class AuthMiddleware:
         issuer = token_claims.get("iss")
         return bool(self.app_jwt_secret and issuer == self.app_jwt_issuer)
 
-    async def _fetch_jwks(self, jwks_url: str) -> Dict[str, Any]:
-        current_time = time.time()
-        cached = self.jwks_cache.get(jwks_url)
-        if cached and current_time - cached["time"] <= self.cache_duration:
-            return cached["jwks"]
-
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(jwks_url)
-                response.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Failed to fetch JWKS from {jwks_url}: {e.response.status_code}")
-            raise HTTPException(status_code=500, detail=f"Could not fetch JWKS (status {e.response.status_code})")
-        except Exception as e:
-            logger.error(f"Failed to fetch JWKS: {e}")
-            raise HTTPException(status_code=500, detail="Could not fetch JWKS")
-
-        jwks_data = response.json()
-        self.jwks_cache[jwks_url] = {"jwks": jwks_data, "time": current_time}
-        return jwks_data
-
     def _decode_app_token(self, token: str) -> Dict[str, Any]:
         if not self.app_jwt_secret:
             raise HTTPException(status_code=500, detail="APP_JWT_SECRET is not configured")
@@ -82,48 +54,15 @@ class AuthMiddleware:
         payload["provider"] = payload.get("provider") or "app"
         return payload
 
-    async def _decode_clerk_token(self, token: str, token_claims: Dict[str, Any]) -> Dict[str, Any]:
-        issuer = (self.clerk_issuer or token_claims.get("iss") or "").rstrip("/")
-        if not issuer:
-            logger.error("Missing or invalid issuer in token")
-            raise HTTPException(status_code=401, detail="Token issuer (iss) is missing")
-
-        jwks_url = self.clerk_jwks_url or f"{issuer}/.well-known/jwks.json"
-        audience = self.clerk_audience
-
-        header = jwt.get_unverified_header(token)
-        kid = header.get("kid")
-        if not kid:
-            logger.error("Token header missing kid")
-            raise HTTPException(status_code=401, detail="Token header missing kid")
-
-        jwks = await self._fetch_jwks(jwks_url)
-        key = next((jwk for jwk in jwks.get("keys", []) if jwk.get("kid") == kid), None)
-        if not key:
-            logger.error(f"Token signing key not found for kid: {kid}")
-            raise HTTPException(status_code=401, detail="Token signing key not found")
-
-        decode_kwargs: Dict[str, Any] = {
-            "algorithms": [ALGORITHMS.RS256],
-            "issuer": issuer,
-        }
-        if audience is not None:
-            decode_kwargs["audience"] = audience
-
-        payload = jwt.decode(token, key, **decode_kwargs)
-        payload["provider"] = payload.get("provider") or "clerk"
-        return payload
-
     async def verify_token(self, request: Request) -> Dict[str, Any]:
         token = self._get_auth_header_token(request)
 
         try:
             token_claims = self._get_unverified_claims(token)
-            if self._is_app_token(token_claims):
-                payload = self._decode_app_token(token)
-            else:
-                payload = await self._decode_clerk_token(token, token_claims)
+            if not self._is_app_token(token_claims):
+                raise HTTPException(status_code=401, detail="Only app-issued JWTs are accepted")
 
+            payload = self._decode_app_token(token)
             logger.info(f"Successfully verified token for user: {payload.get('sub')}")
             return payload
         except JWTError as e:

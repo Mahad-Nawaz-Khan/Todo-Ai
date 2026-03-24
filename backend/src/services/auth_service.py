@@ -59,25 +59,6 @@ class AuthService:
         statement = select(AuthIdentity).where(AuthIdentity.email == email)
         return db_session.exec(statement).first()
 
-    def _seed_legacy_clerk_identity(self, user: User, db_session: Session) -> AuthIdentity:
-        existing = self._get_identity_by_subject("clerk", user.clerk_user_id, db_session)
-        if existing:
-            return existing
-
-        identity = AuthIdentity(
-            user_id=user.id,
-            provider="clerk",
-            provider_subject=user.clerk_user_id,
-            email=None,
-            email_verified=False,
-            first_name=None,
-            last_name=None,
-        )
-        db_session.add(identity)
-        db_session.commit()
-        db_session.refresh(identity)
-        return identity
-
     def _update_identity_profile(self, identity: AuthIdentity, claims: Dict[str, Any], db_session: Session) -> AuthIdentity:
         changed = False
 
@@ -141,14 +122,6 @@ class AuthService:
             security_logger.info(f"User authenticated: {claims['provider']}:{claims['sub']}")
             return user
 
-        if claims["provider"] == "clerk":
-            legacy_user = self.get_user_by_clerk_id(claims["sub"], db_session)
-            if legacy_user:
-                identity = self._seed_legacy_clerk_identity(legacy_user, db_session)
-                self._update_identity_profile(identity, claims, db_session)
-                security_logger.info(f"Legacy Clerk user authenticated: {claims['sub']}")
-                return legacy_user
-
         email = claims.get("email")
         if email and claims.get("email_verified"):
             matching_identity = self._get_identity_by_email(email, db_session)
@@ -160,8 +133,9 @@ class AuthService:
                 security_logger.info(f"Linked auth identity for existing user: {claims['provider']}:{claims['sub']}")
                 return user
 
+        external_user_id = f'{claims["provider"]}:{claims["sub"]}'
         user = User(
-            clerk_user_id=claims["sub"] if claims["provider"] == "clerk" else None,
+            clerk_user_id=external_user_id,
         )
         db_session.add(user)
         db_session.commit()
@@ -170,10 +144,6 @@ class AuthService:
         self._link_identity(user, claims, db_session)
         security_logger.info(f"New user created: {claims['provider']}:{claims['sub']}")
         return user
-
-    async def get_or_create_user_from_clerk_payload(self, clerk_payload: Dict[str, Any], db_session: Session) -> User:
-        normalized_payload = {**clerk_payload, "provider": clerk_payload.get("provider") or "clerk"}
-        return await self.get_or_create_user_from_auth_payload(normalized_payload, db_session)
 
     def get_current_user_id(self, auth_payload: Dict[str, Any]) -> str:
         claims = self.normalize_claims(auth_payload)
@@ -194,29 +164,11 @@ class AuthService:
             security_logger.error(f"Error accessing user data for ID {user_id}: {str(e)}")
             raise
 
-    def get_user_by_clerk_id(self, clerk_user_id: str, db_session: Session) -> Optional[User]:
-        try:
-            statement = select(User).where(User.clerk_user_id == clerk_user_id)
-            user = db_session.exec(statement).first()
-
-            if user:
-                security_logger.info(f"User data accessed: {user.clerk_user_id}")
-            else:
-                security_logger.warning(f"Attempt to access non-existent Clerk user ID: {clerk_user_id}")
-
-            return user
-        except Exception as e:
-            security_logger.error(f"Error accessing user data for Clerk user ID {clerk_user_id}: {str(e)}")
-            raise
-
     def get_user_by_auth_payload(self, auth_payload: Dict[str, Any], db_session: Session) -> Optional[User]:
         claims = self.normalize_claims(auth_payload)
         identity = self._get_identity_by_subject(claims["provider"], claims["sub"], db_session)
         if identity:
             return self.get_user_by_id(identity.user_id, db_session)
-
-        if claims["provider"] == "clerk":
-            return self.get_user_by_clerk_id(claims["sub"], db_session)
 
         email = claims.get("email")
         if email and claims.get("email_verified"):

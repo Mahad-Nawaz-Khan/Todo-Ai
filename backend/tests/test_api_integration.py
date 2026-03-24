@@ -39,10 +39,10 @@ def test_root_endpoint(client):
 
 
 def test_create_task_endpoint(client, mock_session):
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123"}
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123", "provider": "google"}
     app.dependency_overrides[get_session] = lambda: mock_session
 
-    mock_user = User(id=1, clerk_user_id="test_user_123", created_at=datetime.utcnow())
+    mock_user = User(id=1, clerk_user_id="google:test_user_123", created_at=datetime.utcnow())
     mock_session.exec.return_value.all.return_value = []
     mock_session.refresh = MagicMock(side_effect=lambda obj: setattr(obj, "id", 1) if hasattr(obj, "title") else None)
 
@@ -63,10 +63,10 @@ def test_create_task_endpoint(client, mock_session):
 
 
 def test_get_tasks_endpoint(client, mock_session):
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123"}
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123", "provider": "google"}
     app.dependency_overrides[get_session] = lambda: mock_session
 
-    mock_user = User(id=1, clerk_user_id="test_user_123", created_at=datetime.utcnow())
+    mock_user = User(id=1, clerk_user_id="google:test_user_123", created_at=datetime.utcnow())
     mock_tasks = [
         Task(
             id=1,
@@ -92,10 +92,10 @@ def test_get_tasks_endpoint(client, mock_session):
 
 
 def test_update_task_endpoint(client, mock_session):
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123"}
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123", "provider": "google"}
     app.dependency_overrides[get_session] = lambda: mock_session
 
-    mock_user = User(id=1, clerk_user_id="test_user_123", created_at=datetime.utcnow())
+    mock_user = User(id=1, clerk_user_id="google:test_user_123", created_at=datetime.utcnow())
     mock_task = Task(
         id=1,
         title="Original Task",
@@ -124,10 +124,10 @@ def test_update_task_endpoint(client, mock_session):
 
 
 def test_delete_task_endpoint(client, mock_session):
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123"}
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123", "provider": "google"}
     app.dependency_overrides[get_session] = lambda: mock_session
 
-    mock_user = User(id=1, clerk_user_id="test_user_123", created_at=datetime.utcnow())
+    mock_user = User(id=1, clerk_user_id="google:test_user_123", created_at=datetime.utcnow())
     mock_task = Task(
         id=1,
         title="Task to Delete",
@@ -151,14 +151,14 @@ def test_delete_task_endpoint(client, mock_session):
 
 
 def test_get_current_user_info_endpoint(client, mock_session):
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123", "provider": "clerk", "email": "test@example.com"}
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123", "provider": "google", "email": "test@example.com"}
     app.dependency_overrides[get_session] = lambda: mock_session
 
-    mock_user = User(id=1, clerk_user_id="test_user_123", created_at=datetime.utcnow())
+    mock_user = User(id=1, clerk_user_id="google:test_user_123", created_at=datetime.utcnow())
     mock_identity = AuthIdentity(
         id=1,
         user_id=1,
-        provider="clerk",
+        provider="google",
         provider_subject="test_user_123",
         email="test@example.com",
         email_verified=True,
@@ -174,15 +174,15 @@ def test_get_current_user_info_endpoint(client, mock_session):
     app.dependency_overrides.clear()
     assert response.status_code == 200
     assert response.json()["auth_subject"] == "test_user_123"
-    assert response.json()["provider"] == "clerk"
+    assert response.json()["provider"] == "google"
     assert response.json()["email"] == "test@example.com"
 
 
 def test_create_tag_endpoint(client, mock_session):
-    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123"}
+    app.dependency_overrides[get_current_user] = lambda: {"sub": "test_user_123", "provider": "google"}
     app.dependency_overrides[get_session] = lambda: mock_session
 
-    mock_user = User(id=1, clerk_user_id="test_user_123", created_at=datetime.utcnow())
+    mock_user = User(id=1, clerk_user_id="google:test_user_123", created_at=datetime.utcnow())
     mock_session.exec.return_value.first.return_value = None
     mock_session.refresh = MagicMock(side_effect=lambda obj: setattr(obj, "id", 1) if hasattr(obj, "name") else None)
 

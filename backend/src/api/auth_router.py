@@ -20,9 +20,6 @@ async def auth_debug(request: Request):
     from ..services.agent_service import agent_service
 
     return {
-        "clerk_issuer": os.getenv("CLERK_ISSUER", "NOT SET"),
-        "clerk_jwks_url": os.getenv("CLERK_JWKS_URL", "NOT SET"),
-        "clerk_audience": os.getenv("CLERK_JWT_AUDIENCE", "NOT SET (optional)"),
         "app_jwt_issuer": os.getenv("APP_JWT_ISSUER", "todo-ai-auth"),
         "app_jwt_audience": os.getenv("APP_JWT_AUDIENCE", "NOT SET (optional)"),
         "app_jwt_secret_set": bool(os.getenv("APP_JWT_SECRET")),

@@ -54,7 +54,7 @@ class TestAuthService:
         matching_identity = AuthIdentity(
             id=11,
             user_id=2,
-            provider="clerk",
+            provider="github",
             provider_subject="legacy_user",
             email="linked@example.com",
             email_verified=True,
@@ -120,6 +120,7 @@ class TestAuthService:
         )
 
         assert result.id == 3
+        assert result.clerk_user_id == "github:github|xyz"
         assert self.mock_session.add.call_count >= 2
 
     def test_get_current_user_id_success(self):
