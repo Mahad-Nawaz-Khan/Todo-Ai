@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
+import { AuthProvider } from "@/context/AuthContext";
+
+import type { ReactNode } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,20 +17,18 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "TODO-APP",
-  description: "A simple TODO application with Clerk authentication",
+  description: "A simple TODO application with Passport authentication",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

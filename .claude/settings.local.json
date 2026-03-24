@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest \"F:/MADOO/Emaan/3rd Semester/Artificial Intelligence/Todo-Ai/backend/tests/test_auth_service.py\")",
+      "Bash(python -m pytest \"F:/MADOO/Emaan/3rd Semester/Artificial Intelligence/Todo-Ai/backend/tests/test_api_integration.py\")",
+      "Bash(python -m pytest backend/tests/test_api_integration.py)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(git -C \"f:/MADOO/Emaan/3rd Semester/Artificial Intelligence/Todo-Ai/.claude/worktrees/agent-a17a32d8\" status --short --untracked-files=normal)",
+      "Bash(git -C \"f:/MADOO/Emaan/3rd Semester/Artificial Intelligence/Todo-Ai/.claude/worktrees/agent-a17a32d8\" diff -- frontend/package.json backend/requirements-dev.txt backend/requirements.txt backend/tests/test_api_integration.py backend/tests/test_auth_service.py backend/tests/test_streaming_chat.py frontend/src/__tests__/TaskItem.test.jsx frontend/src/__tests__/chatService.test.ts)"
+    ]
+  }
+}

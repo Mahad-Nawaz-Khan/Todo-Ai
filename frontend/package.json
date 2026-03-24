@@ -10,16 +10,24 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.36.5",
-    "@clerk/types": "^4.101.9",
+    "cookie": "^1.0.2",
+    "jsonwebtoken": "^9.0.2",
     "next": "^16.1.6",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "passport-google-oauth20": "^2.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/cookie": "^0.6.0",
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20",
+    "@types/passport": "^1.0.17",
+    "@types/passport-github2": "^1.2.9",
+    "@types/passport-google-oauth20": "^2.0.16",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

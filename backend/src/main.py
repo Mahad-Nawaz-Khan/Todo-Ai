@@ -5,7 +5,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import SQLModel
+
+from .database import DATABASE_URL, engine
 from contextlib import asynccontextmanager
 import logging
 import os
@@ -15,28 +17,6 @@ load_dotenv(override=True)
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
-
-# Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./todo_ai.db")
-
-# Normalize Postgres URLs to a driver we actually ship (psycopg v3)
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
-elif DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
-
-# Create database engine
-sql_echo_env = os.getenv("SQL_ECHO")
-if sql_echo_env is None:
-    sql_echo = DATABASE_URL.startswith("sqlite")
-else:
-    sql_echo = sql_echo_env.strip().lower() in {"1", "true", "yes", "on"}
-
-connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-
-engine = create_engine(DATABASE_URL, echo=sql_echo, pool_pre_ping=True, connect_args=connect_args)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -87,7 +67,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TODO API",
-    description="API for the TODO application with Clerk authentication",
+    description="API for the TODO application with JWT-based authentication",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -192,7 +172,7 @@ def detailed_health_check():
             },
             "authentication": {
                 "status": "enabled",
-                "provider": "Clerk"
+                "provider": "JWT"
             }
         },
         "system": {

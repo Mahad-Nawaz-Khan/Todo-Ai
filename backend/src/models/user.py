@@ -4,23 +4,24 @@ from typing import Optional, TYPE_CHECKING, List
 from sqlalchemy import Index
 
 if TYPE_CHECKING:
+    from .auth_identity import AuthIdentity
     from .task import Task
     from .tag import Tag
 
 
 class UserBase(SQLModel):
-    clerk_user_id: str = Field(unique=True, nullable=False)
+    clerk_user_id: Optional[str] = Field(default=None, unique=True, nullable=True)
 
 
 class User(UserBase, table=True):
     __table_args__ = (
-        Index("idx_user_clerk_id", "clerk_user_id"),  # Index for Clerk user ID lookups
+        Index("idx_user_clerk_id", "clerk_user_id"),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    clerk_user_id: str = Field(unique=True, nullable=False, index=True)  # Index for clerk_user_id
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)  # Index for created_at
-    
-    # Relationships
+    clerk_user_id: Optional[str] = Field(default=None, unique=True, nullable=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
     tasks: List["Task"] = Relationship(back_populates="user")
     tags: List["Tag"] = Relationship(back_populates="user")
+    auth_identities: List["AuthIdentity"] = Relationship(back_populates="user")

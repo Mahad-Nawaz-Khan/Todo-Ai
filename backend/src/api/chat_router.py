@@ -92,8 +92,7 @@ async def send_chat_message(
     and perform appropriate actions (create/update/delete/search tasks).
     """
     try:
-        # Get or create user from Clerk payload
-        user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+        user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
         user_id = user.id
 
         # Generate session ID if not provided
@@ -354,8 +353,7 @@ async def get_chat_history(
     Get chat history for a session.
     """
     try:
-        # Get or create user from Clerk payload
-        user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+        user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
         user_id = user.id
 
         # Use provided session_id or generate default
@@ -391,8 +389,7 @@ async def clear_chat_history(
     Clear chat history for a session.
     """
     try:
-        # Get or create user from Clerk payload
-        user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+        user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
         user_id = user.id
 
         # Use provided session_id or generate default

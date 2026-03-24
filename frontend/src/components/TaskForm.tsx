@@ -1,22 +1,29 @@
 "use client";
 
 import { useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+
+import { useAuth } from '@/context/AuthContext';
+import type { Priority, RecurrenceInput, Task, TaskUpsertPayload } from '@/types/task';
+
 import TagSelector from './TagSelector';
 
-export const TaskForm = ({ onTaskCreated }) => {
+interface TaskFormProps {
+  onTaskCreated?: (newTask: Task) => void;
+}
+
+export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('MEDIUM');
+  const [priority, setPriority] = useState<Priority>('MEDIUM');
   const [dueDate, setDueDate] = useState('');
-  const [recurrenceRule, setRecurrenceRule] = useState('');
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceInput>('');
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!title.trim()) {
@@ -27,32 +34,32 @@ export const TaskForm = ({ onTaskCreated }) => {
     setLoading(true);
     setError(null);
 
+    const payload: TaskUpsertPayload = {
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      due_date: dueDate || null,
+      recurrence_rule: recurrenceRule || null,
+      tag_ids: selectedTags,
+    };
+
     try {
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          priority,
-          due_date: dueDate || null,
-          recurrence_rule: recurrenceRule || null,
-          tag_ids: selectedTags
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as { detail?: string };
         throw new Error(errorData.detail || `Failed to create task: ${response.status}`);
       }
 
-      const newTask = await response.json();
-
-      // Reset form
+      const newTask = (await response.json()) as Task;
       setTitle('');
       setDescription('');
       setPriority('MEDIUM');
@@ -61,12 +68,9 @@ export const TaskForm = ({ onTaskCreated }) => {
       setSelectedTags([]);
       setIsOpen(false);
 
-      // Notify parent component
-      if (onTaskCreated) {
-        onTaskCreated(newTask);
-      }
+      onTaskCreated?.(newTask);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Failed to create task');
     } finally {
       setLoading(false);
     }
@@ -97,7 +101,9 @@ export const TaskForm = ({ onTaskCreated }) => {
       {!isOpen ? null : (
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-white/80">Title *</label>
+            <label htmlFor="title" className="block text-sm font-medium text-white/80">
+              Title *
+            </label>
             <input
               type="text"
               id="title"
@@ -109,33 +115,45 @@ export const TaskForm = ({ onTaskCreated }) => {
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-white/80">Description</label>
+            <label htmlFor="description" className="block text-sm font-medium text-white/80">
+              Description
+            </label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-              rows="3"
+              rows={3}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="priority" className="block text-sm font-medium text-white/80">Priority</label>
+              <label htmlFor="priority" className="block text-sm font-medium text-white/80">
+                Priority
+              </label>
               <select
                 id="priority"
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
+                onChange={(e) => setPriority(e.target.value as Priority)}
                 className="mt-1 w-full cursor-pointer rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/40 hover:bg-white/15"
               >
-                <option value="LOW" className="bg-slate-950 text-white">Low</option>
-                <option value="MEDIUM" className="bg-slate-950 text-white">Medium</option>
-                <option value="HIGH" className="bg-slate-950 text-white">High</option>
+                <option value="LOW" className="bg-slate-950 text-white">
+                  Low
+                </option>
+                <option value="MEDIUM" className="bg-slate-950 text-white">
+                  Medium
+                </option>
+                <option value="HIGH" className="bg-slate-950 text-white">
+                  High
+                </option>
               </select>
             </div>
 
             <div>
-              <label htmlFor="dueDate" className="block text-sm font-medium text-white/80">Due Date</label>
+              <label htmlFor="dueDate" className="block text-sm font-medium text-white/80">
+                Due Date
+              </label>
               <input
                 type="date"
                 id="dueDate"
@@ -147,26 +165,33 @@ export const TaskForm = ({ onTaskCreated }) => {
           </div>
 
           <div>
-            <label htmlFor="recurrenceRule" className="block text-sm font-medium text-white/80">Recurrence</label>
+            <label htmlFor="recurrenceRule" className="block text-sm font-medium text-white/80">
+              Recurrence
+            </label>
             <select
               id="recurrenceRule"
               value={recurrenceRule}
-              onChange={(e) => setRecurrenceRule(e.target.value)}
+              onChange={(e) => setRecurrenceRule(e.target.value as RecurrenceInput)}
               className="mt-1 w-full cursor-pointer rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/40 hover:bg-white/15"
             >
-              <option value="" className="bg-slate-950 text-white">No recurrence</option>
-              <option value="DAILY" className="bg-slate-950 text-white">Daily</option>
-              <option value="WEEKLY" className="bg-slate-950 text-white">Weekly</option>
-              <option value="MONTHLY" className="bg-slate-950 text-white">Monthly</option>
+              <option value="" className="bg-slate-950 text-white">
+                No recurrence
+              </option>
+              <option value="DAILY" className="bg-slate-950 text-white">
+                Daily
+              </option>
+              <option value="WEEKLY" className="bg-slate-950 text-white">
+                Weekly
+              </option>
+              <option value="MONTHLY" className="bg-slate-950 text-white">
+                Monthly
+              </option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-white/80">Tags</label>
-            <TagSelector
-              selectedTags={selectedTags}
-              onTagsChange={setSelectedTags}
-            />
+            <TagSelector selectedTags={selectedTags} onTagsChange={setSelectedTags} />
           </div>
 
           <button

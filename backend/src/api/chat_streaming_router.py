@@ -157,8 +157,7 @@ async def stream_chat_get(
     - session_id: The session identifier
     """
     try:
-        # Get or create user from Clerk payload
-        user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+        user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
         user_id = user.id
 
         # Get conversation history for context
@@ -237,8 +236,7 @@ async def send_chat_message_stream(
     ```
     """
     try:
-        # Get or create user from Clerk payload
-        user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+        user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
         user_id = user.id
 
         # Generate session ID if not provided

@@ -1,28 +1,22 @@
-/**
- * Test Suite for Chat Service Streaming Functionality
- */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import chatService from '@/services/chatService';
 
-// Mock Clerk authentication
-const mockToken = 'mock_jwt_token';
-Object.defineProperty(window, 'clerk', {
-  value: {
-    session: {
-      getToken: vi.fn().mockResolvedValue(mockToken),
-    },
-  },
-  writable: true,
-});
+type FetchMock = ReturnType<typeof vi.fn<typeof fetch>>;
+type ChatServiceInstance = {
+  getSessionId: () => string;
+};
 
-// Mock fetch
-global.fetch = vi.fn() as any;
+const mockToken = 'mock_jwt_token';
+const fetchMock = vi.fn<typeof fetch>();
+
+global.fetch = fetchMock as FetchMock;
 
 describe('ChatService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    chatService.setTokenGetter(vi.fn().mockResolvedValue(mockToken));
   });
 
   afterEach(() => {
@@ -41,21 +35,21 @@ describe('ChatService', () => {
         model_used: 'OpenAI Agents SDK (gpt-4o-mini)',
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => mockResponse,
-      });
+      } as Response);
 
       const result = await chatService.sendMessage('Hello');
 
       expect(result).toEqual(mockResponse);
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/chat/message'),
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${mockToken}`,
+            Authorization: `Bearer ${mockToken}`,
           }),
           body: expect.stringContaining('Hello'),
         })
@@ -63,18 +57,27 @@ describe('ChatService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: false,
         status: 500,
         json: async () => ({ detail: 'Internal Server Error' }),
-      });
+      } as Response);
 
-      await expect(chatService.sendMessage('Hello')).rejects.toThrow();
+      await expect(chatService.sendMessage('Hello')).rejects.toThrow('Internal Server Error');
     });
   });
 
   describe('sendMessageStream', () => {
     it('should return an AbortController to cancel the stream', () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: () => Promise.resolve({ done: true, value: undefined }),
+          }),
+        },
+      } as unknown as Response);
+
       const controller = chatService.sendMessageStream('Test message', {
         onContent: vi.fn(),
         onDone: vi.fn(),
@@ -87,35 +90,32 @@ describe('ChatService', () => {
     it('should call onContent callback for each content delta', async () => {
       const onContent = vi.fn();
       const onDone = vi.fn();
-
-      // Mock a streaming response
       const streamData = [
-        'event: content\ndata: {"content":"Hello "}\n\n',
-        'event: content\ndata: {"content":"there!"}\n\n',
-        'event: done\ndata: {"content":"Hello there!","message_id":"123"}\n\n',
+        'data: {"type":"content_delta","content":"Hello "}\n',
+        'data: {"type":"content_delta","content":"there!"}\n',
+        'data: {"type":"final","content":"Hello there!"}\n',
       ].join('');
 
-      (global.fetch as any).mockImplementationOnce(() => {
-        return Promise.resolve({
-          ok: true,
-          body: {
-            getReader: () => {
-              let done = false;
-              let index = 0;
-              return {
-                read: () => {
-                  if (done) return Promise.resolve({ done: true });
-                  done = true;
-                  return Promise.resolve({
-                    done: false,
-                    value: new TextEncoder().encode(streamData),
-                  });
-                },
-              };
-            },
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        body: {
+          getReader: () => {
+            let done = false;
+            return {
+              read: () => {
+                if (done) {
+                  return Promise.resolve({ done: true, value: undefined });
+                }
+                done = true;
+                return Promise.resolve({
+                  done: false,
+                  value: new TextEncoder().encode(streamData),
+                });
+              },
+            };
           },
-        });
-      });
+        },
+      } as unknown as Response);
 
       chatService.sendMessageStream('Hello', {
         onContent,
@@ -123,52 +123,15 @@ describe('ChatService', () => {
         onError: vi.fn(),
       });
 
-      // Wait a bit for async processing
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      expect(onContent).toHaveBeenCalled();
-    });
-
-    it('should call onDone callback when stream completes', async () => {
-      const onDone = vi.fn();
-
-      const streamData = [
-        'event: done\ndata: {"content":"Complete!","message_id":"123"}\n\n',
-      ].join('');
-
-      (global.fetch as any).mockImplementationOnce(() => {
-        return Promise.resolve({
-          ok: true,
-          body: {
-            getReader: () => {
-              let done = false;
-              return {
-                read: () => {
-                  if (done) return Promise.resolve({ done: true });
-                  done = true;
-                  return Promise.resolve({
-                    done: false,
-                    value: new TextEncoder().encode(streamData),
-                  });
-                },
-              };
-            },
-          },
-        });
-      });
-
-      chatService.sendMessageStream('Test', {
-        onContent: vi.fn(),
-        onDone,
-        onError: vi.fn(),
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
+      expect(onContent).toHaveBeenCalledTimes(2);
+      expect(onContent).toHaveBeenNthCalledWith(1, 'Hello ');
+      expect(onContent).toHaveBeenNthCalledWith(2, 'there!');
       expect(onDone).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.objectContaining({
-            content: 'Complete!',
+            content: 'Hello there!',
           }),
         })
       );
@@ -177,9 +140,7 @@ describe('ChatService', () => {
     it('should call onError callback on error', async () => {
       const onError = vi.fn();
 
-      (global.fetch as any).mockRejectedValueOnce(
-        new Error('Network error')
-      );
+      fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
       chatService.sendMessageStream('Test', {
         onContent: vi.fn(),
@@ -187,42 +148,39 @@ describe('ChatService', () => {
         onError,
       });
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(onError).toHaveBeenCalledWith('Network error');
     });
 
     it('should allow cancelling the stream with AbortController', async () => {
-      const onContent = vi.fn();
-
-      (global.fetch as any).mockImplementationOnce(() => {
-        return new Promise((resolve, reject) => {
-          // Never resolve to simulate a long-running request
-          setTimeout(() => resolve({
-            ok: true,
-            body: {
-              getReader: () => ({
-                read: () => new Promise(() => {}), // Never completes
-              }),
-            },
-          }), 10000);
-        });
-      });
+      fetchMock.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => {
+              resolve({
+                ok: true,
+                body: {
+                  getReader: () => ({
+                    read: () => new Promise(() => {}),
+                  }),
+                },
+              } as unknown as Response);
+            }, 10000);
+          })
+      );
 
       const controller = chatService.sendMessageStream('Test', {
-        onContent,
+        onContent: vi.fn(),
         onDone: vi.fn(),
         onError: vi.fn(),
       });
 
-      // Cancel immediately
       controller.abort();
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // Should have called fetch with the abort signal
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
         expect.objectContaining({
           signal: expect.any(AbortSignal),
         })
@@ -251,10 +209,10 @@ describe('ChatService', () => {
         session_id: 'session_123',
       };
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => mockHistory,
-      });
+      } as Response);
 
       const result = await chatService.getHistory();
 
@@ -268,15 +226,14 @@ describe('ChatService', () => {
     it('should clear chat history and generate new session ID', async () => {
       const oldSessionId = chatService.getSessionId();
 
-      (global.fetch as any).mockResolvedValueOnce({
+      fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ message: 'History cleared' }),
-      });
+      } as Response);
 
       await chatService.clearHistory();
 
       const newSessionId = chatService.getSessionId();
-
       expect(newSessionId).not.toBe(oldSessionId);
     });
   });
@@ -284,7 +241,6 @@ describe('ChatService', () => {
   describe('session management', () => {
     it('should persist session ID in localStorage', () => {
       const sessionId = chatService.getSessionId();
-
       expect(localStorage.getItem('chat_session_id')).toBe(sessionId);
     });
 
@@ -292,8 +248,7 @@ describe('ChatService', () => {
       const customSessionId = 'custom_session_123';
       localStorage.setItem('chat_session_id', customSessionId);
 
-      // Create new instance to test recovery
-      const ChatServiceClass = chatService.constructor as any;
+      const ChatServiceClass = chatService.constructor as new () => ChatServiceInstance;
       const newService = new ChatServiceClass();
 
       expect(newService.getSessionId()).toBe(customSessionId);
@@ -302,10 +257,7 @@ describe('ChatService', () => {
 
   describe('utility methods', () => {
     it('formatResponse should convert newlines to br', () => {
-      const input = 'Line 1\nLine 2\nLine 3';
-      const expected = 'Line 1<br>Line 2<br>Line 3';
-
-      expect(chatService.formatResponse(input)).toBe(expected);
+      expect(chatService.formatResponse('Line 1\nLine 2\nLine 3')).toBe('Line 1<br>Line 2<br>Line 3');
     });
 
     it('getOperationType should extract operation type', () => {

@@ -60,8 +60,7 @@ async def get_tasks(
     """
     Get all tasks for the authenticated user
     """
-    # Get or create user from Clerk payload
-    user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+    user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
     
     user_id = user.id
 
@@ -98,8 +97,7 @@ async def create_task(
     """
     Create a new task for the authenticated user
     """
-    # Get or create user from Clerk payload
-    user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+    user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
     
     user_id = user.id
 
@@ -128,8 +126,7 @@ async def get_task_by_id(
     """
     Get a specific task by ID for the authenticated user
     """
-    # Get or create user from Clerk payload
-    user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+    user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
     
     user_id = user.id
 
@@ -162,8 +159,7 @@ async def update_task(
     """
     Update a specific task by ID for the authenticated user
     """
-    # Get or create user from Clerk payload
-    user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+    user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
     
     user_id = user.id
 
@@ -199,8 +195,7 @@ async def delete_task(
     """
     Delete a specific task by ID for the authenticated user
     """
-    # Get or create user from Clerk payload
-    user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+    user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
     
     user_id = user.id
 
@@ -232,8 +227,7 @@ async def toggle_task_completion(
     """
     Toggle the completion status of a task for the authenticated user
     """
-    # Get or create user from Clerk payload
-    user = await auth_service.get_or_create_user_from_clerk_payload(current_user, db_session)
+    user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
     
     user_id = user.id
 

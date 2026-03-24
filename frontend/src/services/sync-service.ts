@@ -1,25 +1,41 @@
-// sync-service.js
-// Service to handle synchronization between offline storage and backend API
-
 import offlineStorage from './offline-storage';
 
+type SyncOperationType = 'create' | 'update' | 'delete';
+
+interface SyncOperation {
+  id?: number;
+  operation: SyncOperationType;
+  resource: string;
+  data?: unknown | null;
+  resourceId?: string | number | null;
+  timestamp: number;
+  createdAt?: string;
+}
+
+interface OfflineStorageApi {
+  getSyncOperations: () => Promise<SyncOperation[]>;
+  removeSyncOperation: (operationId: number | undefined) => Promise<unknown>;
+  addSyncOperation: (operation: Omit<SyncOperation, 'id' | 'createdAt'>) => Promise<unknown>;
+}
+
+interface TokenResponse {
+  accessToken?: string;
+}
+
 class SyncService {
-  constructor() {
-    this.syncInProgress = false;
-    this.syncInterval = null;
-    this.syncIntervalTime = 30000; // 30 seconds
-  }
+  private syncInProgress = false;
+  private syncInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly syncIntervalTime = 30000;
+  private readonly storage = offlineStorage as OfflineStorageApi;
 
   async startSyncService() {
-    // Start periodic sync
     this.syncInterval = setInterval(() => {
-      this.syncPendingOperations();
+      void this.syncPendingOperations();
     }, this.syncIntervalTime);
 
-    // Also sync when the page becomes visible again
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        this.syncPendingOperations();
+        void this.syncPendingOperations();
       }
     });
   }
@@ -41,16 +57,15 @@ class SyncService {
 
     try {
       console.log('Starting sync process...');
-      const operations = await offlineStorage.getSyncOperations();
+      const operations = await this.storage.getSyncOperations();
 
       for (const operation of operations) {
         try {
           await this.executeSyncOperation(operation);
-          await offlineStorage.removeSyncOperation(operation.id);
+          await this.storage.removeSyncOperation(operation.id);
           console.log(`Sync operation completed: ${operation.operation} for ${operation.resource}`);
         } catch (error) {
           console.error(`Failed to sync operation ${operation.id}:`, error);
-          // Optionally, implement retry logic or mark for manual sync
         }
       }
 
@@ -62,7 +77,7 @@ class SyncService {
     }
   }
 
-  async executeSyncOperation(operation) {
+  async executeSyncOperation(operation: SyncOperation) {
     const { operation: op, resource, data, resourceId } = operation;
 
     switch (op) {
@@ -77,12 +92,12 @@ class SyncService {
     }
   }
 
-  async createResource(resource, data) {
+  async createResource(resource: string, data: unknown) {
     const token = await this.getAuthToken();
     const response = await fetch(`/api/v1/${resource}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
@@ -92,16 +107,15 @@ class SyncService {
       throw new Error(`Failed to create ${resource}: ${response.status}`);
     }
 
-    const result = await response.json();
-    return result;
+    return response.json() as Promise<unknown>;
   }
 
-  async updateResource(resource, resourceId, data) {
+  async updateResource(resource: string, resourceId: string | number | null | undefined, data: unknown) {
     const token = await this.getAuthToken();
     const response = await fetch(`/api/v1/${resource}/${resourceId}`, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(data),
@@ -111,16 +125,15 @@ class SyncService {
       throw new Error(`Failed to update ${resource}: ${response.status}`);
     }
 
-    const result = await response.json();
-    return result;
+    return response.json() as Promise<unknown>;
   }
 
-  async deleteResource(resource, resourceId) {
+  async deleteResource(resource: string, resourceId: string | number | null | undefined) {
     const token = await this.getAuthToken();
     const response = await fetch(`/api/v1/${resource}/${resourceId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -132,32 +145,42 @@ class SyncService {
   }
 
   async getAuthToken() {
-    // This function should get the auth token from Clerk
-    // Since this is a service file, we'll need to access the Clerk context differently
-    // In a real implementation, this would need to be passed from the component
-    // For now, we'll return a placeholder that would be replaced with actual token retrieval
-    if (typeof window !== 'undefined' && window.Clerk) {
-      return await window.Clerk.session.getToken();
+    const response = await fetch('/api/auth/token', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error('Unable to retrieve auth token');
     }
-    // Fallback - in practice, you'd need to pass the token from the component
-    throw new Error('Unable to retrieve auth token');
+
+    const data = (await response.json()) as TokenResponse;
+    if (!data.accessToken) {
+      throw new Error('Unable to retrieve auth token');
+    }
+
+    return data.accessToken;
   }
 
-  async queueOperation(operation, resource, data = null, resourceId = null) {
-    const syncOperation = {
+  async queueOperation(
+    operation: SyncOperationType,
+    resource: string,
+    data: unknown = null,
+    resourceId: string | number | null = null
+  ) {
+    const syncOperation: Omit<SyncOperation, 'id' | 'createdAt'> = {
       operation,
       resource,
       data,
       resourceId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
-    await offlineStorage.addSyncOperation(syncOperation);
+    await this.storage.addSyncOperation(syncOperation);
     console.log(`Queued sync operation: ${operation} for ${resource}`);
   }
 }
 
-// Create a singleton instance
 const syncService = new SyncService();
 
 export default syncService;

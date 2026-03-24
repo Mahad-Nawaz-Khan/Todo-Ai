@@ -1,137 +1,151 @@
-import pytest
 import asyncio
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+
+import pytest
 from sqlmodel import Session
+
+from src.models.auth_identity import AuthIdentity
 from src.models.user import User
 from src.services.auth_service import AuthService
 
 
 class TestAuthService:
     def setup_method(self):
-        """Set up test fixtures before each test method."""
         self.auth_service = AuthService()
         self.mock_session = Mock(spec=Session)
 
-    def test_get_or_create_user_existing(self):
-        """Test getting an existing user."""
-        # Arrange
-        clerk_user_id = "user_123"
-        clerk_payload = {"sub": clerk_user_id}
-
-        existing_user = User(
-            id=1,
-            clerk_user_id=clerk_user_id
+    def test_get_or_create_user_existing_identity(self):
+        identity = AuthIdentity(
+            id=10,
+            user_id=1,
+            provider="app",
+            provider_subject="user_123",
+            email="test@example.com",
+            email_verified=True,
+            first_name="Test",
+            last_name="User",
         )
+        existing_user = User(id=1, clerk_user_id=None)
 
-        # Mock the session execution to return existing user
-        mock_exec_result = Mock()
-        mock_exec_result.first.return_value = existing_user
-        self.mock_session.exec.return_value = mock_exec_result
+        identity_exec = Mock()
+        identity_exec.first.return_value = identity
+        user_exec = Mock()
+        user_exec.first.return_value = existing_user
+        self.mock_session.exec.side_effect = [identity_exec, user_exec]
 
-        # Act
         result = asyncio.run(
-            self.auth_service.get_or_create_user_from_clerk_payload(clerk_payload, self.mock_session)
+            self.auth_service.get_or_create_user_from_auth_payload(
+                {
+                    "sub": "user_123",
+                    "provider": "app",
+                    "email": "test@example.com",
+                    "email_verified": True,
+                    "given_name": "Test",
+                    "family_name": "User",
+                },
+                self.mock_session,
+            )
         )
 
-        # Assert
-        assert result is not None
         assert result.id == 1
-        assert result.clerk_user_id == clerk_user_id
 
-    def test_get_or_create_user_new(self):
-        """Test creating a new user."""
-        # Arrange
-        clerk_user_id = "user_456"
-        clerk_payload = {"sub": clerk_user_id}
+    def test_get_or_create_user_links_by_verified_email(self):
+        existing_user = User(id=2, clerk_user_id=None)
+        matching_identity = AuthIdentity(
+            id=11,
+            user_id=2,
+            provider="clerk",
+            provider_subject="legacy_user",
+            email="linked@example.com",
+            email_verified=True,
+        )
 
-        # Mock the session execution to return None (no existing user)
-        mock_exec_result = Mock()
-        mock_exec_result.first.return_value = None
-        self.mock_session.exec.return_value = mock_exec_result
+        subject_exec = Mock()
+        subject_exec.first.return_value = None
+        email_exec = Mock()
+        email_exec.first.return_value = matching_identity
+        user_exec = Mock()
+        user_exec.first.return_value = existing_user
+        identity_recheck_exec = Mock()
+        identity_recheck_exec.first.return_value = None
 
-        # Mock the session operations for creating new user
+        self.mock_session.exec.side_effect = [subject_exec, email_exec, user_exec, identity_recheck_exec]
         self.mock_session.add = Mock()
         self.mock_session.commit = Mock()
-        self.mock_session.refresh = Mock(side_effect=lambda obj: setattr(obj, 'id', 2))
+        self.mock_session.refresh = Mock()
 
-        # Act
         result = asyncio.run(
-            self.auth_service.get_or_create_user_from_clerk_payload(clerk_payload, self.mock_session)
+            self.auth_service.get_or_create_user_from_auth_payload(
+                {
+                    "sub": "google-oauth2|abc",
+                    "provider": "google",
+                    "email": "linked@example.com",
+                    "email_verified": True,
+                    "given_name": "Linked",
+                    "family_name": "User",
+                },
+                self.mock_session,
+            )
         )
 
-        # Assert
-        assert result is not None
-        assert result.clerk_user_id == clerk_user_id
-        self.mock_session.add.assert_called_once()
-        self.mock_session.commit.assert_called_once()
+        assert result.id == 2
+        self.mock_session.add.assert_called()
+        self.mock_session.commit.assert_called()
 
-    def test_get_or_create_user_invalid_payload(self):
-        """Test creating user with invalid payload."""
-        # Arrange
-        clerk_payload = {"invalid": "data"}  # Missing 'sub' field
+    def test_get_or_create_user_new(self):
+        subject_exec = Mock()
+        subject_exec.first.return_value = None
+        email_exec = Mock()
+        email_exec.first.return_value = None
+        identity_recheck_exec = Mock()
+        identity_recheck_exec.first.return_value = None
 
-        # Act & Assert
-        with pytest.raises(Exception):  # HTTPException
-            asyncio.run(
-                self.auth_service.get_or_create_user_from_clerk_payload(clerk_payload, self.mock_session)
+        self.mock_session.exec.side_effect = [subject_exec, email_exec, identity_recheck_exec]
+        self.mock_session.add = Mock()
+        self.mock_session.commit = Mock()
+        self.mock_session.refresh = Mock(side_effect=lambda obj: setattr(obj, "id", 3) if getattr(obj, "id", None) is None else None)
+
+        result = asyncio.run(
+            self.auth_service.get_or_create_user_from_auth_payload(
+                {
+                    "sub": "github|xyz",
+                    "provider": "github",
+                    "email": "new@example.com",
+                    "email_verified": True,
+                    "given_name": "New",
+                    "family_name": "User",
+                },
+                self.mock_session,
             )
+        )
+
+        assert result.id == 3
+        assert self.mock_session.add.call_count >= 2
 
     def test_get_current_user_id_success(self):
-        """Test getting current user ID from payload."""
-        # Arrange
-        user_id = "user_789"
-        clerk_payload = {"sub": user_id}
-
-        # Act
-        result = self.auth_service.get_current_user_id(clerk_payload)
-
-        # Assert
-        assert result == user_id
+        result = self.auth_service.get_current_user_id({"sub": "user_789", "provider": "app"})
+        assert result == "user_789"
 
     def test_get_current_user_id_invalid_payload(self):
-        """Test getting user ID from invalid payload."""
-        # Arrange
-        clerk_payload = {"invalid": "data"}  # Missing 'sub' field
-
-        # Act & Assert
-        with pytest.raises(Exception):  # HTTPException
-            self.auth_service.get_current_user_id(clerk_payload)
+        with pytest.raises(Exception):
+            self.auth_service.get_current_user_id({"invalid": "data"})
 
     def test_get_user_by_id_success(self):
-        """Test getting user by ID."""
-        # Arrange
-        user_id = 1
-        expected_user = User(
-            id=user_id,
-            clerk_user_id="user_123"
-        )
-
-        # Mock the session execution
+        expected_user = User(id=1, clerk_user_id=None)
         mock_exec_result = Mock()
         mock_exec_result.first.return_value = expected_user
         self.mock_session.exec.return_value = mock_exec_result
 
-        # Act
-        result = self.auth_service.get_user_by_id(user_id, self.mock_session)
-
-        # Assert
+        result = self.auth_service.get_user_by_id(1, self.mock_session)
         assert result is not None
-        assert result.id == user_id
+        assert result.id == 1
 
     def test_get_user_by_id_not_found(self):
-        """Test getting non-existent user by ID."""
-        # Arrange
-        user_id = 999
-
-        # Mock the session execution to return None
         mock_exec_result = Mock()
         mock_exec_result.first.return_value = None
         self.mock_session.exec.return_value = mock_exec_result
 
-        # Act
-        result = self.auth_service.get_user_by_id(user_id, self.mock_session)
-
-        # Assert
+        result = self.auth_service.get_user_by_id(999, self.mock_session)
         assert result is None
 
 

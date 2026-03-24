@@ -1,20 +1,29 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+
+import { useAuth } from '@/context/AuthContext';
+import type { Priority, RecurrenceInput, Task, TaskUpsertPayload } from '@/types/task';
+
 import TagSelector from './TagSelector';
 
-export const TaskItem = ({ task, onUpdate, onDelete }) => {
+interface TaskItemProps {
+  task: Task;
+  onUpdate: (updatedTask: Task) => void;
+  onDelete: (deletedTaskId: number) => void;
+}
+
+export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDescription, setEditDescription] = useState(task.description || '');
-  const [editPriority, setEditPriority] = useState(task.priority || 'MEDIUM');
+  const [editPriority, setEditPriority] = useState<Priority>(task.priority || 'MEDIUM');
   const [editDueDate, setEditDueDate] = useState(task.due_date || '');
-  const [editRecurrenceRule, setEditRecurrenceRule] = useState(task.recurrence_rule || '');
-  const [editTags, setEditTags] = useState(task.tags ? task.tags.map(tag => tag.id) : []);
+  const [editRecurrenceRule, setEditRecurrenceRule] = useState<RecurrenceInput>(task.recurrence_rule || '');
+  const [editTags, setEditTags] = useState<number[]>(task.tags ? task.tags.map((tag) => tag.id) : []);
   const [optimisticCompleted, setOptimisticCompleted] = useState(task.completed);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
 
   useEffect(() => {
@@ -27,7 +36,6 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
     const previousCompleted = task.completed;
     const nextCompleted = !task.completed;
 
-    // Optimistic update
     setOptimisticCompleted(nextCompleted);
     onUpdate({
       ...task,
@@ -42,36 +50,34 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks/${task.id}/toggle-completion`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as { detail?: string };
         throw new Error(errorData.detail || `Failed to update task: ${response.status}`);
       }
 
-      const updatedTask = await response.json();
-      // Update with the server response (authoritative state)
-      setOptimisticCompleted(Boolean(updatedTask?.completed ?? previousCompleted));
+      const updatedTask = (await response.json()) as Task;
+      setOptimisticCompleted(Boolean(updatedTask.completed ?? previousCompleted));
       onUpdate(updatedTask);
     } catch (err) {
-      // Revert on error
       setOptimisticCompleted(previousCompleted);
       onUpdate({ ...task, completed: previousCompleted });
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Failed to update task');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdate = async (e) => {
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const payload = {
+    const payload: TaskUpsertPayload = {
       title: editTitle.trim(),
       description: editDescription.trim(),
       priority: editPriority,
@@ -88,7 +94,7 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
       priority: payload.priority,
       due_date: payload.due_date,
       recurrence_rule: payload.recurrence_rule,
-      tags: (task.tags || []).filter((tag) => payload.tag_ids?.includes(tag.id)),
+      tags: (task.tags || []).filter((tag) => payload.tag_ids.includes(tag.id)),
       updated_at: new Date().toISOString(),
     });
     setIsEditing(false);
@@ -98,23 +104,23 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks/${task.id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as { detail?: string };
         throw new Error(errorData.detail || `Failed to update task: ${response.status}`);
       }
 
-      const updatedTask = await response.json();
+      const updatedTask = (await response.json()) as Task;
       onUpdate(updatedTask);
     } catch (err) {
       onUpdate(previousTask);
       setIsEditing(true);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Failed to update task');
     } finally {
       setLoading(false);
     }
@@ -133,25 +139,27 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks/${task.id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as { detail?: string };
         throw new Error(errorData.detail || `Failed to delete task: ${response.status}`);
       }
 
       onDelete(task.id);
     } catch (err) {
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Failed to delete task');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) {
+      return '';
+    }
     return new Date(dateString).toLocaleDateString();
   };
 
@@ -178,7 +186,7 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
               className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-              rows="2"
+              rows={2}
             />
           </div>
 
@@ -187,12 +195,18 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
               <label className="block text-sm font-medium text-white/80">Priority</label>
               <select
                 value={editPriority}
-                onChange={(e) => setEditPriority(e.target.value)}
+                onChange={(e) => setEditPriority(e.target.value as Priority)}
                 className="mt-1 w-full cursor-pointer rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/40 hover:bg-white/15"
               >
-                <option value="LOW" className="bg-slate-950 text-white">Low</option>
-                <option value="MEDIUM" className="bg-slate-950 text-white">Medium</option>
-                <option value="HIGH" className="bg-slate-950 text-white">High</option>
+                <option value="LOW" className="bg-slate-950 text-white">
+                  Low
+                </option>
+                <option value="MEDIUM" className="bg-slate-950 text-white">
+                  Medium
+                </option>
+                <option value="HIGH" className="bg-slate-950 text-white">
+                  High
+                </option>
               </select>
             </div>
 
@@ -211,23 +225,27 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
             <label className="block text-sm font-medium text-white/80">Recurrence</label>
             <select
               value={editRecurrenceRule}
-              onChange={(e) => setEditRecurrenceRule(e.target.value)}
+              onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)}
               className="mt-1 w-full cursor-pointer rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/40 hover:bg-white/15"
             >
-              <option value="" className="bg-slate-950 text-white">No recurrence</option>
-              <option value="DAILY" className="bg-slate-950 text-white">Daily</option>
-              <option value="WEEKLY" className="bg-slate-950 text-white">Weekly</option>
-              <option value="MONTHLY" className="bg-slate-950 text-white">Monthly</option>
+              <option value="" className="bg-slate-950 text-white">
+                No recurrence
+              </option>
+              <option value="DAILY" className="bg-slate-950 text-white">
+                Daily
+              </option>
+              <option value="WEEKLY" className="bg-slate-950 text-white">
+                Weekly
+              </option>
+              <option value="MONTHLY" className="bg-slate-950 text-white">
+                Monthly
+              </option>
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-white/80">Tags</label>
-            <TagSelector
-              selectedTags={editTags}
-              onTagsChange={setEditTags}
-              taskId={task.id}
-            />
+            <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
           </div>
 
           <div className="flex space-x-2">
@@ -252,13 +270,17 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
   }
 
   return (
-    <div className={`rounded-2xl border p-5 shadow-lg ${optimisticCompleted ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'}`}>
+    <div
+      className={`rounded-2xl border p-5 shadow-lg ${
+        optimisticCompleted ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'
+      }`}
+    >
       {error && (
         <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-        Error: {error}
-      </div>
+          Error: {error}
+        </div>
       )}
-      <div className="flex justify-between items-start gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <input
             type="checkbox"
@@ -268,12 +290,10 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
             disabled={loading}
           />
           <div>
-            <h3 className={`text-base font-semibold ${optimisticCompleted ? 'line-through text-emerald-100/80' : 'text-white'}`}>{task.title}</h3>
-            {task.description && (
-              <div className="mt-1 text-sm text-white/70">
-                {task.description}
-              </div>
-            )}
+            <h3 className={`text-base font-semibold ${optimisticCompleted ? 'line-through text-emerald-100/80' : 'text-white'}`}>
+              {task.title}
+            </h3>
+            {task.description && <div className="mt-1 text-sm text-white/70">{task.description}</div>}
           </div>
         </div>
 
@@ -285,7 +305,7 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
               setEditPriority(task.priority || 'MEDIUM');
               setEditDueDate(task.due_date || '');
               setEditRecurrenceRule(task.recurrence_rule || '');
-              setEditTags(task.tags ? task.tags.map(tag => tag.id) : []);
+              setEditTags(task.tags ? task.tags.map((tag) => tag.id) : []);
               setIsEditing(true);
             }}
             className="text-sm font-medium text-blue-300 hover:text-blue-200"
@@ -303,7 +323,7 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-white/70">
+      <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-white/70 sm:grid-cols-2">
         <div>
           Priority: <span className="font-medium text-white">{task.priority}</span>
         </div>
@@ -321,11 +341,10 @@ export const TaskItem = ({ task, onUpdate, onDelete }) => {
           Created: <span className="font-medium text-white">{formatDate(task.created_at)}</span>
         </div>
 
-        {/* Display tags */}
         {task.tags && task.tags.length > 0 && (
-          <div className="sm:col-span-2 mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2 sm:col-span-2">
             <span className="text-xs font-medium text-white/60">Tags</span>
-            {task.tags.map(tag => (
+            {task.tags.map((tag) => (
               <span key={tag.id} className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-xs text-white/80">
                 {tag.name}
               </span>
