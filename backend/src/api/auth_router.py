@@ -1,10 +1,7 @@
-from pathlib import Path
 from typing import Any, Dict, Optional
-from urllib.parse import urlsplit
-from uuid import uuid4
 import os
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -17,9 +14,6 @@ from ..services.auth_service import auth_service
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1", tags=["auth"])
 
-MEDIA_ROOT = Path(__file__).resolve().parents[1] / "media"
-PROFILE_IMAGES_DIR = MEDIA_ROOT / "profile-images"
-PROFILE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
@@ -70,24 +64,8 @@ def _get_public_request_origin(request: Request) -> str:
     return str(request.base_url).rstrip("/")
 
 
-def _build_absolute_media_url(request: Request, stored_path: Optional[str]) -> Optional[str]:
-    if not stored_path:
-        return None
-    if stored_path.startswith("http://") or stored_path.startswith("https://"):
-        return stored_path
-    return f"{_get_public_request_origin(request)}{stored_path}"
-
-
-def _get_profile_image_file_path(stored_path: Optional[str]) -> Optional[Path]:
-    if not stored_path:
-        return None
-
-    path = urlsplit(stored_path).path
-    prefix = "/media/profile-images/"
-    if not path.startswith(prefix):
-        return None
-
-    return PROFILE_IMAGES_DIR / Path(path).name
+def _build_profile_image_url(request: Request, user_id: int) -> str:
+    return f"{_get_public_request_origin(request)}/api/v1/auth/profile-image/{user_id}"
 
 
 @router.get("/auth/me", response_model=UserResponse)
@@ -106,6 +84,8 @@ async def get_current_user_info(
     fallback_name = " ".join(part for part in [first_name, last_name] if part).strip() or None
     name = claims.get("name") or fallback_name
 
+    stored_profile_image_url = _build_profile_image_url(request, user.id) if getattr(user, "profile_image_data", None) else None
+
     return UserResponse(
         id=user.id,
         auth_subject=claims["sub"],
@@ -114,7 +94,25 @@ async def get_current_user_info(
         first_name=first_name,
         last_name=last_name,
         name=name,
-        profile_image_url=_build_absolute_media_url(request, getattr(user, "profile_image_url", None)) or claims.get("image_url"),
+        profile_image_url=stored_profile_image_url or claims.get("image_url"),
+    )
+
+
+@router.get("/auth/profile-image/{user_id}")
+@limiter.limit("60/minute")
+def get_profile_image(
+    user_id: int,
+    request: Request,
+    db_session: Session = Depends(get_session),
+):
+    user = auth_service.get_user_by_id(user_id, db_session)
+    if not user or not user.profile_image_data or not user.profile_image_content_type:
+        raise HTTPException(status_code=404, detail="Profile image not found")
+
+    return Response(
+        content=user.profile_image_data,
+        media_type=user.profile_image_content_type,
+        headers={"Cache-Control": "public, max-age=3600"},
     )
 
 
@@ -136,27 +134,14 @@ async def upload_profile_image(
         raise HTTPException(status_code=400, detail="Profile image must be 5 MB or smaller")
 
     user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
-    previous_file_path = _get_profile_image_file_path(user.profile_image_url)
+    user.profile_image_data = contents
+    user.profile_image_content_type = file.content_type
+    user.profile_image_url = f"/api/v1/auth/profile-image/{user.id}"
 
-    extension = ALLOWED_IMAGE_TYPES[file.content_type]
-    filename = f"user-{user.id}-{uuid4().hex}{extension}"
-    destination = PROFILE_IMAGES_DIR / filename
-    destination.write_bytes(contents)
-
-    user.profile_image_url = f"/media/profile-images/{filename}"
-
-    try:
-        db_session.add(user)
-        db_session.commit()
-        db_session.refresh(user)
-    except Exception:
-        if destination.exists():
-            destination.unlink()
-        raise
-
-    if previous_file_path and previous_file_path.exists() and previous_file_path != destination:
-        previous_file_path.unlink()
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
 
     return ProfileImageResponse(
-        profile_image_url=_build_absolute_media_url(request, user.profile_image_url) or ""
+        profile_image_url=_build_profile_image_url(request, user.id)
     )

@@ -85,12 +85,16 @@ function mergeSessionWithBackendUser(sessionUser: AuthUser, backendUser: Backend
     return sessionUser;
   }
 
+  const proxiedImageUrl = backendUser.profile_image_url
+    ? `/api/auth/profile-image?userId=${encodeURIComponent(String(backendUser.id))}`
+    : sessionUser.imageUrl;
+
   return mergeAuthUser(sessionUser, {
     email: backendUser.email ?? sessionUser.email,
     firstName: backendUser.first_name || sessionUser.firstName,
     lastName: backendUser.last_name || sessionUser.lastName,
     name: backendUser.name ?? sessionUser.name,
-    imageUrl: backendUser.profile_image_url ?? sessionUser.imageUrl,
+    imageUrl: proxiedImageUrl,
     provider: backendUser.provider || sessionUser.provider,
   });
 }

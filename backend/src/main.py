@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -20,8 +19,6 @@ load_dotenv(override=True)
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
-MEDIA_DIR = Path(__file__).resolve().parent / "media"
-MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
@@ -56,6 +53,8 @@ async def lifespan(app: FastAPI):
         from sqlalchemy import text
 
         conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR'))
+        conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS profile_image_data BYTEA'))
+        conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS profile_image_content_type VARCHAR'))
         conn.commit()
 
     # Initialize the OpenAI Agents SDK service
@@ -118,10 +117,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-if MEDIA_DIR.exists():
-    app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
-
 
 # Custom middleware to add cache headers
 @app.middleware("http")
