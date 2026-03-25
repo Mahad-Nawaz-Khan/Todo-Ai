@@ -47,24 +47,18 @@ async function fetchToken(): Promise<string | null> {
   return data.accessToken ?? null;
 }
 
-async function fetchBackendUser(token: string): Promise<BackendAuthUser | null> {
-  if (!process.env.NEXT_PUBLIC_API_URL) {
-    return null;
-  }
-
+async function fetchBackendUser(): Promise<BackendAuthUser | null> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 5000);
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
       cache: "no-store",
       signal: controller.signal,
     });
 
-    if (response.status === 401 || response.status === 404) {
+    if (response.status === 401 || response.status === 404 || response.status === 502) {
       return null;
     }
 
@@ -128,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const backendUser = await fetchBackendUser(token);
+      const backendUser = await fetchBackendUser();
       if (backendUser) {
         setUser((currentUser) => (currentUser ? mergeSessionWithBackendUser(currentUser, backendUser) : currentUser));
       }
