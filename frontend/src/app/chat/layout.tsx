@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 
+import ProfileMenu from "@/components/ProfileMenu";
 import { useAuth } from "@/context/AuthContext";
 
 export default function ChatLayout({
@@ -10,7 +10,7 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isSignedIn, isLoaded, signOut } = useAuth();
+  const { user, isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) {
     return (
@@ -32,34 +32,10 @@ export default function ChatLayout({
 
           {isSignedIn ? (
             <div className="flex items-center gap-3">
-              <Link
-                href="/profile"
-                className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-sm text-white/80"
-                aria-label="Profile"
-              >
-                {user?.imageUrl ? (
-                  <Image
-                    src={user.imageUrl}
-                    alt={user.name || user.email || "Profile"}
-                    width={44}
-                    height={44}
-                    className="h-full w-full object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="font-medium">{(user?.firstName || user?.name || user?.email || "U").charAt(0).toUpperCase()}</span>
-                )}
-              </Link>
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
                 {user?.firstName || user?.name || user?.email || "User"}
               </div>
-              <button
-                type="button"
-                onClick={signOut}
-                className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/15"
-              >
-                Sign out
-              </button>
+              <ProfileMenu />
             </div>
           ) : (
             <Link

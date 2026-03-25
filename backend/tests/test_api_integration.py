@@ -166,7 +166,7 @@ def test_get_current_user_info_endpoint(client, mock_session):
         last_name="User",
     )
 
-    with patch("src.api.auth_router.auth_service.get_user_by_auth_payload", return_value=mock_user), patch(
+    with patch("src.api.auth_router.auth_service.get_or_create_user_from_auth_payload", new=AsyncMock(return_value=mock_user)), patch(
         "src.api.auth_router.auth_service.get_identity_by_auth_payload", return_value=mock_identity
     ):
         response = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer fake_token"})

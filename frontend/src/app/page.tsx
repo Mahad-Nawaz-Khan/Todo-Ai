@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
 import ChatInterface from "../components/ChatInterface";
+import ProfileMenu from "../components/ProfileMenu";
 import TagList from "../components/TagList";
 import { TaskForm } from "../components/TaskForm";
 import { TaskList } from "../components/TaskList";
@@ -12,7 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { Task } from "@/types/task";
 
 export default function Dashboard() {
-  const { user, isSignedIn, isLoaded, signOut } = useAuth();
+  const { user, isSignedIn, isLoaded } = useAuth();
   const [createdTask, setCreatedTask] = useState<Task | null>(null);
 
   if (!isLoaded) {
@@ -125,27 +125,7 @@ export default function Dashboard() {
             <p className="mt-2 text-white/70">Manage your tasks below.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/profile"
-              className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-sm text-white/80"
-              aria-label="Profile"
-            >
-              {user?.imageUrl ? (
-                <Image
-                  src={user.imageUrl}
-                  alt={user.name || user.email || "Profile"}
-                  width={44}
-                  height={44}
-                  className="h-full w-full object-cover"
-                  unoptimized
-                />
-              ) : (
-                <span className="font-medium">{(user?.firstName || user?.name || user?.email || "U").charAt(0).toUpperCase()}</span>
-              )}
-            </Link>
-            <button type="button" onClick={signOut} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
-              Sign out
-            </button>
+            <ProfileMenu />
           </div>
         </header>
 

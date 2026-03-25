@@ -11,6 +11,14 @@ export interface AppUser {
   providerUserId: string;
 }
 
+export function mergeAuthUser(baseUser: AppUser, updates: Partial<AppUser>): AppUser {
+  return {
+    ...baseUser,
+    ...updates,
+    imageUrl: updates.imageUrl ?? baseUser.imageUrl,
+  };
+}
+
 export interface SessionPayload {
   user: AppUser;
   expiresAt: number;

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 class UserBase(SQLModel):
     clerk_user_id: Optional[str] = Field(default=None, unique=True, nullable=True)
+    profile_image_url: Optional[str] = Field(default=None, nullable=True)
 
 
 class User(UserBase, table=True):
@@ -20,6 +21,7 @@ class User(UserBase, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     clerk_user_id: Optional[str] = Field(default=None, unique=True, nullable=True, index=True)
+    profile_image_url: Optional[str] = Field(default=None, nullable=True)
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
     tasks: List["Task"] = Relationship(back_populates="user")

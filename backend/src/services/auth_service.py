@@ -38,6 +38,8 @@ class AuthService:
         last_name = auth_payload.get("family_name") or auth_payload.get("last_name")
         name = auth_payload.get("name")
 
+        image_url = auth_payload.get("image_url") or auth_payload.get("picture") or auth_payload.get("imageUrl")
+
         return {
             "sub": subject,
             "provider": str(provider),
@@ -46,6 +48,7 @@ class AuthService:
             "first_name": first_name,
             "last_name": last_name,
             "name": name,
+            "image_url": image_url,
         }
 
     def _get_identity_by_subject(self, provider: str, subject: str, db_session: Session) -> Optional[AuthIdentity]:
