@@ -48,36 +48,22 @@ async function fetchToken(): Promise<string | null> {
 }
 
 async function fetchBackendUser(token: string): Promise<BackendAuthUser | null> {
-  if (!process.env.NEXT_PUBLIC_API_URL) {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  if (response.status === 401 || response.status === 404) {
     return null;
   }
 
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 5000);
-
-  try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      cache: "no-store",
-      signal: controller.signal,
-    });
-
-    if (response.status === 401 || response.status === 404) {
-      return null;
-    }
-
-    if (!response.ok) {
-      throw new Error("Failed to load account profile");
-    }
-
-    return response.json();
-  } catch {
-    return null;
-  } finally {
-    window.clearTimeout(timeout);
+  if (!response.ok) {
+    throw new Error("Failed to load account profile");
   }
+
+  return response.json();
 }
 
 function mergeSessionWithBackendUser(sessionUser: AuthUser, backendUser: BackendAuthUser | null): AuthUser {
@@ -116,8 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setUser(session.user);
-
       const token = await fetchToken();
       if (!token) {
         setUser(null);
@@ -125,9 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const backendUser = await fetchBackendUser(token);
-      if (backendUser) {
-        setUser((currentUser) => (currentUser ? mergeSessionWithBackendUser(currentUser, backendUser) : currentUser));
-      }
+      setUser(mergeSessionWithBackendUser(session.user, backendUser));
     } catch {
       setUser(null);
     } finally {
