@@ -60,12 +60,22 @@ class ProfileImageResponse(BaseModel):
     profile_image_url: str
 
 
+def _get_public_request_origin(request: Request) -> str:
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    forwarded_host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+
+    if forwarded_proto and forwarded_host:
+        return f"{forwarded_proto}://{forwarded_host}".rstrip("/")
+
+    return str(request.base_url).rstrip("/")
+
+
 def _build_absolute_media_url(request: Request, stored_path: Optional[str]) -> Optional[str]:
     if not stored_path:
         return None
     if stored_path.startswith("http://") or stored_path.startswith("https://"):
         return stored_path
-    return f"{str(request.base_url).rstrip('/')}{stored_path}"
+    return f"{_get_public_request_origin(request)}{stored_path}"
 
 
 def _get_profile_image_file_path(stored_path: Optional[str]) -> Optional[Path]:
