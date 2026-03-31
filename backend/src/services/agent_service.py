@@ -1007,15 +1007,212 @@ class AgentService:
         self._initialized = False
         self._agent = None
         self._Runner = None
-        self._run_config = None
+        self._Agent = None
+        self._RunConfig = None
+        self._OpenAIChatCompletionsModel = None
+        self._AsyncOpenAI = None
+        self._provider_configs = []
         self._tools = []
 
-        # Z.ai API configuration (also supports GEMINI_API_KEY as fallback)
-        self._gemini_api_key = os.getenv("Z_AI_API_KEY") or os.getenv("GEMINI_API_KEY")
-        self._model_name = os.getenv("Z_AI_MODEL", "gpt-4o")
+        self._z_ai_api_key = os.getenv("Z_AI_API_KEY")
+        self._z_ai_model = os.getenv("Z_AI_MODEL", "glm-4.7-flash")
+        self._gemini_api_key = os.getenv("GEMINI_API_KEY")
+        self._gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+        self._last_provider_used = None
+
+    def _build_input_text(
+        self,
+        content: str,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
+        user_info: Optional[Dict[str, str]] = None,
+    ) -> str:
+        user_name = None
+        if user_info:
+            name = user_info.get("name") or user_info.get("first_name")
+            if name and name.lower() not in ("there", "friend"):
+                user_name = name
+
+        input_text = content
+        context_parts = []
+        if user_name:
+            context_parts.append(f"User's name: {user_name}")
+
+        if conversation_history and len(conversation_history) > 0:
+            history_parts = []
+            for msg in conversation_history[-5:]:
+                sender = "User" if msg.get("sender_type") == "USER" else "Assistant"
+                history_parts.append(f"{sender}: {msg.get('content', '')}")
+
+            if history_parts:
+                context_parts.append("Recent conversation:")
+                context_parts.extend(history_parts)
+
+        if context_parts:
+            input_text = "\n".join(context_parts) + f"\n\nCurrent message: {content}"
+
+        return input_text
+
+    def _is_retryable_provider_error(self, error: Exception) -> bool:
+        message = str(error).lower()
+        return any(token in message for token in [
+            "429",
+            "rate limit",
+            "quota",
+            "too many requests",
+            "timeout",
+            "temporarily unavailable",
+            "service unavailable",
+            "connection",
+        ])
+
+    def _has_any_provider_key(self) -> bool:
+        return bool(self._z_ai_api_key or self._gemini_api_key)
+
+    def _has_configured_providers(self) -> bool:
+        return len(self._provider_configs) > 0
+
+    def _configured_provider_names(self) -> str:
+        return ", ".join(provider["label"] for provider in self._provider_configs)
+
+    def _get_model_used_label(self, provider_label: str) -> str:
+        if provider_label == "Z.ai":
+            return "OpenAI Agents SDK (Z.ai)"
+        if provider_label == "Gemini":
+            return "OpenAI Agents SDK (Gemini)"
+        return f"OpenAI Agents SDK ({provider_label})"
+
+    def _get_unavailable_message(self) -> str:
+        return "I'm sorry, the AI service is not available right now. Please try again later."
+
+    def _get_all_providers_failed_message(self) -> str:
+        return "I'm sorry, all configured AI providers are temporarily unavailable. Please try again in a moment."
+
+    def _provider_unavailable_response(self) -> Dict[str, Any]:
+        return {
+            "success": False,
+            "error": "OpenAI Agents SDK not available",
+            "content": self._get_unavailable_message(),
+        }
+
+    def _provider_graceful_failure_response(self) -> Dict[str, Any]:
+        return {
+            "success": False,
+            "error": "All configured AI providers failed",
+            "content": self._get_all_providers_failed_message(),
+        }
+
+    def _provider_unavailable_stream_event(self) -> Dict[str, Any]:
+        return {
+            "type": "error",
+            "content": self._get_unavailable_message(),
+        }
+
+    def _provider_stream_error_event(self) -> Dict[str, Any]:
+        return {
+            "type": "error",
+            "content": self._get_all_providers_failed_message(),
+        }
+
+    def _provider_result_to_response(self, result, provider_label: str) -> Dict[str, Any]:
+        response_content = result.final_output if result.final_output else "I'm sorry, I couldn't process that request."
+        operation_performed = self._extract_operations(result)
+        return {
+            "success": True,
+            "content": response_content,
+            "operation_performed": operation_performed,
+            "model_used": self._get_model_used_label(provider_label),
+        }
+
+    def _provider_result_output_text(self, result) -> str:
+        return result.final_output if result.final_output else "I'm sorry, I couldn't process that request."
+
+    def _provider_result_to_stream_final(self, result, provider_label: str) -> Dict[str, Any]:
+        return {
+            "type": "final",
+            "content": self._provider_result_output_text(result),
+            "operation_performed": self._extract_operations(result),
+            "model_used": self._get_model_used_label(provider_label),
+        }
+
+    def _provider_stream_chunks(self, text: str):
+        chunk_size = 10
+        for i in range(0, len(text), chunk_size):
+            yield {
+                "type": "content_delta",
+                "content": text[i:i + chunk_size],
+            }
+
+    async def _run_with_provider_fallback(self, input_text: str):
+        if not self._has_configured_providers():
+            raise RuntimeError("No AI providers are configured")
+
+        last_error = None
+
+        for index, provider in enumerate(self._provider_configs):
+            try:
+                result = await self._Runner.run(
+                    self._agent,
+                    input=input_text,
+                    run_config=provider["run_config"],
+                )
+                self._last_provider_used = provider["label"]
+                return result, provider["label"]
+            except Exception as error:
+                last_error = error
+                provider_label = provider["label"]
+                is_last_provider = index == len(self._provider_configs) - 1
+                should_fallback = not is_last_provider
+
+                if should_fallback:
+                    logger.warning(f"Provider {provider_label} failed, trying next provider: {error}")
+                else:
+                    logger.error(f"Provider {provider_label} failed with no fallback remaining: {error}")
+
+        raise last_error or RuntimeError("All AI providers failed")
+
+    def _create_provider_configs(self):
+        self._provider_configs = []
+
+        if self._z_ai_api_key:
+            z_client = self._AsyncOpenAI(
+                api_key=self._z_ai_api_key,
+                base_url="https://api.z.ai/api/paas/v4/"
+            )
+            z_model = self._OpenAIChatCompletionsModel(
+                model=self._z_ai_model,
+                openai_client=z_client,
+            )
+            self._provider_configs.append({
+                "label": "Z.ai",
+                "run_config": self._RunConfig(
+                    model=z_model,
+                    model_provider=z_client,
+                    tracing_disabled=True,
+                ),
+            })
+
+        if self._gemini_api_key:
+            gemini_client = self._AsyncOpenAI(
+                api_key=self._gemini_api_key,
+                base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            )
+            gemini_model = self._OpenAIChatCompletionsModel(
+                model=self._gemini_model,
+                openai_client=gemini_client,
+            )
+            self._provider_configs.append({
+                "label": "Gemini",
+                "run_config": self._RunConfig(
+                    model=gemini_model,
+                    model_provider=gemini_client,
+                    tracing_disabled=True,
+                ),
+            })
+
+        return self._provider_configs
 
     def initialize(self):
-        """Initialize the OpenAI Agents SDK with Z.ai API."""
+        """Initialize the OpenAI Agents SDK with configured AI providers."""
         if self._initialized:
             return
 
@@ -1023,33 +1220,24 @@ class AgentService:
             from agents import Agent, Runner, RunConfig, OpenAIChatCompletionsModel, function_tool
             from openai import AsyncOpenAI
 
-            # Use Z.AI_API_KEY for Z.ai (fallback to GEMINI_API_KEY for backward compatibility)
-            api_key = os.getenv("Z_AI_API_KEY") or self._gemini_api_key
+            self._Agent = Agent
+            self._Runner = Runner
+            self._RunConfig = RunConfig
+            self._OpenAIChatCompletionsModel = OpenAIChatCompletionsModel
+            self._AsyncOpenAI = AsyncOpenAI
 
-            if not api_key:
-                logger.warning("Z_AI_API_KEY or GEMINI_API_KEY not found, OpenAI Agents SDK will not be available")
+            if not self._has_any_provider_key():
+                logger.warning("No AI provider keys found, OpenAI Agents SDK will not be available")
                 return
 
-            # Create external OpenAI client for Z.ai
-            external_client = AsyncOpenAI(
-                api_key=api_key,
-                base_url="https://api.z.ai/api/paas/v4/"
-            )
+            self._provider_configs = []
+            self._last_provider_used = None
+            self._create_provider_configs()
 
-            # Create the model wrapper (use gpt-4o or compatible model)
-            model = OpenAIChatCompletionsModel(
-                model=os.getenv("Z_AI_MODEL", "gpt-4o"),
-                openai_client=external_client
-            )
+            if not self._has_configured_providers():
+                logger.warning("No AI providers could be initialized")
+                return
 
-            # Create run config
-            self._run_config = RunConfig(
-                model=model,
-                model_provider=external_client,
-                tracing_disabled=True
-            )
-
-            # Decorate the implementation functions as tools
             create_task_tool = function_tool(agent_create_task)
             create_tag_tool = function_tool(agent_create_tag)
             update_task_tool = function_tool(agent_update_task)
@@ -1086,7 +1274,6 @@ class AgentService:
                 show_conversation_tool,
             ]
 
-            # Create the agent with tools
             self._agent = Agent(
                 name="TaskManager",
                 instructions=(
@@ -1121,18 +1308,17 @@ class AgentService:
                 tools=self._tools
             )
 
-            self._Runner = Runner
             self._initialized = True
-            logger.info("OpenAI Agents SDK initialized successfully with Z.ai API")
+            logger.info(f"OpenAI Agents SDK initialized successfully with providers: {self._configured_provider_names()}")
 
-        except ImportError as e:
-            logger.warning(f"OpenAI Agents SDK not available: {e}")
-        except Exception as e:
-            logger.error(f"Failed to initialize OpenAI Agents SDK: {e}")
+        except ImportError as error:
+            logger.warning(f"OpenAI Agents SDK not available: {error}")
+        except Exception as error:
+            logger.error(f"Failed to initialize OpenAI Agents SDK: {error}")
 
     def is_available(self) -> bool:
         """Check if the OpenAI Agents SDK is available and initialized."""
-        return self._initialized and self._agent is not None
+        return self._initialized and self._agent is not None and self._Runner is not None and self._has_configured_providers()
 
     async def process_message(
         self,
@@ -1156,70 +1342,19 @@ class AgentService:
             Dictionary with the response content and any operations performed
         """
         if not self.is_available():
-            return {
-                "success": False,
-                "error": "OpenAI Agents SDK not available",
-                "content": "I'm sorry, the AI service is not available right now. Please try again later."
-            }
+            return self._provider_unavailable_response()
 
         try:
-            # Set the tool context for this request
             _set_tool_context(db_session, user_id)
+            input_text = self._build_input_text(content, conversation_history, user_info)
+            result, provider_label = await self._run_with_provider_fallback(input_text)
 
-            # Get user name for personalization (only if we have a real name)
-            user_name = None
-            if user_info:
-                name = user_info.get("name") or user_info.get("first_name")
-                if name and name.lower() not in ("there", "friend"):
-                    user_name = name
+            logger.info(f"Agent processed message for user {user_id} with {provider_label}")
+            return self._provider_result_to_response(result, provider_label)
 
-            # Build the input with user context and conversation history
-            input_text = content
-
-            # Prepend context if available
-            context_parts = []
-            if user_name:
-                context_parts.append(f"User's name: {user_name}")
-
-            if conversation_history and len(conversation_history) > 0:
-                history_parts = []
-                for msg in conversation_history[-5:]:
-                    sender = "User" if msg.get("sender_type") == "USER" else "Assistant"
-                    history_parts.append(f"{sender}: {msg.get('content', '')}")
-
-                if history_parts:
-                    context_parts.append("Recent conversation:")
-                    context_parts.extend(history_parts)
-
-            if context_parts:
-                input_text = "\n".join(context_parts) + f"\n\nCurrent message: {content}"
-
-            # Run the agent
-            result = await self._Runner.run(
-                self._agent,
-                input=input_text,
-                run_config=self._run_config
-            )
-
-            response_content = result.final_output if result.final_output else "I'm sorry, I couldn't process that request."
-            operation_performed = self._extract_operations(result)
-
-            logger.info(f"Agent processed message for user {user_id}")
-
-            return {
-                "success": True,
-                "content": response_content,
-                "operation_performed": operation_performed,
-                "model_used": "OpenAI Agents SDK (Z.ai)"
-            }
-
-        except Exception as e:
-            logger.error(f"Error processing message with OpenAI Agents SDK: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "content": "I'm sorry, I encountered an error processing your request. Please try again."
-            }
+        except Exception as error:
+            logger.error(f"Error processing message with OpenAI Agents SDK: {error}")
+            return self._provider_graceful_failure_response()
         finally:
             _clear_tool_context()
 
@@ -1245,78 +1380,25 @@ class AgentService:
             Dictionary with streaming events
         """
         if not self.is_available():
-            yield {
-                "type": "error",
-                "content": "I'm sorry, the AI service is not available right now. Please try again later."
-            }
+            yield self._provider_unavailable_stream_event()
             return
 
         try:
             _set_tool_context(db_session, user_id)
+            input_text = self._build_input_text(content, conversation_history, user_info)
+            result, provider_label = await self._run_with_provider_fallback(input_text)
 
-            # Get user name for personalization (only if we have a real name)
-            user_name = None
-            if user_info:
-                name = user_info.get("name") or user_info.get("first_name")
-                if name and name.lower() not in ("there", "friend"):
-                    user_name = name
-
-            # Build the input with user context and conversation history
-            input_text = content
-
-            # Prepend context if available
-            context_parts = []
-            if user_name:
-                context_parts.append(f"User's name: {user_name}")
-
-            if conversation_history and len(conversation_history) > 0:
-                history_parts = []
-                for msg in conversation_history[-5:]:
-                    sender = "User" if msg.get("sender_type") == "USER" else "Assistant"
-                    history_parts.append(f"{sender}: {msg.get('content', '')}")
-
-                if history_parts:
-                    context_parts.append("Recent conversation:")
-                    context_parts.extend(history_parts)
-
-            if context_parts:
-                input_text = "\n".join(context_parts) + f"\n\nCurrent message: {content}"
-
-            result = await self._Runner.run(
-                self._agent,
-                input=input_text,
-                run_config=self._run_config
-            )
-
-            final_output = result.final_output if result.final_output else "I'm sorry, I couldn't process that request."
-
-            # Simulate streaming
-            chunk_size = 10
-            for i in range(0, len(final_output), chunk_size):
-                chunk = final_output[i:i + chunk_size]
-                yield {
-                    "type": "content_delta",
-                    "content": chunk
-                }
+            final_output = self._provider_result_output_text(result)
+            for chunk in self._provider_stream_chunks(final_output):
+                yield chunk
                 await asyncio.sleep(0.02)
 
-            operation_performed = self._extract_operations(result)
+            yield self._provider_result_to_stream_final(result, provider_label)
+            logger.info(f"Agent processed message (streamed) for user {user_id} with {provider_label}")
 
-            yield {
-                "type": "final",
-                "content": final_output,
-                "operation_performed": operation_performed,
-                "model_used": "OpenAI Agents SDK (Z.ai)"
-            }
-
-            logger.info(f"Agent processed message (streamed) for user {user_id}")
-
-        except Exception as e:
-            logger.error(f"Error processing message with OpenAI Agents SDK (streamed): {e}")
-            yield {
-                "type": "error",
-                "content": "I'm sorry, I encountered an error processing your request. Please try again."
-            }
+        except Exception as error:
+            logger.error(f"Error processing message with OpenAI Agents SDK (streamed): {error}")
+            yield self._provider_stream_error_event()
         finally:
             _clear_tool_context()
         

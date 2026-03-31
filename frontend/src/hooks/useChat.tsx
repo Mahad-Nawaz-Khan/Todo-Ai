@@ -157,14 +157,19 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
         });
       } else {
         const response = await chatService.sendMessage(text);
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: response.message.content,
-          sender: 'ai',
-          timestamp: new Date(response.message.created_at),
-        };
 
-        setMessages((prev) => [...prev, aiMessage]);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMessageId
+              ? {
+                  ...msg,
+                  text: response.message.content,
+                  timestamp: new Date(response.message.created_at),
+                  isStreaming: false,
+                }
+              : msg
+          )
+        );
 
         if (response.operation_performed) {
           setOperationPerformed(response.operation_performed);
