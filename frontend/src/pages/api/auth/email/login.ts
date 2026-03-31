@@ -30,10 +30,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify({ email, password }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      res.status(response.status).json(data);
+      const detail = typeof data?.detail === "string"
+        ? data.detail
+        : response.status === 401
+          ? "Invalid email or password"
+          : response.status === 400
+            ? "Please enter your email and password"
+            : "Could not sign you in";
+
+      res.status(response.status).json({ detail });
       return;
     }
 
@@ -49,6 +57,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     setSessionCookie(res, user);
     res.status(200).json({ success: true });
   } catch {
-    res.status(500).json({ detail: "Login failed" });
+    res.status(500).json({ detail: "Could not sign you in. Please try again." });
   }
 }

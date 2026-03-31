@@ -30,10 +30,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify({ email, password, first_name, last_name }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      res.status(response.status).json(data);
+      const detail = typeof data?.detail === "string"
+        ? data.detail
+        : response.status === 409
+          ? "User already exists"
+          : response.status === 400
+            ? "Please check your email and password"
+            : "Could not create your account";
+
+      res.status(response.status).json({ detail });
       return;
     }
 
@@ -49,6 +57,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     setSessionCookie(res, user);
     res.status(200).json({ success: true });
   } catch {
-    res.status(500).json({ detail: "Registration failed" });
+    res.status(500).json({ detail: "Could not create your account. Please try again." });
   }
 }

@@ -204,19 +204,20 @@ async def email_register(
     if existing_cred:
         raise HTTPException(status_code=409, detail="An account with this email already exists")
 
-    # Check if an AuthIdentity with this email already exists (OAuth user)
     from ..models.auth_identity import AuthIdentity
 
+    # Existing identity by email: block only if it belongs to OAuth or another provider.
     existing_identity = db_session.exec(select(AuthIdentity).where(AuthIdentity.email == email_lower)).first()
-    if existing_identity:
+    if existing_identity and existing_identity.provider != "email":
         raise HTTPException(status_code=409, detail="An account with this email already exists. Try signing in with Google or GitHub.")
 
-    # Create User
+    # Reuse partially-created user rows if a previous attempt failed mid-signup.
     external_user_id = f"email:{email_lower}"
-    user = User(clerk_user_id=external_user_id)
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+    user = db_session.exec(select(User).where(User.clerk_user_id == external_user_id)).first()
+    if not user:
+        user = User(clerk_user_id=external_user_id)
+        db_session.add(user)
+        db_session.flush()
 
     # Create Credential (bcrypt limits to 72 bytes)
     hashed = pwd_context.hash(body.password[:72])
@@ -226,19 +227,28 @@ async def email_register(
         hashed_password=hashed,
     )
     db_session.add(cred)
-    db_session.commit()
 
     # Create AuthIdentity (so the existing auth pipeline works)
-    identity = AuthIdentity(
-        user_id=user.id,
-        provider="email",
-        provider_subject=email_lower,
-        email=email_lower,
-        email_verified=False,
-        first_name=body.first_name,
-        last_name=body.last_name,
-    )
-    db_session.add(identity)
+    if existing_identity:
+        existing_identity.user_id = user.id
+        existing_identity.provider = "email"
+        existing_identity.provider_subject = email_lower
+        existing_identity.email = email_lower
+        existing_identity.email_verified = False
+        existing_identity.first_name = body.first_name
+        existing_identity.last_name = body.last_name
+        db_session.add(existing_identity)
+    else:
+        identity = AuthIdentity(
+            user_id=user.id,
+            provider="email",
+            provider_subject=email_lower,
+            email=email_lower,
+            email_verified=False,
+            first_name=body.first_name,
+            last_name=body.last_name,
+        )
+        db_session.add(identity)
     db_session.commit()
 
     logger.info(f"New email user registered: {email_lower}")
