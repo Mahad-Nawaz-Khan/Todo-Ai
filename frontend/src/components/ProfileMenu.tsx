@@ -18,11 +18,25 @@ function getProviderLabel(provider: string | null | undefined) {
   return provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
+function InitialsAvatar({
+  name,
+  email,
+  className,
+}: {
+  name: string | null | undefined;
+  email: string | null | undefined;
+  className?: string;
+}) {
+  const letter = getInitialsLabel(name, email);
+  return <span className={className}>{letter}</span>;
+}
+
 export default function ProfileMenu() {
   const { user, signOut, getToken, refreshSession } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [imgError, setImgError] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -30,6 +44,9 @@ export default function ProfileMenu() {
     if (!user) return "User";
     return user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "User";
   }, [user]);
+
+  // Reset image error state when the user changes (so new avatar URL gets a fresh attempt)
+  useEffect(() => setImgError(false), [user?.imageUrl]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -39,7 +56,6 @@ export default function ProfileMenu() {
         setIsOpen(false);
       }
     };
-
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsOpen(false);
@@ -48,7 +64,6 @@ export default function ProfileMenu() {
 
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleEscape);
-
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
@@ -90,6 +105,8 @@ export default function ProfileMenu() {
           throw new Error(data?.detail || "Failed to update profile photo");
         }
 
+        // Reset error state and force refetch
+        setImgError(false);
         await refreshSession();
       } catch (error) {
         setUploadError(error instanceof Error ? error.message : "Failed to update profile photo");
@@ -104,6 +121,8 @@ export default function ProfileMenu() {
     return null;
   }
 
+  const showImage = user.imageUrl && !imgError;
+
   return (
     <div className="relative" ref={containerRef}>
       <button
@@ -113,17 +132,22 @@ export default function ProfileMenu() {
         aria-label="Open account menu"
         aria-expanded={isOpen}
       >
-        {user.imageUrl ? (
+        {showImage ? (
           <Image
-            src={user.imageUrl}
+            src={user.imageUrl!}
             alt={displayName}
             width={44}
             height={44}
             className="h-full w-full object-cover"
             unoptimized
+            onError={() => setImgError(true)}
           />
         ) : (
-          <span className="font-medium">{getInitialsLabel(user.firstName || user.name, user.email)}</span>
+          <InitialsAvatar
+            name={user.firstName || user.name}
+            email={user.email}
+            className="h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-medium text-white/80"
+          />
         )}
       </button>
 
@@ -131,17 +155,22 @@ export default function ProfileMenu() {
         <div className="absolute right-0 z-50 mt-3 w-80 rounded-3xl border border-white/10 bg-slate-950/95 p-5 shadow-2xl backdrop-blur">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-lg font-semibold text-white">
-              {user.imageUrl ? (
+              {showImage ? (
                 <Image
-                  src={user.imageUrl}
+                  src={user.imageUrl!}
                   alt={displayName}
                   width={64}
                   height={64}
                   className="h-full w-full object-cover"
                   unoptimized
+                  onError={() => setImgError(true)}
                 />
               ) : (
-                <span>{getInitialsLabel(user.firstName || user.name, user.email)}</span>
+                <InitialsAvatar
+                  name={user.firstName || user.name}
+                  email={user.email}
+                  className="h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg font-semibold text-white"
+                />
               )}
             </div>
             <div className="min-w-0 flex-1">

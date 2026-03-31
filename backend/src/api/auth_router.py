@@ -100,7 +100,7 @@ async def get_current_user_info(
         first_name=first_name,
         last_name=last_name,
         name=name,
-        profile_image_url=stored_profile_image_url or claims.get("image_url"),
+        profile_image_url=stored_profile_image_url,
     )
 
 
