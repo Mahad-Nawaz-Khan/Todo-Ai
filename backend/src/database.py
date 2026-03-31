@@ -5,6 +5,7 @@ from sqlmodel import Session, create_engine
 
 from .models.user import User
 from .models.auth_identity import AuthIdentity
+from .models.credential import Credential
 from .models.task import Task
 from .models.tag import Tag
 from .models.task_tag import TaskTagLink

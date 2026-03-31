@@ -5,6 +5,7 @@ from sqlalchemy import Index
 
 if TYPE_CHECKING:
     from .auth_identity import AuthIdentity
+    from .credential import Credential
     from .task import Task
     from .tag import Tag
 
@@ -31,3 +32,4 @@ class User(UserBase, table=True):
     tasks: List["Task"] = Relationship(back_populates="user")
     tags: List["Tag"] = Relationship(back_populates="user")
     auth_identities: List["AuthIdentity"] = Relationship(back_populates="user")
+    credential: Optional["Credential"] = Relationship(back_populates="user")

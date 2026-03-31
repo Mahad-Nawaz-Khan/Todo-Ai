@@ -1,5 +1,6 @@
 from .user import User
 from .auth_identity import AuthIdentity
+from .credential import Credential
 from .task import Task
 from .tag import Tag
 from .task_tag import TaskTagLink
@@ -22,6 +23,7 @@ from .chat_models import (
 __all__ = [
     "User",
     "AuthIdentity",
+    "Credential",
     "Task",
     "Tag",
     "TaskTagLink",

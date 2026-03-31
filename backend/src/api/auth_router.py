@@ -1,15 +1,21 @@
 from typing import Any, Dict, Optional
+import logging
 import os
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
-from pydantic import BaseModel
+from passlib.context import CryptContext
+from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from ..database import get_session
 from ..middleware.auth import get_current_user
+from ..models.credential import Credential
+from ..models.user import User
 from ..services.auth_service import auth_service
+
+logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1", tags=["auth"])
@@ -145,3 +151,143 @@ async def upload_profile_image(
     return ProfileImageResponse(
         profile_image_url=_build_profile_image_url(request, user.id)
     )
+
+
+# ---------------------------------------------------------------------------
+# Email / password authentication
+# ---------------------------------------------------------------------------
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+MIN_PASSWORD_LENGTH = 8
+
+
+class EmailSignUpRequest(BaseModel):
+    email: str
+    password: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Invalid email address")
+        return v
+
+
+class EmailLoginRequest(BaseModel):
+    email: str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        return v.strip().lower()
+
+
+@router.post("/auth/email/register")
+@limiter.limit("5/minute")
+async def email_register(
+    request: Request,
+    body: EmailSignUpRequest,
+    db_session: Session = Depends(get_session),
+):
+    if len(body.password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+
+    email_lower = body.email.strip().lower()
+
+    # Check if credential already exists for this email
+    existing_cred = db_session.exec(select(Credential).where(Credential.email == email_lower)).first()
+    if existing_cred:
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+
+    # Check if an AuthIdentity with this email already exists (OAuth user)
+    from ..models.auth_identity import AuthIdentity
+
+    existing_identity = db_session.exec(select(AuthIdentity).where(AuthIdentity.email == email_lower)).first()
+    if existing_identity:
+        raise HTTPException(status_code=409, detail="An account with this email already exists. Try signing in with Google or GitHub.")
+
+    # Create User
+    external_user_id = f"email:{email_lower}"
+    user = User(clerk_user_id=external_user_id)
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    # Create Credential
+    hashed = pwd_context.hash(body.password)
+    cred = Credential(
+        user_id=user.id,
+        email=email_lower,
+        hashed_password=hashed,
+    )
+    db_session.add(cred)
+    db_session.commit()
+
+    # Create AuthIdentity (so the existing auth pipeline works)
+    identity = AuthIdentity(
+        user_id=user.id,
+        provider="email",
+        provider_subject=email_lower,
+        email=email_lower,
+        email_verified=False,
+        first_name=body.first_name,
+        last_name=body.last_name,
+    )
+    db_session.add(identity)
+    db_session.commit()
+
+    logger.info(f"New email user registered: {email_lower}")
+
+    return {
+        "id": user.id,
+        "email": email_lower,
+        "provider": "email",
+        "first_name": body.first_name or "",
+        "last_name": body.last_name or "",
+    }
+
+
+@router.post("/auth/email/login")
+@limiter.limit("10/minute")
+async def email_login(
+    request: Request,
+    body: EmailLoginRequest,
+    db_session: Session = Depends(get_session),
+):
+    email_lower = body.email.strip().lower()
+
+    cred = db_session.exec(select(Credential).where(Credential.email == email_lower)).first()
+    if not cred or not pwd_context.verify(body.password, cred.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    user = db_session.get(User, cred.user_id)
+    if not user:
+        raise HTTPException(status_code=500, detail="User record not found")
+
+    # Update the identity if needed
+    from ..models.auth_identity import AuthIdentity
+
+    identity = db_session.exec(
+        select(AuthIdentity).where(
+            AuthIdentity.provider == "email",
+            AuthIdentity.provider_subject == email_lower,
+        )
+    ).first()
+
+    first_name = identity.first_name if identity else ""
+    last_name = identity.last_name if identity else ""
+
+    logger.info(f"Email user logged in: {email_lower}")
+
+    return {
+        "id": user.id,
+        "email": email_lower,
+        "provider": "email",
+        "first_name": first_name or "",
+        "last_name": last_name or "",
+    }
