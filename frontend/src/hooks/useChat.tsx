@@ -22,6 +22,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
   const [sessionId, setSessionId] = useState(chatService.getSessionId());
   const [operationPerformed, setOperationPerformed] = useState<unknown>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const typingAnimationRef = useRef(0);
 
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user } = useUser();
@@ -73,6 +74,9 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
     return () => {
       abortControllerRef.current?.abort();
+      if (typingAnimationRef.current) {
+        window.clearTimeout(typingAnimationRef.current);
+      }
     };
   }, [autoLoadHistory, isLoaded, isSignedIn, loadHistory]);
 
@@ -93,6 +97,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
     if (!text.trim() || isLoading) return;
 
     abortControllerRef.current?.abort();
+    if (typingAnimationRef.current) {
+      window.clearTimeout(typingAnimationRef.current);
+      typingAnimationRef.current = 0;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -157,26 +165,44 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
         });
       } else {
         const response = await chatService.sendMessage(text);
+        const finalText = response.message.content;
+        let index = 0;
 
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMessageId
-              ? {
-                  ...msg,
-                  text: response.message.content,
-                  timestamp: new Date(response.message.created_at),
-                  isStreaming: false,
-                }
-              : msg
-          )
-        );
+        const typeNextChunk = () => {
+          const nextIndex = Math.min(index + 8, finalText.length);
+          const nextText = finalText.slice(0, nextIndex);
 
-        if (response.operation_performed) {
-          setOperationPerformed(response.operation_performed);
-          setTimeout(() => window.dispatchEvent(new CustomEvent('tasksUpdated')), 500);
-        }
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === aiMessageId
+                ? {
+                    ...msg,
+                    text: nextText,
+                    timestamp: new Date(response.message.created_at),
+                    isStreaming: nextIndex < finalText.length,
+                  }
+                : msg
+            )
+          );
 
-        setIsLoading(false);
+          index = nextIndex;
+
+          if (index < finalText.length) {
+            typingAnimationRef.current = window.setTimeout(typeNextChunk, 18);
+            return;
+          }
+
+          typingAnimationRef.current = 0;
+
+          if (response.operation_performed) {
+            setOperationPerformed(response.operation_performed);
+            setTimeout(() => window.dispatchEvent(new CustomEvent('tasksUpdated')), 500);
+          }
+
+          setIsLoading(false);
+        };
+
+        typeNextChunk();
       }
     } catch {
       setMessages((prev) =>

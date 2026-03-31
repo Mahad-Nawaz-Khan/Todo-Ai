@@ -26,7 +26,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const { messages, sendMessage, isLoading, startNewConversation, formatMessage } = useChat(initialMessages, {
     autoLoadHistory: !initialMessages.length,
-    enableStreaming: false,
+    enableStreaming: true,
   });
 
   const [inputText, setInputText] = useState('');
