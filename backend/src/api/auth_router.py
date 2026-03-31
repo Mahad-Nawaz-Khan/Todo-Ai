@@ -218,8 +218,8 @@ async def email_register(
     db_session.commit()
     db_session.refresh(user)
 
-    # Create Credential
-    hashed = pwd_context.hash(body.password)
+    # Create Credential (bcrypt limits to 72 bytes)
+    hashed = pwd_context.hash(body.password[:72])
     cred = Credential(
         user_id=user.id,
         email=email_lower,
@@ -262,7 +262,7 @@ async def email_login(
     email_lower = body.email.strip().lower()
 
     cred = db_session.exec(select(Credential).where(Credential.email == email_lower)).first()
-    if not cred or not pwd_context.verify(body.password, cred.hashed_password):
+    if not cred or not pwd_context.verify(body.password[:72], cred.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     user = db_session.get(User, cred.user_id)
