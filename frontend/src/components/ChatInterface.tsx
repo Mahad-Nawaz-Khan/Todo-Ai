@@ -109,7 +109,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
           </div>
         ) : (
-          messages.map((message) => (
+          messages
+            .filter((message) => !(message.sender === 'ai' && message.isStreaming && !message.text))
+            .map((message) => (
             <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div
                 className={`max-w-[85%] rounded-2xl px-4 py-3 ${
@@ -135,7 +137,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           ))
         )}
 
-        {isLoading && (
+        {isLoading && !messages.some((m) => m.sender === 'ai' && m.isStreaming && m.text) && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md border border-white/10 bg-white/10 px-4 py-3 text-white">
               <div className="flex items-center gap-2">
