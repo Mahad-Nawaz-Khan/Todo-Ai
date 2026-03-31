@@ -46,10 +46,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Build AppUser from the backend response and set session cookie
+    const normalizedEmail = String(data.email || email).toLowerCase();
     const user = buildUserFromProfile({
       provider: "email",
-      providerUserId: `email:${email.toLowerCase()}`,
-      email: data.email,
+      providerUserId: normalizedEmail,
+      email: normalizedEmail,
       firstName: data.first_name || null,
       lastName: data.last_name || null,
     });

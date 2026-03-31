@@ -29,6 +29,13 @@ class AuthService:
 
         provider = auth_payload.get("provider") or auth_payload.get("iss") or "app"
         email = auth_payload.get("email")
+        normalized_email = email.strip().lower() if isinstance(email, str) else None
+
+        if provider == "email" and isinstance(subject, str) and subject.startswith("email:"):
+            subject = subject.split(":", 1)[1].strip().lower()
+
+        if provider == "email" and not normalized_email and isinstance(subject, str) and "@" in subject:
+            normalized_email = subject.strip().lower()
         email_verified = bool(
             auth_payload.get("email_verified")
             or auth_payload.get("verified_email")
@@ -43,7 +50,7 @@ class AuthService:
         return {
             "sub": subject,
             "provider": str(provider),
-            "email": email.strip().lower() if isinstance(email, str) else None,
+            "email": normalized_email,
             "email_verified": email_verified,
             "first_name": first_name,
             "last_name": last_name,
