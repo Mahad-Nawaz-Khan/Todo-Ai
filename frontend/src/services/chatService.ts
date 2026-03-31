@@ -174,15 +174,16 @@ class ChatService {
 
     this.getAuthToken()
       .then((token) => {
-        const url = new URL(`${this.baseUrl}/api/v1/chat/stream`);
-        url.searchParams.set('content', content);
-        url.searchParams.set('session_id', this.sessionId);
-
-        fetch(url.toString(), {
-          method: 'GET',
+        fetch(`${this.baseUrl}/api/v1/chat/message/stream`, {
+          method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({
+            content,
+            session_id: this.sessionId,
+          }),
           signal: controller.signal,
         })
           .then((response) => {
@@ -197,58 +198,51 @@ class ChatService {
 
             const decoder = new TextDecoder();
             let buffer = '';
-            let fullResponse = '';
 
             const readStream = (): Promise<void> => {
               return reader.read().then(({ done, value }) => {
                 if (done) {
-                  try {
-                    callbacks.onDone(JSON.parse(fullResponse) as ChatResponse);
-                  } catch {
-                    callbacks.onDone({
-                      message: {
-                        id: Date.now().toString(),
-                        content: fullResponse || 'Response completed',
-                        sender_type: 'AI',
-                        created_at: new Date().toISOString(),
-                      },
-                    });
-                  }
                   return Promise.resolve();
                 }
 
                 buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
+                const events = buffer.split('\n\n');
+                buffer = events.pop() || '';
 
-                for (const line of lines) {
-                  if (!line.startsWith('data: ')) {
+                for (const eventBlock of events) {
+                  const dataLine = eventBlock
+                    .split('\n')
+                    .find((line) => line.startsWith('data: '));
+
+                  if (!dataLine) {
                     continue;
                   }
 
-                  const data = line.slice(6);
+                  const data = dataLine.slice(6);
                   if (data === '[DONE]') {
                     continue;
                   }
 
                   try {
-                    const parsed = JSON.parse(data) as StreamEvent;
+                    const parsed = JSON.parse(data) as StreamEvent & {
+                      message?: ChatResponse['message'];
+                    };
 
                     if (parsed.type === 'content_delta') {
                       callbacks.onContent(parsed.content || '');
-                      fullResponse += parsed.content || '';
                     } else if (parsed.type === 'tool_call') {
                       callbacks.onToolCall?.(parsed.tool || '', parsed.args);
                     } else if (parsed.type === 'tool_output') {
                       callbacks.onToolOutput?.(parsed.output);
                     } else if (parsed.type === 'final') {
                       callbacks.onDone({
-                        message: {
-                          id: Date.now().toString(),
-                          content: parsed.content || '',
-                          sender_type: 'AI',
-                          created_at: new Date().toISOString(),
-                        },
+                        message:
+                          parsed.message || {
+                            id: Date.now().toString(),
+                            content: parsed.content || '',
+                            sender_type: 'AI',
+                            created_at: new Date().toISOString(),
+                          },
                         operation_performed: parsed.operation_performed,
                         model_used: parsed.model_used,
                       });

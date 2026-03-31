@@ -290,13 +290,118 @@ class ChatService:
 
         if not interaction:
             interaction = self.create_chat_interaction(user_id, session_id, db_session)
-        else:
-            # Update the updated_at timestamp
-            interaction.updated_at = datetime.utcnow()
-            db_session.add(interaction)
-            db_session.commit()
 
         return interaction
+
+    def touch_interaction(self, interaction: ChatInteraction, db_session: Session) -> None:
+        interaction.updated_at = datetime.utcnow()
+        db_session.add(interaction)
+        db_session.commit()
+
+    def get_messages_for_interaction(
+        self,
+        interaction_id: int,
+        db_session: Session,
+        limit: int = 50,
+    ) -> List[ChatMessage]:
+        return db_session.exec(
+            select(ChatMessage)
+            .where(ChatMessage.chat_interaction_id == interaction_id)
+            .order_by(ChatMessage.created_at)
+            .limit(limit)
+        ).all()
+
+    def create_user_message_for_interaction(
+        self,
+        interaction: ChatInteraction,
+        content: str,
+        db_session: Session,
+    ) -> ChatMessage:
+        if len(content) > 5000:
+            raise ValueError("Message content exceeds 5000 character limit")
+
+        intent_result = self.classify_intent(content)
+
+        message = ChatMessage(
+            chat_interaction_id=interaction.id,
+            sender_type=SenderTypeEnum.USER,
+            content=content,
+            intent=intent_result.intent.value if intent_result.intent != IntentTypeEnum.UNKNOWN else None,
+            intent_confidence=intent_result.confidence,
+            processed=False
+        )
+
+        interaction.updated_at = datetime.utcnow()
+        db_session.add(interaction)
+        db_session.add(message)
+        db_session.commit()
+        db_session.refresh(message)
+
+        logger.info(f"Created user message {message.id} with intent {intent_result.intent}")
+        return message
+
+    def create_ai_message_for_interaction(
+        self,
+        interaction: ChatInteraction,
+        content: str,
+        db_session: Session,
+    ) -> ChatMessage:
+        message = ChatMessage(
+            chat_interaction_id=interaction.id,
+            sender_type=SenderTypeEnum.AI,
+            content=content,
+            intent=None,
+            processed=True
+        )
+
+        interaction.updated_at = datetime.utcnow()
+        db_session.add(interaction)
+        db_session.add(message)
+        db_session.commit()
+        db_session.refresh(message)
+
+        logger.info(f"Created AI message {message.id}")
+        return message
+
+    def finalize_interaction_response(
+        self,
+        interaction: ChatInteraction,
+        user_message: ChatMessage,
+        ai_content: str,
+        db_session: Session,
+    ) -> ChatMessage:
+        user_message.processed = True
+        ai_message = ChatMessage(
+            chat_interaction_id=interaction.id,
+            sender_type=SenderTypeEnum.AI,
+            content=ai_content,
+            intent=None,
+            processed=True,
+        )
+
+        interaction.updated_at = datetime.utcnow()
+        db_session.add(interaction)
+        db_session.add(user_message)
+        db_session.add(ai_message)
+        db_session.commit()
+        db_session.refresh(ai_message)
+
+        logger.info(f"Created AI message {ai_message.id}")
+        return ai_message
+
+    def get_recent_messages_for_user(
+        self,
+        user_id: int,
+        db_session: Session,
+        limit: int = 10,
+    ) -> List[ChatMessage]:
+        return db_session.exec(
+            select(ChatMessage)
+            .join(ChatInteraction, ChatMessage.chat_interaction_id == ChatInteraction.id)
+            .where(ChatInteraction.user_id == user_id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(limit)
+        ).all()[::-1]
 
     def create_user_message(
         self,
@@ -317,32 +422,8 @@ class ChatService:
         Returns:
             Created ChatMessage object
         """
-        # Validate message length
-        if len(content) > 5000:
-            raise ValueError("Message content exceeds 5000 character limit")
-
-        # Get or create chat interaction
         interaction = self.get_or_create_interaction(user_id, session_id, db_session)
-
-        # Classify intent
-        intent_result = self.classify_intent(content)
-
-        # Create message
-        message = ChatMessage(
-            chat_interaction_id=interaction.id,
-            sender_type=SenderTypeEnum.USER,
-            content=content,
-            intent=intent_result.intent.value if intent_result.intent != IntentTypeEnum.UNKNOWN else None,
-            intent_confidence=intent_result.confidence,
-            processed=False
-        )
-
-        db_session.add(message)
-        db_session.commit()
-        db_session.refresh(message)
-
-        logger.info(f"Created user message {message.id} with intent {intent_result.intent}")
-        return message
+        return self.create_user_message_for_interaction(interaction, content, db_session)
 
     def create_ai_message(
         self,
@@ -363,24 +444,8 @@ class ChatService:
         Returns:
             Created ChatMessage object
         """
-        # Get or create chat interaction
         interaction = self.get_or_create_interaction(user_id, session_id, db_session)
-
-        # Create message
-        message = ChatMessage(
-            chat_interaction_id=interaction.id,
-            sender_type=SenderTypeEnum.AI,
-            content=content,
-            intent=None,
-            processed=True
-        )
-
-        db_session.add(message)
-        db_session.commit()
-        db_session.refresh(message)
-
-        logger.info(f"Created AI message {message.id}")
-        return message
+        return self.create_ai_message_for_interaction(interaction, content, db_session)
 
     def get_chat_history(
         self,
@@ -402,15 +467,7 @@ class ChatService:
             List of ChatMessage objects
         """
         interaction = self.get_or_create_interaction(user_id, session_id, db_session)
-
-        messages = db_session.exec(
-            select(ChatMessage)
-            .where(ChatMessage.chat_interaction_id == interaction.id)
-            .order_by(ChatMessage.created_at)
-            .limit(limit)
-        ).all()
-
-        return messages
+        return self.get_messages_for_interaction(interaction.id, db_session, limit)
 
     # ============================================================================
     # Operation Request Management

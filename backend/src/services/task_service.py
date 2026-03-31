@@ -105,7 +105,8 @@ class TaskService:
         sort_by: Optional[str] = "created_at",
         order: Optional[str] = "desc",
         limit: Optional[int] = 10,
-        offset: Optional[int] = 0
+        offset: Optional[int] = 0,
+        include_tags: bool = True,
     ) -> List[Task]:
         """
         Get all tasks for a user with optional filters
@@ -122,7 +123,9 @@ class TaskService:
                 raise ValueError(f"Invalid order value: {order}")
 
             # Start with base query for user's tasks
-            query = select(Task).where(Task.user_id == user_id).options(selectinload(Task.tags))
+            query = select(Task).where(Task.user_id == user_id)
+            if include_tags:
+                query = query.options(selectinload(Task.tags))
 
             # Apply filters
             if completed is not None:

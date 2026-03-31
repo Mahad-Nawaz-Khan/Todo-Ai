@@ -56,22 +56,22 @@ async def send_chat_message(
     and perform appropriate actions (create/update/delete/search tasks).
     """
     try:
-        user = await auth_service.get_or_create_user_from_auth_payload(current_user, db_session)
+        user = await auth_service.resolve_user_from_auth_payload(current_user, db_session)
         user_id = user.id
 
         # Generate session ID if not provided
         session_id = message_data.session_id or f"session_{user_id}_{int(hash(current_user.get('sub', '')) % 1000000)}"
+        interaction = chat_service.get_or_create_interaction(user_id, session_id, db_session)
 
         # Create user message with intent detection
-        user_message = chat_service.create_user_message(
-            user_id=user_id,
-            session_id=session_id,
+        user_message = chat_service.create_user_message_for_interaction(
+            interaction=interaction,
             content=message_data.content,
             db_session=db_session
         )
 
         # Build recent conversation context for the AI service.
-        history_messages = chat_service.get_chat_history(user_id, session_id, db_session, limit=10)
+        history_messages = chat_service.get_messages_for_interaction(interaction.id, db_session, limit=10)
         conversation_history = [
             {
                 "sender_type": msg.sender_type,
@@ -100,17 +100,11 @@ async def send_chat_message(
         operation_performed = ai_result.get("operation_performed")
         model_used = ai_result.get("model_used") or "OpenAI Agents SDK (Z.ai)"
 
-        # Mark user message as processed
-        user_message.processed = True
-        db_session.add(user_message)
-        db_session.commit()
-
-        # Create AI response message
-        ai_message = chat_service.create_ai_message(
-            user_id=user_id,
-            session_id=session_id,
-            content=ai_response_content,
-            db_session=db_session
+        ai_message = chat_service.finalize_interaction_response(
+            interaction=interaction,
+            user_message=user_message,
+            ai_content=ai_response_content,
+            db_session=db_session,
         )
 
         return ChatResponse(

@@ -129,7 +129,6 @@ class AuthService:
                 raise HTTPException(status_code=500, detail="Invalid identity mapping")
 
             self._update_identity_profile(identity, claims, db_session)
-            security_logger.info(f"User authenticated: {claims['provider']}:{claims['sub']}")
             return user
 
         email = claims.get("email")
@@ -140,7 +139,6 @@ class AuthService:
                 if not user:
                     raise HTTPException(status_code=500, detail="Invalid identity mapping")
                 self._link_identity(user, claims, db_session)
-                security_logger.info(f"Linked auth identity for existing user: {claims['provider']}:{claims['sub']}")
                 return user
 
         external_user_id = f'{claims["provider"]}:{claims["sub"]}'
@@ -152,8 +150,33 @@ class AuthService:
         db_session.refresh(user)
 
         self._link_identity(user, claims, db_session)
-        security_logger.info(f"New user created: {claims['provider']}:{claims['sub']}")
         return user
+
+    async def resolve_user_from_auth_payload(
+        self,
+        auth_payload: Dict[str, Any],
+        db_session: Session,
+    ) -> User:
+        claims = self.normalize_claims(auth_payload)
+
+        identity = self._get_identity_by_subject(claims["provider"], claims["sub"], db_session)
+        if identity:
+            user = self.get_user_by_id(identity.user_id, db_session)
+            if not user:
+                security_logger.error(f"Identity {identity.id} points to missing user {identity.user_id}")
+                raise HTTPException(status_code=500, detail="Invalid identity mapping")
+            return user
+
+        email = claims.get("email")
+        if email and claims.get("email_verified"):
+            matching_identity = self._get_identity_by_email(email, db_session)
+            if matching_identity:
+                user = self.get_user_by_id(matching_identity.user_id, db_session)
+                if not user:
+                    raise HTTPException(status_code=500, detail="Invalid identity mapping")
+                return user
+
+        return await self.get_or_create_user_from_auth_payload(auth_payload, db_session)
 
     def get_current_user_id(self, auth_payload: Dict[str, Any]) -> str:
         claims = self.normalize_claims(auth_payload)

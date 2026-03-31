@@ -13,9 +13,11 @@ import logging
 import os
 import asyncio
 import re
-from typing import Dict, Any, Optional, List, AsyncIterator
+from typing import Dict, Any, Optional, List, AsyncIterator, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass
+
+from openai.types.responses import ResponseTextDeltaEvent
 
 from sqlmodel import Session, select
 
@@ -564,13 +566,7 @@ def agent_delete_task(task_id: int) -> str:
 
 def agent_delete_by_search(search_term: str) -> str:
     """
-    Delete tasks that match a search term using fuzzy matching.
-
-    Args:
-        search_term: The search term to match against task titles
-
-    Returns:
-        A message describing which tasks were deleted
+    Delete a task matching a search term.
     """
     global _tool_context
     if not _tool_context:
@@ -578,53 +574,26 @@ def agent_delete_by_search(search_term: str) -> str:
 
     try:
         task_service = _get_task_service()
-
-        # Get ALL tasks to find matches
-        all_tasks = task_service.get_tasks(
-            user_id=_tool_context.user_id,
-            db_session=_tool_context.db_session,
-            limit=100
-        )
-
-        # Find all matching tasks (score > 0)
-        matching_tasks = []
-        search_lower = search_term.lower().strip()
-
-        for task in all_tasks:
-            title_lower = (task.title or "").lower()
-            desc_lower = (task.description or "").lower()
-
-            # Check if search term matches
-            if (search_lower in title_lower or search_lower in desc_lower or
-                any(word in title_lower or word in desc_lower for word in search_lower.split() if len(word) > 2)):
-                matching_tasks.append(task)
+        matching_tasks = _find_tasks_for_search(search_term, limit=5)
 
         if not matching_tasks:
             return f"No tasks found matching '{search_term}'. Nothing was deleted."
 
-        deleted_count = 0
-        deleted_titles = []
-        for task in matching_tasks:
-            success = task_service.delete_task(
-                task.id, _tool_context.user_id, _tool_context.db_session
-            )
-            if success:
-                deleted_count += 1
-                deleted_titles.append(f"'{task.title}'")
+        if len(matching_tasks) > 1:
+            return _format_task_lines(matching_tasks, f"Multiple tasks match '{search_term}'. Delete one by calling agent_delete_task with the exact ID:")
 
-        if deleted_count > 0:
-            logger.info(f"Deleted {deleted_count} tasks matching '{search_term}' for user {_tool_context.user_id}")
-            _mark_operation_performed("delete_tasks", {"count": deleted_count})
-            if deleted_count == 1:
-                return f"✓ Deleted {deleted_titles[0]}!"
-            else:
-                return f"✓ Deleted {deleted_count} tasks: {', '.join(deleted_titles)}"
-        else:
-            return f"Found tasks but couldn't delete them. Please try again."
+        task = matching_tasks[0]
+        success = task_service.delete_task(task.id, _tool_context.user_id, _tool_context.db_session)
+        if success:
+            logger.info(f"Deleted task {task.id} matching '{search_term}' for user {_tool_context.user_id}")
+            _mark_operation_performed("delete_task", {"task_id": task.id})
+            return f"✓ Deleted '{task.title}'!"
+
+        return "Found a matching task but couldn't delete it. Please try again."
 
     except Exception as e:
         logger.error(f"Error deleting tasks by search: {str(e)}")
-        return f"Sorry, I couldn't delete those tasks. Error: {str(e)}"
+        return f"Sorry, I couldn't delete that task. Error: {str(e)}"
 
 
 def agent_search_tasks(search: str = "", completed: bool = None, priority: str = "", limit: int = 10) -> str:
@@ -653,7 +622,330 @@ def agent_search_tasks(search: str = "", completed: bool = None, priority: str =
             search=search if search else None,
             completed=completed,
             priority=priority if priority else None,
-            limit=limit
+            limit=limit,
+            include_tags=False,
+        )
+
+        if not tasks:
+            return "You don't have any matching tasks."
+
+        result_lines = [f"Found {len(tasks)} task(s):"]
+        for task in tasks:
+            status = "✓" if task.completed else "○"
+            priority_tag = f"[{task.priority}]" if task.priority else ""
+            result_lines.append(f"{status} {task.title} {priority_tag}")
+            if task.due_date:
+                result_lines.append(f"  Due: {task.due_date.strftime('%Y-%m-%d')}")
+
+        logger.info(f"Searched tasks for user {_tool_context.user_id}, found {len(tasks)} results")
+        return "\n".join(result_lines)
+    except Exception as e:
+        logger.error(f"Error searching tasks: {str(e)}")
+        return f"Sorry, I couldn't search tasks. Error: {str(e)}"
+
+
+def agent_list_tasks(limit: int = 10) -> str:
+    """
+    List all pending tasks.
+
+    Args:
+        limit: Maximum number of tasks to return
+
+    Returns:
+        A message with the task list
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't retrieve tasks due to a server error."
+
+    try:
+        task_service = _get_task_service()
+
+        tasks = task_service.get_tasks(
+            user_id=_tool_context.user_id,
+            db_session=_tool_context.db_session,
+            completed=False,
+            limit=limit,
+            include_tags=False,
+        )
+
+        if not tasks:
+            return "You don't have any pending tasks. Great job!"
+
+        result_lines = [f"Here are your pending tasks ({len(tasks)}):"]
+        for task in tasks:
+            status = "✓" if task.completed else "○"
+            priority_tag = f"[{task.priority}]" if task.priority else ""
+            result_lines.append(f"{status} {task.title} {priority_tag}")
+
+        logger.info(f"Listed tasks for user {_tool_context.user_id}")
+        return "\n".join(result_lines)
+    except Exception as e:
+        logger.error(f"Error listing tasks: {str(e)}")
+        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+
+
+def agent_get_task(task_id: int) -> str:
+    """
+    Get details of a specific task.
+
+    Args:
+        task_id: The ID of the task to retrieve
+
+    Returns:
+        A message with the task details
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't retrieve the task due to a server error."
+
+    try:
+        task_service = _get_task_service()
+
+        task = task_service.get_task_by_id(
+            task_id, _tool_context.user_id, _tool_context.db_session
+        )
+
+        if not task:
+            return f"Sorry, I couldn't find task #{task_id}."
+
+        status = "Completed" if task.completed else "Pending"
+        result = f"Task: {task.title}\nStatus: {status}"
+        if task.description:
+            result += f"\nDescription: {task.description}"
+        if task.due_date:
+            result += f"\nDue: {task.due_date.strftime('%Y-%m-%d')}"
+        if task.priority:
+            result += f"\nPriority: {task.priority}"
+
+        logger.info(f"Retrieved task {task_id} for user {_tool_context.user_id}")
+        return result
+    except Exception as e:
+        logger.error(f"Error getting task: {str(e)}")
+        return f"Sorry, I couldn't retrieve the task. Error: {str(e)}"
+
+
+def agent_show_conversation_summary() -> str:
+    """
+    Show a summary of what has happened in our conversation so far.
+
+    Returns:
+        A summary of recent conversation activity
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't retrieve conversation history."
+
+    try:
+        from ..services.chat_service import chat_service
+
+        messages = chat_service.get_recent_messages_for_user(
+            user_id=_tool_context.user_id,
+            db_session=_tool_context.db_session,
+            limit=20,
+        )
+
+        if not messages:
+            return "This is the beginning of our conversation! How can I help you with your tasks today?"
+
+        user_msgs = [m for m in messages if m.sender_type == 'USER']
+        ai_msgs = [m for m in messages if m.sender_type == 'AI']
+
+        result_lines = [
+            f"Here's what we've discussed ({len(messages)} messages):",
+            f"- {len(user_msgs)} messages from you",
+            f"- {len(ai_msgs)} responses from me",
+            "",
+            "Recent messages:"
+        ]
+
+        for msg in messages[-10:]:
+            sender = "You" if msg.sender_type == 'USER' else "Me"
+            content_preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
+            result_lines.append(f"- {sender}: {content_preview}")
+
+        return "\n".join(result_lines)
+
+    except Exception as e:
+        logger.error(f"Error getting conversation summary: {str(e)}")
+        return "Sorry, I couldn't retrieve the conversation summary."
+
+
+def agent_get_all_tasks() -> str:
+    """
+    Get all tasks for the user so you can find the right one to operate on.
+
+    Returns:
+        A list of all tasks with their IDs, titles, and status
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't retrieve tasks due to a server error."
+
+    try:
+        task_service = _get_task_service()
+
+        tasks = task_service.get_tasks(
+            user_id=_tool_context.user_id,
+            db_session=_tool_context.db_session,
+            limit=50,
+            include_tags=False,
+        )
+
+        if not tasks:
+            return "You have no tasks."
+
+        return _format_task_lines(tasks, f"Your tasks ({len(tasks)} total):", include_description=False)
+
+    except Exception as e:
+        logger.error(f"Error getting all tasks: {str(e)}")
+        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+
+
+def agent_complete_by_search(search_term: str) -> str:
+    """
+    Find matching incomplete tasks so the agent can choose the correct ID.
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't update the task due to a server error."
+
+    try:
+        tasks = _find_tasks_for_search(search_term, completed=False, limit=10)
+        if not tasks:
+            return "No incomplete tasks found matching that search."
+
+        return _format_task_lines(tasks, f"Matching incomplete tasks for '{search_term}'. Call agent_toggle_task with the exact ID:", include_description=False)
+
+    except Exception as e:
+        logger.error(f"Error getting incomplete tasks: {str(e)}")
+        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+
+
+def agent_uncomplete_by_search(search_term: str) -> str:
+    """
+    Find matching completed tasks so the agent can choose the correct ID.
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't retrieve tasks due to a server error."
+
+    try:
+        tasks = _find_tasks_for_search(search_term, completed=True, limit=10)
+        if not tasks:
+            return "No completed tasks found matching that search."
+
+        return _format_task_lines(tasks, f"Matching completed tasks for '{search_term}'. Call agent_toggle_task with the exact ID:", include_description=False)
+
+    except Exception as e:
+        logger.error(f"Error getting completed tasks: {str(e)}")
+        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+
+
+def agent_update_by_search(search_term: str, title: str = "", description: str = "", priority: str = "") -> str:
+    """
+    Find matching tasks so the agent can choose the correct ID to update.
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't retrieve tasks due to a server error."
+
+    try:
+        tasks = _find_tasks_for_search(search_term, limit=10)
+        if not tasks:
+            return "You have no matching tasks to update."
+
+        return _format_task_lines(tasks, f"Matching tasks for '{search_term}'. Call agent_update_task with the exact ID and new values:", include_description=False)
+
+    except Exception as e:
+        logger.error(f"Error getting tasks for update: {str(e)}")
+        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+
+
+# ============================================================================
+# Agent Service Class
+# ============================================================================
+
+def _format_task_lines(tasks, heading: str, include_description: bool = False) -> str:
+    result_lines = [heading]
+    for task in tasks:
+        status = "✓" if task.completed else "○"
+        priority_tag = f"[{task.priority}]" if task.priority else ""
+        line = f"ID {task.id}: {status} {task.title} {priority_tag}".strip()
+        result_lines.append(line)
+        if include_description and task.description:
+            result_lines.append(f"    Description: {task.description}")
+    return "\n".join(result_lines)
+
+
+def _find_tasks_for_search(search_term: str, completed: Optional[bool] = None, limit: int = 25):
+    global _tool_context
+    task_service = _get_task_service()
+    normalized_search = search_term.strip()
+    if not normalized_search:
+        return task_service.get_tasks(
+            user_id=_tool_context.user_id,
+            db_session=_tool_context.db_session,
+            completed=completed,
+            limit=min(limit, 10),
+            include_tags=False,
+        )
+
+    tasks = task_service.get_tasks(
+        user_id=_tool_context.user_id,
+        db_session=_tool_context.db_session,
+        search=normalized_search,
+        completed=completed,
+        limit=limit,
+        include_tags=False,
+    )
+    if tasks:
+        return tasks
+
+    fallback_terms = [term for term in normalized_search.split() if len(term) > 2][:3]
+    for term in fallback_terms:
+        tasks = task_service.get_tasks(
+            user_id=_tool_context.user_id,
+            db_session=_tool_context.db_session,
+            search=term,
+            completed=completed,
+            limit=limit,
+            include_tags=False,
+        )
+        if tasks:
+            return tasks
+
+    return []
+
+
+def agent_search_tasks(search: str = "", completed: bool = None, priority: str = "", limit: int = 10) -> str:
+    """
+    Search for tasks based on criteria.
+
+    Args:
+        search: Optional search term to match in title/description
+        completed: Filter by completion status (true/false)
+        priority: Filter by priority - HIGH, MEDIUM, or LOW
+        limit: Maximum number of results to return
+
+    Returns:
+        A message with the search results
+    """
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't search tasks due to a server error."
+
+    try:
+        task_service = _get_task_service()
+
+        tasks = task_service.get_tasks(
+            user_id=_tool_context.user_id,
+            db_session=_tool_context.db_session,
+            search=search if search else None,
+            completed=completed,
+            priority=priority if priority else None,
+            limit=limit,
+            include_tags=False,
         )
 
         if not tasks:
@@ -1018,6 +1310,7 @@ class AgentService:
         self._z_ai_model = os.getenv("Z_AI_MODEL", "glm-4.7-flash")
         self._gemini_api_key = os.getenv("GEMINI_API_KEY")
         self._gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+        self._provider_timeout_seconds = float(os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "20"))
         self._last_provider_used = None
 
     def _build_input_text(
@@ -1134,13 +1427,22 @@ class AgentService:
             "model_used": self._get_model_used_label(provider_label),
         }
 
-    def _provider_stream_chunks(self, text: str):
-        chunk_size = 10
-        for i in range(0, len(text), chunk_size):
-            yield {
-                "type": "content_delta",
-                "content": text[i:i + chunk_size],
-            }
+    async def _run_provider(self, provider: Dict[str, Any], input_text: str):
+        return await asyncio.wait_for(
+            self._Runner.run(
+                self._agent,
+                input=input_text,
+                run_config=provider["run_config"],
+            ),
+            timeout=self._provider_timeout_seconds,
+        )
+
+    async def _run_provider_streamed(self, provider: Dict[str, Any], input_text: str):
+        return self._Runner.run_streamed(
+            self._agent,
+            input=input_text,
+            run_config=provider["run_config"],
+        )
 
     async def _run_with_provider_fallback(self, input_text: str):
         if not self._has_configured_providers():
@@ -1149,24 +1451,54 @@ class AgentService:
         last_error = None
 
         for index, provider in enumerate(self._provider_configs):
+            provider_label = provider["label"]
             try:
-                result = await self._Runner.run(
-                    self._agent,
-                    input=input_text,
-                    run_config=provider["run_config"],
-                )
-                self._last_provider_used = provider["label"]
-                return result, provider["label"]
+                result = await self._run_provider(provider, input_text)
+                self._last_provider_used = provider_label
+                return result, provider_label
             except Exception as error:
                 last_error = error
-                provider_label = provider["label"]
                 is_last_provider = index == len(self._provider_configs) - 1
-                should_fallback = not is_last_provider
+                should_fallback = not is_last_provider and self._is_retryable_provider_error(error)
 
                 if should_fallback:
                     logger.warning(f"Provider {provider_label} failed, trying next provider: {error}")
-                else:
+                    continue
+
+                if is_last_provider:
                     logger.error(f"Provider {provider_label} failed with no fallback remaining: {error}")
+                else:
+                    logger.error(f"Provider {provider_label} failed without fallback: {error}")
+                raise
+
+        raise last_error or RuntimeError("All AI providers failed")
+
+    async def _run_streamed_with_provider_fallback(self, input_text: str) -> Tuple[Any, str]:
+        if not self._has_configured_providers():
+            raise RuntimeError("No AI providers are configured")
+
+        last_error = None
+
+        for index, provider in enumerate(self._provider_configs):
+            provider_label = provider["label"]
+            try:
+                streamed_result = await self._run_provider_streamed(provider, input_text)
+                self._last_provider_used = provider_label
+                return streamed_result, provider_label
+            except Exception as error:
+                last_error = error
+                is_last_provider = index == len(self._provider_configs) - 1
+                should_fallback = not is_last_provider and self._is_retryable_provider_error(error)
+
+                if should_fallback:
+                    logger.warning(f"Streaming provider {provider_label} failed, trying next provider: {error}")
+                    continue
+
+                if is_last_provider:
+                    logger.error(f"Streaming provider {provider_label} failed with no fallback remaining: {error}")
+                else:
+                    logger.error(f"Streaming provider {provider_label} failed without fallback: {error}")
+                raise
 
         raise last_error or RuntimeError("All AI providers failed")
 
@@ -1292,16 +1624,16 @@ class AgentService:
                     "- Example: agent_create_task(title='Buy groceries', due_date='tomorrow', tags='shopping')\n"
                     "- If user says 'daily' or 'every day', set recurrence='daily'\n\n"
                     "TASK COMPLETION:\n"
-                    "1. Call agent_get_all_tasks FIRST to see all tasks\n"
-                    "2. Find the matching task yourself by reading the list\n"
-                    "3. Call agent_toggle_task with the exact task ID\n\n"
+                    "- Prefer agent_complete_by_search or agent_uncomplete_by_search first to narrow candidates\n"
+                    "- If an exact task ID is already known, call agent_toggle_task directly\n\n"
                     "TASK UPDATES/DELETION:\n"
-                    "- Call agent_get_all_tasks first, then use agent_update_task or agent_delete_task with the specific ID\n"
+                    "- Prefer agent_update_by_search or agent_delete_by_search first to narrow matches\n"
+                    "- If an exact task ID is already known, call agent_update_task or agent_delete_task directly\n"
                     "- agent_update_task CAN add/remove tags with the tags parameter: tags='work,urgent'\n\n"
                     "CRITICAL RULES:\n"
                     "- NEVER put tags, recurrence, or priority in the description field!\n"
                     "- ALWAYS use the proper parameters: tags, recurrence, priority\n"
-                    "- Always get the task list FIRST before trying to complete/update/delete\n"
+                    "- Prefer targeted search tools before broad task listing\n"
                     "- YOU must decide which task matches - don't ask the user to pick if obvious\n\n"
                     "After completing any action, STOP and respond to the user."
                 ),
@@ -1386,14 +1718,17 @@ class AgentService:
         try:
             _set_tool_context(db_session, user_id)
             input_text = self._build_input_text(content, conversation_history, user_info)
-            result, provider_label = await self._run_with_provider_fallback(input_text)
+            streamed_result, provider_label = await self._run_streamed_with_provider_fallback(input_text)
 
-            final_output = self._provider_result_output_text(result)
-            for chunk in self._provider_stream_chunks(final_output):
-                yield chunk
-                await asyncio.sleep(0.02)
+            async for event in streamed_result.stream_events():
+                if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                    if event.data.delta:
+                        yield {
+                            "type": "content_delta",
+                            "content": event.data.delta,
+                        }
 
-            yield self._provider_result_to_stream_final(result, provider_label)
+            yield self._provider_result_to_stream_final(streamed_result, provider_label)
             logger.info(f"Agent processed message (streamed) for user {user_id} with {provider_label}")
 
         except Exception as error:
