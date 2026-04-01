@@ -40,8 +40,8 @@ async def auth_debug(request: Request):
         "auth_header_present": request.headers.get("Authorization") is not None,
         "auth_header_format": "Bearer <token>" if request.headers.get("Authorization", "").startswith("Bearer ") else "Invalid format",
         "agent_service_available": agent_service.is_available(),
-        "gemini_api_key_set": bool(os.getenv("GEMINI_API_KEY")),
-        "gemini_model": os.getenv("GEMINI_MODEL", "NOT SET"),
+        "openrouter_api_key_set": bool(os.getenv("OPENROUTER_API_KEY")),
+        "openrouter_model": os.getenv("OPENROUTER_MODEL", "NOT SET"),
     }
 
 

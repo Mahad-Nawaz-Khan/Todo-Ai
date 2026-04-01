@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
             print("✓ OpenAI Agents SDK initialized successfully")
         else:
             print("⚠ OpenAI Agents SDK not available - falling back to rule-based processing")
-            print("  To enable: Set GEMINI_API_KEY environment variable")
+            print("  To enable: Set OPENROUTER_API_KEY environment variable")
             app.state.agent_service = None
     except Exception as e:
         print(f"⚠ Warning: Could not initialize OpenAI Agents SDK: {e}")
