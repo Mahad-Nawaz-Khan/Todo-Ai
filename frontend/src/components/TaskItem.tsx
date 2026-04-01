@@ -182,7 +182,13 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
   };
 
   return (
-    <motion.article layout className={`section-card rounded-[28px] p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)]" : ""}`}>
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 18, scale: 0.985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.24, ease: "easeOut" }}
+      className={`section-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
+    >
       {error ? (
         <div className="mb-4 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
           {error}
@@ -197,26 +203,29 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
             </span>
             <span className="status-pill rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">{taskStatus}</span>
           </div>
-          <div className="mt-4 flex items-start gap-3">
-            <button
+          <motion.div layout className="mt-4 flex items-start gap-3">
+            <motion.button
               type="button"
               onClick={handleToggleComplete}
               disabled={loading}
-              className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl border transition ${
+              whileTap={{ scale: 0.92 }}
+              animate={optimisticCompleted ? { scale: [1, 1.08, 1], rotate: [0, -6, 0] } : { scale: 1, rotate: 0 }}
+              transition={{ duration: 0.32, ease: "easeOut" }}
+              className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl border transition sm:size-12 ${
                 optimisticCompleted
-                  ? "border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-[var(--success)]"
+                  ? "border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-[var(--success)] shadow-[0_10px_30px_rgba(126,240,184,0.12)]"
                   : "border-white/10 bg-white/6 text-[var(--text-dim)] hover:border-white/14 hover:text-white"
               }`}
             >
               <CheckCircle2 className="size-5" />
-            </button>
+            </motion.button>
             <div className="min-w-0 flex-1">
               <h3 className={`text-lg font-semibold tracking-[-0.03em] ${optimisticCompleted ? "text-[rgba(255,255,255,0.58)] line-through" : "text-white"}`}>
                 {task.title}
               </h3>
               {task.description ? <p className="mt-2 text-sm leading-6 text-[var(--text-dim)]">{task.description}</p> : null}
             </div>
-          </div>
+          </motion.div>
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -247,7 +256,7 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--text-dim)]">
+      <motion.div layout className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--text-dim)]">
         <span className="status-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5">
           <CalendarDays className="size-3.5" /> {formatDate(task.due_date)}
         </span>
@@ -257,7 +266,7 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
           </span>
         ) : null}
         <span className="status-pill rounded-full px-3 py-1.5">Created {formatDate(task.created_at)}</span>
-      </div>
+      </motion.div>
 
       {task.tags && task.tags.length ? (
         <div className="mt-4 flex flex-wrap gap-2">

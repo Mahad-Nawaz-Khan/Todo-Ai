@@ -164,14 +164,14 @@ export default function Dashboard() {
       signedIn
       userLabel={userLabel}
     >
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_400px]">
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1.5fr)_400px]">
         <div className="min-w-0">
           <TaskList createdTask={createdTask} />
         </div>
         <div className="space-y-4">
           <TaskForm onTaskCreated={handleTaskCreated} />
           <TagList />
-          <div className="section-card rounded-[28px] p-4 sm:p-5">
+          <div className="section-card rounded-[24px] p-3.5 sm:rounded-[28px] sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Quick assistant</div>
@@ -179,7 +179,7 @@ export default function Dashboard() {
               </div>
               <ProfileMenu />
             </div>
-            <ChatInterface initialMessages={[]} />
+            <ChatInterface initialMessages={[]} variant="widget" />
           </div>
         </div>
       </div>

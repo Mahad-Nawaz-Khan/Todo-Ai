@@ -31,8 +31,8 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)]">
       <div className="aurora-grid" />
       <div className="noise-overlay" />
-      <div className="mx-auto flex min-h-screen max-w-[1500px] flex-col px-3 py-3 sm:px-4 lg:px-6">
-        <div className="glass-panel relative flex min-h-[calc(100vh-1.5rem)] flex-1 overflow-hidden rounded-[32px] border border-white/8">
+      <div className="mx-auto flex min-h-screen max-w-[1500px] flex-col px-2 py-2 sm:px-4 sm:py-3 lg:px-6">
+        <div className="glass-panel relative flex min-h-[calc(100vh-1rem)] flex-1 overflow-hidden rounded-[24px] border border-white/8 sm:min-h-[calc(100vh-1.5rem)] sm:rounded-[32px]">
           <aside className="hidden w-[260px] shrink-0 flex-col border-r border-white/7 bg-[rgba(255,255,255,0.03)] lg:flex">
             <div className="border-b border-white/7 px-5 py-5">
               <div className="flex items-center gap-3">
@@ -87,21 +87,21 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <header className="border-b border-white/7 px-4 py-4 sm:px-6">
-              <div className="flex items-start justify-between gap-4">
+            <header className="border-b border-white/7 px-3 py-3 sm:px-6 sm:py-4">
+              <div className="flex items-start justify-between gap-3 sm:gap-4">
                 <div className="flex items-start gap-3">
                   <button
                     type="button"
                     onClick={() => setMobileOpen(true)}
-                    className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--text-secondary)] lg:hidden"
+                    className="flex size-10 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-[var(--text-secondary)] lg:hidden sm:size-11 sm:rounded-2xl"
                     aria-label="Open navigation"
                   >
                     <Menu className="size-5" />
                   </button>
                   <div>
                     <p className="text-[11px] uppercase tracking-[0.32em] text-[var(--text-faint)]">Workspace</p>
-                    <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white sm:text-3xl">{title}</h2>
-                    <p className="mt-2 max-w-2xl text-sm text-[var(--text-dim)] sm:text-base">{subtitle}</p>
+                    <h2 className="mt-1.5 text-xl font-semibold tracking-[-0.04em] text-white sm:mt-2 sm:text-3xl">{title}</h2>
+                    <p className="mt-1.5 max-w-2xl text-xs leading-5 text-[var(--text-dim)] sm:mt-2 sm:text-base sm:leading-6">{subtitle}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -130,7 +130,7 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
               </div>
             </header>
 
-            <main className="flex-1 overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">{children}</main>
+            <main className="flex-1 overflow-x-hidden px-3 py-3 sm:px-6 sm:py-6">{children}</main>
           </div>
 
           <AnimatePresence>

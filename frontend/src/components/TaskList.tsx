@@ -250,7 +250,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
     <section className="space-y-4">
       <TaskInsights tasks={tasks} />
 
-      <div className="section-card rounded-[30px] p-5 sm:p-6">
+      <div className="section-card rounded-[24px] p-4 sm:rounded-[30px] sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Task board</p>
@@ -271,7 +271,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
         <AnimatePresence initial={false}>
           {showControls ? (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-              <div className="mt-5 grid gap-3 lg:grid-cols-4">
+              <div className="mt-4 grid gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-4">
                 <label className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
                   <Search className="size-4 text-[var(--text-faint)]" />
                   <input
