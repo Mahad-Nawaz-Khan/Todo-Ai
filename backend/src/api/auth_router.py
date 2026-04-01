@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 import logging
 import os
+import hashlib
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from passlib.context import CryptContext
@@ -191,6 +192,28 @@ class EmailLoginRequest(BaseModel):
         return v.strip().lower()
 
 
+def generate_avatar_svg(initial: str, email: str) -> bytes:
+    """Generate a Google-style avatar SVG with the user's initial."""
+    # Google-style colors
+    colors = [
+        "#E53935", "#D81B60", "#8E24AA", "#5E35B1", "#3949AB",
+        "#1E88E5", "#039BE5", "#00ACC1", "#00897B", "#43A047",
+        "#7CB342", "#C0CA33", "#FDD835", "#FFB300", "#FB8C00",
+        "#F4511E", "#6D4C41", "#757575", "#546E7A", "#263238"
+    ]
+    # Consistent color based on email hash
+    hash_val = int(hashlib.md5(email.lower().encode()).hexdigest(), 16)
+    bg_color = colors[hash_val % len(colors)]
+    text_color = "#FFFFFF"
+    
+    svg = f'''<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <rect width="120" height="120" fill="{bg_color}" rx="60" ry="60"/>
+  <text x="60" y="60" dy="0.35em" text-anchor="middle" font-family="Arial, sans-serif" font-size="55" font-weight="500" fill="{text_color}">{initial}</text>
+</svg>'''
+    return svg.encode('utf-8')
+
+
 @router.post("/auth/email/register")
 @limiter.limit("5/minute")
 async def email_register(
@@ -222,6 +245,14 @@ async def email_register(
         user = User(clerk_user_id=external_user_id)
         db_session.add(user)
         db_session.flush()
+
+    # Generate Google-style avatar for email users
+    if not user.profile_image_data:
+        initial = (body.first_name[0] if body.first_name else email_lower[0]).upper()
+        avatar_svg = generate_avatar_svg(initial, email_lower)
+        user.profile_image_data = avatar_svg
+        user.profile_image_content_type = "image/svg+xml"
+        user.profile_image_url = f"/api/v1/auth/profile-image/{user.id}"
 
     # Create Credential (bcrypt limits to 72 bytes)
     # Truncate by encoding to bytes first, then decoding back
