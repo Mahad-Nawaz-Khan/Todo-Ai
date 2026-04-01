@@ -107,7 +107,7 @@ export default function SignInPage() {
         return;
       }
 
-      window.location.href = "/chat";
+      window.location.href = "/";
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
