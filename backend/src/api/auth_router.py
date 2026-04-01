@@ -157,7 +157,11 @@ async def upload_profile_image(
 # Email / password authentication
 # ---------------------------------------------------------------------------
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__truncate_error=False,
+)
 
 MIN_PASSWORD_LENGTH = 8
 
