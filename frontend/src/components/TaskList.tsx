@@ -1,129 +1,115 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from "framer-motion";
+import { ListFilter, Search, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useAuth } from '@/context/AuthContext';
-import type { TagsChangedDetail } from '@/types/events';
-import type { Priority, Task } from '@/types/task';
+import { useAuth } from "@/context/AuthContext";
+import type { TagsChangedDetail } from "@/types/events";
+import type { Priority, Task } from "@/types/task";
 
-import { TaskItem } from './TaskItem';
+import { TaskItem } from "./TaskItem";
+import TaskInsights from "./TaskInsights";
 
-interface TaskListProps {
+type TaskListProps = {
   createdTask?: Task | null;
-}
+};
 
-interface TaskFilters {
+type TaskFilters = {
   completed: boolean | null;
-  priority: '' | Priority;
+  priority: "" | Priority;
   search: string;
-}
+};
 
-interface SortConfig {
-  sortBy: 'created_at' | 'updated_at' | 'due_date' | 'priority';
-  order: 'asc' | 'desc';
-}
+type SortConfig = {
+  sortBy: "created_at" | "updated_at" | "due_date" | "priority";
+  order: "asc" | "desc";
+};
 
 export const TaskList = ({ createdTask = null }: TaskListProps) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<TaskFilters>({
-    completed: null,
-    priority: '',
-    search: '',
-  });
-  const [searchInput, setSearchInput] = useState('');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({
-    sortBy: 'created_at',
-    order: 'desc',
-  });
+  const [filters, setFilters] = useState<TaskFilters>({ completed: null, priority: "", search: "" });
+  const [searchInput, setSearchInput] = useState("");
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: "created_at", order: "desc" });
+  const [showControls, setShowControls] = useState(true);
   const { getToken } = useAuth();
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
 
-  const fetchTasksFromAPI = useCallback(async (options: { replace?: boolean } = {}) => {
-    const { replace = false } = options;
-    const requestId = requestIdRef.current + 1;
-    requestIdRef.current = requestId;
+  const fetchTasksFromAPI = useCallback(
+    async (options: { replace?: boolean } = {}) => {
+      const { replace = false } = options;
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
 
-    try {
-      setError(null);
-      setLoading(true);
-      const token = await getToken();
+      try {
+        setError(null);
+        setLoading(true);
+        const token = await getToken();
 
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
-      const pageSize = 100;
-      let offset = 0;
-      let allTasks: Task[] = [];
-
-      while (true) {
-        const params = new URLSearchParams();
-        params.append('limit', pageSize.toString());
-        params.append('offset', offset.toString());
-        params.append('sort_by', 'created_at');
-        params.append('order', 'desc');
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          signal: abortController.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch tasks: ${response.status}`);
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
         }
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
 
-        const page = (await response.json()) as Task[];
-        if (requestIdRef.current !== requestId) {
-          return;
-        }
+        const pageSize = 100;
+        let offset = 0;
+        let allTasks: Task[] = [];
 
-        allTasks = allTasks.concat(page);
+        while (true) {
+          const params = new URLSearchParams();
+          params.append("limit", pageSize.toString());
+          params.append("offset", offset.toString());
+          params.append("sort_by", "created_at");
+          params.append("order", "desc");
 
-        if (!Array.isArray(page) || page.length < pageSize) {
-          break;
-        }
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks?${params.toString()}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            signal: abortController.signal,
+          });
 
-        offset += pageSize;
-      }
-
-      if (replace) {
-        setTasks(allTasks);
-      } else {
-        setTasks((prev) => {
-          const byId = new Map<number, Task>();
-          for (const task of allTasks) {
-            byId.set(task.id, task);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch tasks: ${response.status}`);
           }
-          for (const task of prev) {
-            if (!byId.has(task.id)) {
-              byId.set(task.id, task);
+
+          const page = (await response.json()) as Task[];
+          if (requestIdRef.current !== requestId) return;
+
+          allTasks = allTasks.concat(page);
+          if (!Array.isArray(page) || page.length < pageSize) break;
+          offset += pageSize;
+        }
+
+        if (replace) {
+          setTasks(allTasks);
+        } else {
+          setTasks((prev) => {
+            const byId = new Map<number, Task>();
+            for (const task of allTasks) byId.set(task.id, task);
+            for (const task of prev) {
+              if (!byId.has(task.id)) byId.set(task.id, task);
             }
-          }
-          return Array.from(byId.values());
-        });
+            return Array.from(byId.values());
+          });
+        }
+      } catch (err) {
+        if (requestIdRef.current !== requestId) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to fetch tasks");
+      } finally {
+        if (requestIdRef.current === requestId) {
+          setLoading(false);
+        }
       }
-    } catch (err) {
-      if (requestIdRef.current !== requestId) {
-        return;
-      }
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        return;
-      }
-      setError(err instanceof Error ? err.message : 'Failed to fetch tasks');
-    } finally {
-      if (requestIdRef.current === requestId) {
-        setLoading(false);
-      }
-    }
-  }, [getToken]);
+    },
+    [getToken]
+  );
 
   useEffect(() => {
     void fetchTasksFromAPI();
@@ -134,111 +120,62 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
       void fetchTasksFromAPI({ replace: true });
     };
 
-    window.addEventListener('tasksUpdated', handleTasksUpdated);
-    return () => window.removeEventListener('tasksUpdated', handleTasksUpdated);
+    window.addEventListener("tasksUpdated", handleTasksUpdated);
+    return () => window.removeEventListener("tasksUpdated", handleTasksUpdated);
   }, [fetchTasksFromAPI]);
 
   useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
+    return () => abortControllerRef.current?.abort();
   }, []);
 
   useEffect(() => {
     const handleTagsChanged = (event: Event) => {
       const detail = (event as CustomEvent<TagsChangedDetail>).detail;
-      if (!detail) {
-        return;
-      }
+      if (!detail) return;
 
-      if (detail.type === 'updated') {
+      if (detail.type === "updated") {
         const updatedTag = detail.tag;
         setTasks((prev) =>
           prev.map((task) => {
-            if (!Array.isArray(task.tags) || task.tags.length === 0) {
-              return task;
-            }
-
+            if (!Array.isArray(task.tags) || !task.tags.length) return task;
             let changed = false;
             const nextTags = task.tags.map((tag) => {
-              if (tag.id !== updatedTag.id) {
-                return tag;
-              }
+              if (tag.id !== updatedTag.id) return tag;
               changed = true;
-              return {
-                ...tag,
-                ...updatedTag,
-              };
+              return { ...tag, ...updatedTag };
             });
-
-            if (!changed) {
-              return task;
-            }
-
-            return {
-              ...task,
-              tags: nextTags,
-            };
+            return changed ? { ...task, tags: nextTags } : task;
           })
         );
       }
 
-      if (detail.type === 'deleted') {
+      if (detail.type === "deleted") {
         const deletedTagId = detail.tagId;
         setTasks((prev) =>
           prev.map((task) => {
-            if (!Array.isArray(task.tags) || task.tags.length === 0) {
-              return task;
-            }
-
+            if (!Array.isArray(task.tags) || !task.tags.length) return task;
             const nextTags = task.tags.filter((tag) => tag.id !== deletedTagId);
-            if (nextTags.length === task.tags.length) {
-              return task;
-            }
-
-            return {
-              ...task,
-              tags: nextTags,
-            };
+            return nextTags.length === task.tags.length ? task : { ...task, tags: nextTags };
           })
         );
       }
     };
 
-    window.addEventListener('tags:changed', handleTagsChanged);
-    return () => window.removeEventListener('tags:changed', handleTagsChanged);
+    window.addEventListener("tags:changed", handleTagsChanged);
+    return () => window.removeEventListener("tags:changed", handleTagsChanged);
   }, []);
 
   useEffect(() => {
     const normalizedSearch = searchInput.trim();
     const timeout = setTimeout(() => {
-      setFilters((prev) => {
-        if (prev.search === normalizedSearch) {
-          return prev;
-        }
-        return {
-          ...prev,
-          search: normalizedSearch,
-        };
-      });
-    }, 300);
-
+      setFilters((prev) => (prev.search === normalizedSearch ? prev : { ...prev, search: normalizedSearch }));
+    }, 280);
     return () => clearTimeout(timeout);
   }, [searchInput]);
 
   useEffect(() => {
-    if (!createdTask?.id) {
-      return;
-    }
-
-    setTasks((prev) => {
-      if (prev.some((task) => task.id === createdTask.id)) {
-        return prev;
-      }
-      return [createdTask, ...prev];
-    });
+    if (!createdTask?.id) return;
+    setTasks((prev) => (prev.some((task) => task.id === createdTask.id) ? prev : [createdTask, ...prev]));
   }, [createdTask]);
 
   const visibleTasks = useMemo(() => {
@@ -255,40 +192,26 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
     if (filters.search) {
       const query = filters.search.toLowerCase();
       result = result.filter((task) => {
-        const tagNames = Array.isArray(task.tags) ? task.tags.map((tag) => tag.name).join(' ') : '';
-        const haystack = `${task.title ?? ''} ${task.description ?? ''} ${tagNames}`.toLowerCase();
+        const tagNames = Array.isArray(task.tags) ? task.tags.map((tag) => tag.name).join(" ") : "";
+        const haystack = `${task.title ?? ""} ${task.description ?? ""} ${tagNames}`.toLowerCase();
         return haystack.includes(query);
       });
     }
 
-    const direction = sortConfig.order === 'asc' ? 1 : -1;
-    const priorityRank: Record<Priority, number> = {
-      LOW: 1,
-      MEDIUM: 2,
-      HIGH: 3,
-    };
+    const direction = sortConfig.order === "asc" ? 1 : -1;
+    const priorityRank: Record<Priority, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 
     return [...result].sort((a, b) => {
-      if (sortConfig.sortBy === 'priority') {
-        const aRank = priorityRank[a.priority] ?? 0;
-        const bRank = priorityRank[b.priority] ?? 0;
-        return (aRank - bRank) * direction;
+      if (sortConfig.sortBy === "priority") {
+        return ((priorityRank[a.priority] ?? 0) - (priorityRank[b.priority] ?? 0)) * direction;
       }
 
-      if (sortConfig.sortBy === 'due_date') {
+      if (sortConfig.sortBy === "due_date") {
         const aDate = a.due_date ? Date.parse(a.due_date) : null;
         const bDate = b.due_date ? Date.parse(b.due_date) : null;
-
-        if (aDate === null && bDate === null) {
-          return 0;
-        }
-        if (aDate === null) {
-          return 1;
-        }
-        if (bDate === null) {
-          return -1;
-        }
-
+        if (aDate === null && bDate === null) return 0;
+        if (aDate === null) return 1;
+        if (bDate === null) return -1;
         return (aDate - bDate) * direction;
       }
 
@@ -296,16 +219,12 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
       const bTime = b[sortConfig.sortBy] ? Date.parse(b[sortConfig.sortBy] as string) : 0;
       return (aTime - bTime) * direction;
     });
-  }, [tasks, filters, sortConfig]);
+  }, [filters, sortConfig, tasks]);
 
   const handleTaskUpdate = (updatedTask: Task) => {
     setTasks((prev) => {
       const index = prev.findIndex((task) => task.id === updatedTask.id);
-
-      if (index === -1) {
-        return [updatedTask, ...prev];
-      }
-
+      if (index === -1) return [updatedTask, ...prev];
       const next = [...prev];
       next[index] = updatedTask;
       return next;
@@ -317,130 +236,106 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
   };
 
   const handleFilterChange = <K extends keyof TaskFilters>(filterName: K, value: TaskFilters[K]) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterName]: value,
-    }));
+    setFilters((prev) => ({ ...prev, [filterName]: value }));
   };
 
-  const handleSortChange = (sortBy: SortConfig['sortBy']) => {
+  const handleSortChange = (sortBy: SortConfig["sortBy"]) => {
     setSortConfig((prev) => ({
       sortBy,
-      order: prev.sortBy === sortBy && prev.order === 'asc' ? 'desc' : 'asc',
+      order: prev.sortBy === sortBy && prev.order === "asc" ? "desc" : "asc",
     }));
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Your Tasks</h2>
-          <p className="mt-1 text-sm text-white/70">Filter, sort, and search across your tasks.</p>
-        </div>
-      </div>
+    <section className="space-y-4">
+      <TaskInsights tasks={tasks} />
 
-      {error && (
-        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-          Error: {error}
-        </div>
-      )}
-
-      {loading && <div className="mt-4 text-sm text-white/70">Loading tasks...</div>}
-
-      <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div>
-          <label className="block text-sm font-medium text-white/80">Status</label>
-          <select
-            value={filters.completed === null ? '' : filters.completed ? 'done' : 'open'}
-            onChange={(e) =>
-              handleFilterChange(
-                'completed',
-                e.target.value === '' ? null : e.target.value === 'done'
-              )
-            }
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-          >
-            <option value="" className="bg-slate-950 text-white">
-              All
-            </option>
-            <option value="open" className="bg-slate-950 text-white">
-              Open
-            </option>
-            <option value="done" className="bg-slate-950 text-white">
-              Completed
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-white/80">Priority</label>
-          <select
-            value={filters.priority}
-            onChange={(e) => handleFilterChange('priority', e.target.value as TaskFilters['priority'])}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-          >
-            <option value="" className="bg-slate-950 text-white">
-              All
-            </option>
-            <option value="LOW" className="bg-slate-950 text-white">
-              Low
-            </option>
-            <option value="MEDIUM" className="bg-slate-950 text-white">
-              Medium
-            </option>
-            <option value="HIGH" className="bg-slate-950 text-white">
-              High
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-white/80">Search</label>
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search tasks"
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white placeholder:text-white/40"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-white/80">Sort</label>
-          <div className="mt-1 flex gap-2">
-            <select
-              value={sortConfig.sortBy}
-              onChange={(e) => handleSortChange(e.target.value as SortConfig['sortBy'])}
-              className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-            >
-              <option value="created_at" className="bg-slate-950 text-white">
-                Created
-              </option>
-              <option value="updated_at" className="bg-slate-950 text-white">
-                Updated
-              </option>
-              <option value="due_date" className="bg-slate-950 text-white">
-                Due date
-              </option>
-              <option value="priority" className="bg-slate-950 text-white">
-                Priority
-              </option>
-            </select>
+      <div className="section-card rounded-[30px] p-5 sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Task board</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Your active workspace</h2>
+            <p className="mt-2 text-sm text-[var(--text-dim)]">Filter, sort, and edit tasks while keeping the backend contract untouched.</p>
           </div>
+          <button type="button" onClick={() => setShowControls((value) => !value)} className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm">
+            <SlidersHorizontal className="size-4" /> {showControls ? "Hide controls" : "Show controls"}
+          </button>
+        </div>
+
+        {error ? (
+          <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+            {error}
+          </div>
+        ) : null}
+
+        <AnimatePresence initial={false}>
+          {showControls ? (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="mt-5 grid gap-3 lg:grid-cols-4">
+                <label className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
+                  <Search className="size-4 text-[var(--text-faint)]" />
+                  <input
+                    type="text"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Search titles, notes, and tags"
+                    className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[var(--text-faint)]"
+                  />
+                </label>
+
+                <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
+                  <span className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">
+                    <ListFilter className="size-3.5" /> Status
+                  </span>
+                  <select
+                    value={filters.completed === null ? "" : filters.completed ? "done" : "open"}
+                    onChange={(e) => handleFilterChange("completed", e.target.value === "" ? null : e.target.value === "done")}
+                    className="w-full bg-transparent text-sm text-white outline-none"
+                  >
+                    <option value="">All</option>
+                    <option value="open">Open</option>
+                    <option value="done">Completed</option>
+                  </select>
+                </label>
+
+                <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
+                  <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Priority</span>
+                  <select value={filters.priority} onChange={(e) => handleFilterChange("priority", e.target.value as TaskFilters["priority"])} className="w-full bg-transparent text-sm text-white outline-none">
+                    <option value="">All</option>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                  </select>
+                </label>
+
+                <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
+                  <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Sort</span>
+                  <select value={sortConfig.sortBy} onChange={(e) => handleSortChange(e.target.value as SortConfig["sortBy"])} className="w-full bg-transparent text-sm text-white outline-none">
+                    <option value="created_at">Created</option>
+                    <option value="updated_at">Updated</option>
+                    <option value="due_date">Due date</option>
+                    <option value="priority">Priority</option>
+                  </select>
+                </label>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+
+        <div className="mt-6 space-y-4">
+          {loading ? <div className="text-sm text-[var(--text-dim)]">Loading tasks...</div> : null}
+          {!loading && !visibleTasks.length ? (
+            <div className="rounded-[26px] border border-dashed border-white/10 bg-black/18 p-8 text-sm text-[var(--text-dim)]">
+              No tasks matched the current filters.
+            </div>
+          ) : null}
+          <AnimatePresence>
+            {visibleTasks.map((task) => (
+              <TaskItem key={task.id} task={task} onUpdate={handleTaskUpdate} onDelete={handleTaskDelete} />
+            ))}
+          </AnimatePresence>
         </div>
       </div>
-
-      <div className="mt-6 space-y-4">
-        {visibleTasks.length === 0 && !loading ? (
-          <div className="rounded-xl border border-dashed border-white/10 bg-black/20 p-6 text-sm text-white/60">
-            No tasks found.
-          </div>
-        ) : (
-          visibleTasks.map((task) => (
-            <TaskItem key={task.id} task={task} onUpdate={handleTaskUpdate} onDelete={handleTaskDelete} />
-          ))
-        )}
-      </div>
-    </div>
+    </section>
   );
 };

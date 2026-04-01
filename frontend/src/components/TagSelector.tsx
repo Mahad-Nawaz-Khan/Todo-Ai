@@ -1,19 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { Check, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-import { useAuth } from '@/context/AuthContext';
-import type { TagsChangedDetail } from '@/types/events';
-import type { Tag } from '@/types/tag';
+import { useAuth } from "@/context/AuthContext";
+import type { TagsChangedDetail } from "@/types/events";
+import type { Tag } from "@/types/tag";
 
-interface TagSelectorProps {
+type TagSelectorProps = {
   selectedTags?: number[];
   onTagsChange: (tagIds: number[]) => void;
-}
+};
 
 const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
   const [allTags, setAllTags] = useState<Tag[]>([]);
-  const [newTag, setNewTag] = useState('');
+  const [newTag, setNewTag] = useState("");
+  const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
@@ -23,13 +26,11 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
       setIsLoading(true);
       setError(null);
       const token = await getToken();
-      const params = new URLSearchParams();
-      params.append('limit', '100');
-      params.append('offset', '0');
+      const params = new URLSearchParams({ limit: "100", offset: "0" });
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
@@ -47,73 +48,59 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
   }, [getToken]);
 
   useEffect(() => {
-    fetchTags();
+    void fetchTags();
   }, [fetchTags]);
 
   useEffect(() => {
     const handleTagsChanged = (event: Event) => {
       const detail = (event as CustomEvent<TagsChangedDetail>).detail;
-      if (!detail) {
-        return;
-      }
+      if (!detail) return;
 
-      if (detail.type === 'created') {
+      if (detail.type === "created") {
         const createdTag = detail.tag;
-        setAllTags((prev) => {
-          if (prev.some((tag) => tag.id === createdTag.id)) {
-            return prev;
-          }
-          return [...prev, createdTag];
-        });
+        setAllTags((prev) => (prev.some((tag) => tag.id === createdTag.id) ? prev : [...prev, createdTag]));
       }
 
-      if (detail.type === 'updated') {
+      if (detail.type === "updated") {
         const updatedTag = detail.tag;
-        setAllTags((prev) =>
-          prev.map((tag) => {
-            if (tag.id !== updatedTag.id) {
-              return tag;
-            }
-            return {
-              ...tag,
-              ...updatedTag,
-            };
-          })
-        );
+        setAllTags((prev) => prev.map((tag) => (tag.id === updatedTag.id ? { ...tag, ...updatedTag } : tag)));
       }
 
-      if (detail.type === 'deleted') {
+      if (detail.type === "deleted") {
         const deletedTagId = detail.tagId;
         setAllTags((prev) => prev.filter((tag) => tag.id !== deletedTagId));
-
         if (selectedTags.includes(deletedTagId)) {
           onTagsChange(selectedTags.filter((id) => id !== deletedTagId));
         }
       }
     };
 
-    window.addEventListener('tags:changed', handleTagsChanged);
-    return () => window.removeEventListener('tags:changed', handleTagsChanged);
+    window.addEventListener("tags:changed", handleTagsChanged);
+    return () => window.removeEventListener("tags:changed", handleTagsChanged);
   }, [onTagsChange, selectedTags]);
 
+  const visibleTags = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return allTags;
+    return allTags.filter((tag) => tag.name.toLowerCase().includes(normalized));
+  }, [allTags, query]);
+
   const createTag = async () => {
-    if (!newTag.trim()) {
-      return;
-    }
+    if (!newTag.trim()) return;
 
     try {
       setIsLoading(true);
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags`, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: newTag.trim(),
-          color: '#94A3B8',
+          color: "#94A3B8",
         }),
       });
 
@@ -124,22 +111,22 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
 
       const createdTag = (await response.json()) as Tag;
       setAllTags((prev) => [...prev, createdTag]);
-      setNewTag('');
+      setNewTag("");
 
       if (!selectedTags.includes(createdTag.id)) {
         onTagsChange([...selectedTags, createdTag.id]);
       }
 
       window.dispatchEvent(
-        new CustomEvent<TagsChangedDetail>('tags:changed', {
-          detail: {
-            type: 'created',
-            tag: createdTag,
-          },
+        new CustomEvent<TagsChangedDetail>("tags:changed", {
+          detail: { type: "created", tag: createdTag },
         })
       );
+      toast.success("Tag created");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create tag');
+      const message = err instanceof Error ? err.message : "Failed to create tag";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -148,100 +135,87 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
   const toggleTag = (tagId: number) => {
     if (selectedTags.includes(tagId)) {
       onTagsChange(selectedTags.filter((id) => id !== tagId));
-    } else {
-      onTagsChange([...selectedTags, tagId]);
+      return;
     }
+    onTagsChange([...selectedTags, tagId]);
   };
 
-  const getTagName = (tagId: number) => {
-    const tag = allTags.find((item) => item.id === tagId);
-    return tag ? tag.name : '';
-  };
-
-  if (isLoading && allTags.length === 0) {
-    return <div className="text-sm text-white/70">Loading tags...</div>;
-  }
+  const selectedTagObjects = allTags.filter((tag) => selectedTags.includes(tag.id));
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-      {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-          Error: {error}
+    <div className="rounded-[24px] border border-white/8 bg-white/4 p-4">
+      {error ? (
+        <div className="mb-3 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+          {error}
         </div>
-      )}
+      ) : null}
 
-      <div className="mb-2">
-        <label className="block text-sm font-medium text-white/80">Selected tags</label>
-        <div className="flex flex-wrap gap-2">
-          {selectedTags.map((tagId) => (
-            <span
-              key={tagId}
-              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/10 px-2 py-1 text-xs text-white/80"
-            >
-              {getTagName(tagId)}
-              <button
-                type="button"
-                onClick={() => toggleTag(tagId)}
-                className="ml-1 text-white/40 hover:text-red-200"
-              >
-                ×
-              </button>
-            </span>
-          ))}
-          {selectedTags.length === 0 && <span className="text-sm text-white/60">No tags selected</span>}
-        </div>
-      </div>
-
-      <div className="mb-2">
-        <label className="block text-sm font-medium text-white/80">Available tags</label>
-        <div className="max-h-32 flex flex-wrap gap-2 overflow-y-auto">
-          {allTags.map((tag) => (
+      <div className="flex flex-wrap gap-2">
+        {selectedTagObjects.length ? (
+          selectedTagObjects.map((tag) => (
             <button
               key={tag.id}
               type="button"
               onClick={() => toggleTag(tag.id)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                selectedTags.includes(tag.id)
-                  ? 'bg-blue-600 text-white'
-                  : 'border border-white/10 bg-white/10 text-white/80 hover:bg-white/15'
-              }`}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/12"
             >
+              <span className="size-2 rounded-full bg-[var(--accent-ice)]" />
               {tag.name}
             </button>
-          ))}
-          {allTags.length === 0 && !isLoading && (
-            <span className="text-sm text-white/60">No tags created yet. Create one above.</span>
-          )}
-        </div>
+          ))
+        ) : (
+          <span className="text-sm text-[var(--text-dim)]">No tags selected yet.</span>
+        )}
       </div>
 
-      <div className="mt-2">
-        <label className="block text-sm font-medium text-white/80">Create new tag</label>
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter existing tags"
+          className="input-shell rounded-2xl px-4 py-3 text-sm"
+        />
         <div className="flex gap-2">
           <input
             type="text"
             value={newTag}
             onChange={(e) => setNewTag(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === "Enter") {
                 e.preventDefault();
                 void createTag();
               }
             }}
-            placeholder="Tag name"
-            className="mt-1 flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+            placeholder="New tag"
+            className="input-shell min-w-0 rounded-2xl px-4 py-3 text-sm"
           />
-          <button
-            type="button"
-            onClick={() => {
-              void createTag();
-            }}
-            disabled={isLoading}
-            className="mt-1 rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
-          >
-            Add
+          <button type="button" onClick={() => void createTag()} disabled={isLoading} className="action-button-secondary rounded-2xl px-4 py-3">
+            <Plus className="size-4" />
           </button>
         </div>
+      </div>
+
+      <div className="mt-4 flex max-h-44 flex-wrap gap-2 overflow-y-auto pr-1">
+        {visibleTags.map((tag) => {
+          const selected = selectedTags.includes(tag.id);
+          return (
+            <button
+              key={tag.id}
+              type="button"
+              onClick={() => toggleTag(tag.id)}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition ${
+                selected
+                  ? "border-[rgba(144,229,255,0.24)] bg-[rgba(144,229,255,0.12)] text-white"
+                  : "border-white/8 bg-white/5 text-[var(--text-dim)] hover:border-white/12 hover:bg-white/8 hover:text-white"
+              }`}
+            >
+              {selected ? <Check className="size-3.5" /> : <span className="size-2 rounded-full bg-white/25" />}
+              {tag.name}
+            </button>
+          );
+        })}
+        {!visibleTags.length && !isLoading ? <span className="text-sm text-[var(--text-dim)]">No tags matched that search.</span> : null}
       </div>
     </div>
   );

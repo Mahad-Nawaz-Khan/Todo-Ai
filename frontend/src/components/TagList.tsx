@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from "framer-motion";
+import { Pencil, Tags, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
-import { useAuth } from '@/context/AuthContext';
-import type { TagsChangedDetail } from '@/types/events';
-import type { Tag } from '@/types/tag';
+import { useAuth } from "@/context/AuthContext";
+import type { TagsChangedDetail } from "@/types/events";
+import type { Tag } from "@/types/tag";
 
 const TagList = () => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newTagName, setNewTagName] = useState('');
+  const [newTagName, setNewTagName] = useState("");
   const [editingTagId, setEditingTagId] = useState<number | null>(null);
-  const [editingTagName, setEditingTagName] = useState('');
+  const [editingTagName, setEditingTagName] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const { getToken } = useAuth();
 
@@ -21,13 +24,11 @@ const TagList = () => {
       setLoading(true);
       setError(null);
       const token = await getToken();
-      const params = new URLSearchParams();
-      params.append('limit', '100');
-      params.append('offset', '0');
+      const params = new URLSearchParams({ limit: "100", offset: "0" });
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
@@ -51,70 +52,47 @@ const TagList = () => {
   useEffect(() => {
     const handleTagsChanged = (event: Event) => {
       const detail = (event as CustomEvent<TagsChangedDetail>).detail;
-      if (!detail) {
-        return;
-      }
+      if (!detail) return;
 
-      if (detail.type === 'created') {
+      if (detail.type === "created") {
         const createdTag = detail.tag;
-        setTags((prev) => {
-          if (prev.some((tag) => tag.id === createdTag.id)) {
-            return prev;
-          }
-          return [...prev, createdTag];
-        });
+        setTags((prev) => (prev.some((tag) => tag.id === createdTag.id) ? prev : [...prev, createdTag]));
       }
 
-      if (detail.type === 'updated') {
+      if (detail.type === "updated") {
         const updatedTag = detail.tag;
-        setTags((prev) =>
-          prev.map((tag) => {
-            if (tag.id !== updatedTag.id) {
-              return tag;
-            }
-            return {
-              ...tag,
-              ...updatedTag,
-            };
-          })
-        );
+        setTags((prev) => prev.map((tag) => (tag.id === updatedTag.id ? { ...tag, ...updatedTag } : tag)));
       }
 
-      if (detail.type === 'deleted') {
+      if (detail.type === "deleted") {
         const deletedTagId = detail.tagId;
         setTags((prev) => prev.filter((tag) => tag.id !== deletedTagId));
-
         if (editingTagId === deletedTagId) {
           setEditingTagId(null);
-          setEditingTagName('');
+          setEditingTagName("");
         }
       }
     };
 
-    window.addEventListener('tags:changed', handleTagsChanged);
-    return () => window.removeEventListener('tags:changed', handleTagsChanged);
+    window.addEventListener("tags:changed", handleTagsChanged);
+    return () => window.removeEventListener("tags:changed", handleTagsChanged);
   }, [editingTagId]);
 
   const createTag = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!newTagName.trim()) {
-      return;
-    }
+    if (!newTagName.trim()) return;
 
     try {
       setLoading(true);
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags`, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: newTagName.trim(),
-          color: '#94A3B8',
-        }),
+        body: JSON.stringify({ name: newTagName.trim(), color: "#94A3B8" }),
       });
 
       if (!response.ok) {
@@ -124,18 +102,13 @@ const TagList = () => {
 
       const createdTag = (await response.json()) as Tag;
       setTags((prev) => [...prev, createdTag]);
-      setNewTagName('');
-
-      window.dispatchEvent(
-        new CustomEvent<TagsChangedDetail>('tags:changed', {
-          detail: {
-            type: 'created',
-            tag: createdTag,
-          },
-        })
-      );
+      setNewTagName("");
+      window.dispatchEvent(new CustomEvent<TagsChangedDetail>("tags:changed", { detail: { type: "created", tag: createdTag } }));
+      toast.success("Tag created");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create tag');
+      const message = err instanceof Error ? err.message : "Failed to create tag";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -147,14 +120,12 @@ const TagList = () => {
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags/${tagId}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name: editingTagName.trim(),
-        }),
+        body: JSON.stringify({ name: editingTagName.trim() }),
       });
 
       if (!response.ok) {
@@ -165,25 +136,20 @@ const TagList = () => {
       const updatedTag = (await response.json()) as Tag;
       setTags((prev) => prev.map((tag) => (tag.id === tagId ? updatedTag : tag)));
       setEditingTagId(null);
-      setEditingTagName('');
-
-      window.dispatchEvent(
-        new CustomEvent<TagsChangedDetail>('tags:changed', {
-          detail: {
-            type: 'updated',
-            tag: updatedTag,
-          },
-        })
-      );
+      setEditingTagName("");
+      window.dispatchEvent(new CustomEvent<TagsChangedDetail>("tags:changed", { detail: { type: "updated", tag: updatedTag } }));
+      toast.success("Tag updated");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update tag');
+      const message = err instanceof Error ? err.message : "Failed to update tag";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   const deleteTag = async (tagId: number) => {
-    if (!window.confirm('Are you sure you want to delete this tag?')) {
+    if (!window.confirm("Are you sure you want to delete this tag?")) {
       return;
     }
 
@@ -192,10 +158,8 @@ const TagList = () => {
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags/${tagId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -204,147 +168,125 @@ const TagList = () => {
       }
 
       setTags((prev) => prev.filter((tag) => tag.id !== tagId));
-
-      window.dispatchEvent(
-        new CustomEvent<TagsChangedDetail>('tags:changed', {
-          detail: {
-            type: 'deleted',
-            tagId,
-          },
-        })
-      );
+      window.dispatchEvent(new CustomEvent<TagsChangedDetail>("tags:changed", { detail: { type: "deleted", tagId } }));
+      toast.success("Tag deleted");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete tag');
+      const message = err instanceof Error ? err.message : "Failed to delete tag";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex w-full items-start justify-between gap-4 text-left"
-      >
+    <section className="section-card rounded-[28px] p-5 sm:p-6">
+      <button type="button" onClick={() => setIsOpen((value) => !value)} className="flex w-full items-start justify-between gap-4 text-left">
         <div>
-          <h3 className="text-lg font-semibold text-white">Manage Tags</h3>
-          <p className="mt-1 text-sm text-white/70">Create tags once and reuse them across tasks.</p>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Taxonomy</p>
+          <h3 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-white">Manage tags</h3>
+          <p className="mt-2 text-sm text-[var(--text-dim)]">Keep reusable labels tidy across the whole workspace.</p>
         </div>
-        <div className="mt-1">
-          <span className="inline-flex rounded-lg border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white/80 hover:bg-white/15">
-            {isOpen ? 'Hide' : 'Open'}
-          </span>
-        </div>
+        <span className="flex size-12 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-blue)]">
+          <Tags className="size-5" />
+        </span>
       </button>
 
-      {error && (
-        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-          Error: {error}
-        </div>
-      )}
-
-      {!isOpen ? null : (
-        <div className="mt-5 space-y-4">
-          <form onSubmit={createTag} className="flex gap-2">
-            <input
-              type="text"
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="New tag name"
-              className="flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/40"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
-            >
-              Add
-            </button>
-          </form>
-
-          <div className="space-y-3">
-            {loading && tags.length === 0 ? (
-              <div className="text-sm text-white/70">Loading tags...</div>
-            ) : tags.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-white/60">
-                No tags yet.
+      <AnimatePresence initial={false}>
+        {isOpen ? (
+          <motion.div initial={{ opacity: 0, height: 0, y: -10 }} animate={{ opacity: 1, height: "auto", y: 0 }} exit={{ opacity: 0, height: 0, y: -10 }} className="overflow-hidden">
+            {error ? (
+              <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+                {error}
               </div>
-            ) : (
-              tags.map((tag) => {
-                const isEditing = editingTagId === tag.id;
+            ) : null}
 
-                return (
-                  <div
-                    key={tag.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3"
-                  >
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editingTagName}
-                        onChange={(e) => setEditingTagName(e.target.value)}
-                        className="flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white"
-                      />
-                    ) : (
-                      <div className="text-sm font-medium text-white">{tag.name}</div>
-                    )}
+            <form onSubmit={createTag} className="mt-5 flex gap-2">
+              <input
+                type="text"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                placeholder="Add a reusable label"
+                className="input-shell flex-1 rounded-2xl px-4 py-3 text-sm"
+              />
+              <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-4 py-3 text-sm">
+                Add
+              </button>
+            </form>
 
-                    <div className="flex items-center gap-2">
+            <div className="mt-5 space-y-3">
+              {loading && tags.length === 0 ? (
+                <div className="text-sm text-[var(--text-dim)]">Loading tags...</div>
+              ) : tags.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-[var(--text-dim)]">No tags yet.</div>
+              ) : (
+                tags.map((tag) => {
+                  const isEditing = editingTagId === tag.id;
+
+                  return (
+                    <div key={tag.id} className="flex flex-col gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                       {isEditing ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void updateTag(tag.id);
-                            }}
-                            className="text-sm font-medium text-blue-300 hover:text-blue-200"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingTagId(null);
-                              setEditingTagName('');
-                            }}
-                            className="text-sm font-medium text-white/70 hover:text-white"
-                          >
-                            Cancel
-                          </button>
-                        </>
+                        <input
+                          type="text"
+                          value={editingTagName}
+                          onChange={(e) => setEditingTagName(e.target.value)}
+                          className="input-shell w-full rounded-2xl px-4 py-3 text-sm sm:max-w-xs"
+                        />
                       ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingTagId(tag.id);
-                              setEditingTagName(tag.name);
-                            }}
-                            className="text-sm font-medium text-blue-300 hover:text-blue-200"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void deleteTag(tag.id);
-                            }}
-                            className="text-sm font-medium text-red-300 hover:text-red-200"
-                          >
-                            Delete
-                          </button>
-                        </>
+                        <div className="flex items-center gap-3">
+                          <span className="size-2.5 rounded-full bg-[var(--accent-ice)]" />
+                          <div className="text-sm font-medium text-white">{tag.name}</div>
+                        </div>
                       )}
+
+                      <div className="flex items-center gap-2">
+                        {isEditing ? (
+                          <>
+                            <button type="button" onClick={() => void updateTag(tag.id)} className="action-button-primary rounded-2xl px-4 py-2 text-sm">
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTagId(null);
+                                setEditingTagName("");
+                              }}
+                              className="action-button-secondary rounded-2xl px-4 py-2 text-sm"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTagId(tag.id);
+                                setEditingTagName(tag.name);
+                              }}
+                              className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
+                            >
+                              <Pencil className="size-4" /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void deleteTag(tag.id)}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,135,124,0.2)] bg-[rgba(255,135,124,0.08)] px-4 py-2 text-sm text-[#ffd4cf] transition hover:bg-[rgba(255,135,124,0.12)]"
+                            >
+                              <Trash2 className="size-4" /> Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+                  );
+                })
+              )}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </section>
   );
 };
 

@@ -1,80 +1,53 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import ChatInterface from '@/components/ChatInterface';
+import { useState } from "react";
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-}
+import ChatInterface from "@/components/ChatInterface";
 
-const demoMessages: Message[] = [
+const demoMessages = [
   {
-    id: '1',
-    text: 'Hello there! 👋 Welcome to the chat interface.',
-    sender: 'ai',
-    timestamp: new Date('2024-01-01T12:00:00.000Z'),
+    id: "1",
+    text: "Hello! I can help manage tasks, tags, and workflow planning.",
+    sender: "ai" as const,
+    timestamp: new Date("2024-01-01T12:00:00.000Z"),
   },
   {
-    id: '2',
-    text: 'Thanks! This looks great.',
-    sender: 'user',
-    timestamp: new Date('2024-01-01T12:01:00.000Z'),
+    id: "2",
+    text: "Great. Show me how the redesigned interface behaves with history.",
+    sender: "user" as const,
+    timestamp: new Date("2024-01-01T12:01:00.000Z"),
   },
   {
-    id: '3',
-    text: 'The messages are displayed chronologically with timestamps.',
-    sender: 'ai',
-    timestamp: new Date('2024-01-01T12:02:00.000Z'),
+    id: "3",
+    text: "This lab page previews the same chat component in different states while preserving the production service contract.",
+    sender: "ai" as const,
+    timestamp: new Date("2024-01-01T12:02:00.000Z"),
   },
 ];
 
 export default function AdvancedChatPage() {
-  const [showDemo, setShowDemo] = useState(true);
+  const [mode, setMode] = useState<"demo" | "empty">("demo");
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
-      <div className="mx-auto max-w-4xl px-6 py-12">
-        <header className="mb-10">
-          <h1 className="text-3xl font-bold md:text-4xl">Advanced Chat Interface</h1>
-          <p className="mt-2 text-white/70">A responsive chat component with message history</p>
-        </header>
-
-        <div className="mb-6 flex gap-4">
-          <button
-            onClick={() => setShowDemo(true)}
-            className={`rounded-lg px-4 py-2 ${showDemo ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            Show Demo
-          </button>
-          <button
-            onClick={() => setShowDemo(false)}
-            className={`rounded-lg px-4 py-2 ${!showDemo ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            Empty Chat
-          </button>
-        </div>
-
-        <main>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <ChatInterface initialMessages={showDemo ? demoMessages : []} />
+    <div className="grid gap-4">
+      <div className="section-card rounded-[28px] p-5 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Chat lab</div>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Preview different chat states</h2>
+            <p className="mt-2 text-sm text-[var(--text-dim)]">Use this page to inspect the UI with seeded history or a fresh conversation shell.</p>
           </div>
-        </main>
-
-        <div className="mt-8 text-sm text-white/60">
-          <p>This chat interface includes:</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Chronological message display with timestamps</li>
-            <li>Different styling for user vs other messages</li>
-            <li>Auto-scroll to latest message</li>
-            <li>Loading states during message sending</li>
-            <li>Responsive design that works on all screen sizes</li>
-            <li>TypeScript type safety</li>
-          </ul>
+          <div className="flex gap-2">
+            <button onClick={() => setMode("demo")} className={`rounded-2xl px-4 py-2.5 text-sm ${mode === "demo" ? "action-button-primary" : "action-button-secondary"}`}>
+              Demo history
+            </button>
+            <button onClick={() => setMode("empty")} className={`rounded-2xl px-4 py-2.5 text-sm ${mode === "empty" ? "action-button-primary" : "action-button-secondary"}`}>
+              Empty state
+            </button>
+          </div>
         </div>
       </div>
+      <ChatInterface initialMessages={mode === "demo" ? demoMessages : []} />
     </div>
   );
 }

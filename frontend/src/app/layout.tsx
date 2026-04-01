@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+
+import AppCommandPalette from "@/components/AppCommandPalette";
 import { AuthProvider } from "@/context/AuthContext";
 
+import "./globals.css";
 import type { ReactNode } from "react";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,19 +19,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TODO-APP",
-  description: "A simple TODO application with Passport authentication",
+  title: "Todo AI Command Center",
+  description: "A premium task and AI workspace built on the existing Todo AI backend.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <AppCommandPalette />
+          <Toaster theme="dark" richColors position="top-right" />
+        </AuthProvider>
       </body>
     </html>
   );

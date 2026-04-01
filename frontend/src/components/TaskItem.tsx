@@ -1,25 +1,43 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from "framer-motion";
+import { CalendarDays, CheckCircle2, Pencil, Repeat2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-import { useAuth } from '@/context/AuthContext';
-import type { Priority, RecurrenceInput, Task, TaskUpsertPayload } from '@/types/task';
+import { useAuth } from "@/context/AuthContext";
+import type { Priority, RecurrenceInput, Task, TaskUpsertPayload } from "@/types/task";
 
-import TagSelector from './TagSelector';
+import TagSelector from "./TagSelector";
 
-interface TaskItemProps {
+type TaskItemProps = {
   task: Task;
   onUpdate: (updatedTask: Task) => void;
   onDelete: (deletedTaskId: number) => void;
+};
+
+function formatDate(dateString?: string | null) {
+  if (!dateString) return "No date";
+  return new Date(dateString).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function priorityClass(priority: Priority) {
+  if (priority === "HIGH") return "priority-high";
+  if (priority === "LOW") return "priority-low";
+  return "priority-medium";
 }
 
 export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
-  const [editDescription, setEditDescription] = useState(task.description || '');
-  const [editPriority, setEditPriority] = useState<Priority>(task.priority || 'MEDIUM');
-  const [editDueDate, setEditDueDate] = useState(task.due_date || '');
-  const [editRecurrenceRule, setEditRecurrenceRule] = useState<RecurrenceInput>(task.recurrence_rule || '');
+  const [editDescription, setEditDescription] = useState(task.description || "");
+  const [editPriority, setEditPriority] = useState<Priority>(task.priority || "MEDIUM");
+  const [editDueDate, setEditDueDate] = useState(task.due_date || "");
+  const [editRecurrenceRule, setEditRecurrenceRule] = useState<RecurrenceInput>(task.recurrence_rule || "");
   const [editTags, setEditTags] = useState<number[]>(task.tags ? task.tags.map((tag) => tag.id) : []);
   const [optimisticCompleted, setOptimisticCompleted] = useState(task.completed);
   const [loading, setLoading] = useState(false);
@@ -30,28 +48,28 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
     setOptimisticCompleted(task.completed);
   }, [task.completed]);
 
+  const taskStatus = useMemo(() => {
+    if (optimisticCompleted) return "Completed";
+    if (task.due_date && new Date(task.due_date).getTime() < Date.now()) return "Overdue";
+    return "Open";
+  }, [optimisticCompleted, task.due_date]);
+
   const handleToggleComplete = async () => {
     setError(null);
-
     const previousCompleted = task.completed;
     const nextCompleted = !task.completed;
 
     setOptimisticCompleted(nextCompleted);
-    onUpdate({
-      ...task,
-      completed: nextCompleted,
-      updated_at: new Date().toISOString(),
-    });
-
+    onUpdate({ ...task, completed: nextCompleted, updated_at: new Date().toISOString() });
     setLoading(true);
 
     try {
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks/${task.id}/toggle-completion`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
@@ -63,10 +81,13 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
       const updatedTask = (await response.json()) as Task;
       setOptimisticCompleted(Boolean(updatedTask.completed ?? previousCompleted));
       onUpdate(updatedTask);
+      toast.success(updatedTask.completed ? "Task completed" : "Task reopened");
     } catch (err) {
       setOptimisticCompleted(previousCompleted);
       onUpdate({ ...task, completed: previousCompleted });
-      setError(err instanceof Error ? err.message : 'Failed to update task');
+      const message = err instanceof Error ? err.message : "Failed to update task";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -102,10 +123,10 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
     try {
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks/${task.id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
@@ -117,17 +138,20 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
 
       const updatedTask = (await response.json()) as Task;
       onUpdate(updatedTask);
+      toast.success("Task updated");
     } catch (err) {
       onUpdate(previousTask);
       setIsEditing(true);
-      setError(err instanceof Error ? err.message : 'Failed to update task');
+      const message = err instanceof Error ? err.message : "Failed to update task";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this task?')) {
+    if (!window.confirm("Are you sure you want to delete this task?")) {
       return;
     }
 
@@ -137,10 +161,8 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
     try {
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks/${task.id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -149,209 +171,143 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
       }
 
       onDelete(task.id);
+      toast.success("Task deleted");
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete task');
+      const message = err instanceof Error ? err.message : "Failed to delete task";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) {
-      return '';
-    }
-    return new Date(dateString).toLocaleDateString();
-  };
+  return (
+    <motion.article layout className={`section-card rounded-[28px] p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)]" : ""}`}>
+      {error ? (
+        <div className="mb-4 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+          {error}
+        </div>
+      ) : null}
 
-  if (isEditing) {
-    return (
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-lg">
-        {error && (
-          <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-            Error: {error}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`status-pill rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em] ${priorityClass(task.priority)}`}>
+              {task.priority}
+            </span>
+            <span className="status-pill rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">{taskStatus}</span>
           </div>
-        )}
-        <form onSubmit={handleUpdate} className="space-y-4">
-          <div>
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-              required
-            />
-          </div>
-          <div>
-            <textarea
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-white/80">Priority</label>
-              <select
-                value={editPriority}
-                onChange={(e) => setEditPriority(e.target.value as Priority)}
-                className="mt-1 w-full cursor-pointer rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/40 hover:bg-white/15"
-              >
-                <option value="LOW" className="bg-slate-950 text-white">
-                  Low
-                </option>
-                <option value="MEDIUM" className="bg-slate-950 text-white">
-                  Medium
-                </option>
-                <option value="HIGH" className="bg-slate-950 text-white">
-                  High
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/80">Due Date</label>
-              <input
-                type="date"
-                value={editDueDate}
-                onChange={(e) => setEditDueDate(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Recurrence</label>
-            <select
-              value={editRecurrenceRule}
-              onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)}
-              className="mt-1 w-full cursor-pointer rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-400/40 hover:bg-white/15"
-            >
-              <option value="" className="bg-slate-950 text-white">
-                No recurrence
-              </option>
-              <option value="DAILY" className="bg-slate-950 text-white">
-                Daily
-              </option>
-              <option value="WEEKLY" className="bg-slate-950 text-white">
-                Weekly
-              </option>
-              <option value="MONTHLY" className="bg-slate-950 text-white">
-                Monthly
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-white/80">Tags</label>
-            <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
-          </div>
-
-          <div className="flex space-x-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : 'Save'}
-            </button>
+          <div className="mt-4 flex items-start gap-3">
             <button
               type="button"
-              onClick={() => setIsEditing(false)}
-              className="rounded-lg border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/15"
+              onClick={handleToggleComplete}
+              disabled={loading}
+              className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl border transition ${
+                optimisticCompleted
+                  ? "border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-[var(--success)]"
+                  : "border-white/10 bg-white/6 text-[var(--text-dim)] hover:border-white/14 hover:text-white"
+              }`}
             >
-              Cancel
+              <CheckCircle2 className="size-5" />
             </button>
-          </div>
-        </form>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`rounded-2xl border p-5 shadow-lg ${
-        optimisticCompleted ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-white/10 bg-white/5'
-      }`}
-    >
-      {error && (
-        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
-          Error: {error}
-        </div>
-      )}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={optimisticCompleted}
-            onChange={handleToggleComplete}
-            className="mt-1 h-4 w-4 rounded border-white/20 bg-white/10"
-            disabled={loading}
-          />
-          <div>
-            <h3 className={`text-base font-semibold ${optimisticCompleted ? 'line-through text-emerald-100/80' : 'text-white'}`}>
-              {task.title}
-            </h3>
-            {task.description && <div className="mt-1 text-sm text-white/70">{task.description}</div>}
+            <div className="min-w-0 flex-1">
+              <h3 className={`text-lg font-semibold tracking-[-0.03em] ${optimisticCompleted ? "text-[rgba(255,255,255,0.58)] line-through" : "text-white"}`}>
+                {task.title}
+              </h3>
+              {task.description ? <p className="mt-2 text-sm leading-6 text-[var(--text-dim)]">{task.description}</p> : null}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap gap-2 lg:justify-end">
           <button
+            type="button"
             onClick={() => {
               setEditTitle(task.title);
-              setEditDescription(task.description || '');
-              setEditPriority(task.priority || 'MEDIUM');
-              setEditDueDate(task.due_date || '');
-              setEditRecurrenceRule(task.recurrence_rule || '');
+              setEditDescription(task.description || "");
+              setEditPriority(task.priority || "MEDIUM");
+              setEditDueDate(task.due_date || "");
+              setEditRecurrenceRule(task.recurrence_rule || "");
               setEditTags(task.tags ? task.tags.map((tag) => tag.id) : []);
               setIsEditing(true);
             }}
-            className="text-sm font-medium text-blue-300 hover:text-blue-200"
+            className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
             disabled={loading}
           >
-            Edit
+            <Pencil className="size-4" /> Edit
           </button>
           <button
+            type="button"
             onClick={handleDelete}
-            className="text-sm font-medium text-red-300 hover:text-red-200"
+            className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,135,124,0.2)] bg-[rgba(255,135,124,0.08)] px-4 py-2 text-sm text-[#ffd4cf] transition hover:bg-[rgba(255,135,124,0.12)]"
             disabled={loading}
           >
-            Delete
+            <Trash2 className="size-4" /> Delete
           </button>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-white/70 sm:grid-cols-2">
-        <div>
-          Priority: <span className="font-medium text-white">{task.priority}</span>
-        </div>
-        {task.due_date && (
-          <div>
-            Due: <span className="font-medium text-white">{formatDate(task.due_date)}</span>
-          </div>
-        )}
-        {task.recurrence_rule && (
-          <div>
-            Recurs: <span className="font-medium text-white capitalize">{task.recurrence_rule}</span>
-          </div>
-        )}
-        <div>
-          Created: <span className="font-medium text-white">{formatDate(task.created_at)}</span>
-        </div>
-
-        {task.tags && task.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 sm:col-span-2">
-            <span className="text-xs font-medium text-white/60">Tags</span>
-            {task.tags.map((tag) => (
-              <span key={tag.id} className="rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-xs text-white/80">
-                {tag.name}
-              </span>
-            ))}
-          </div>
-        )}
+      <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--text-dim)]">
+        <span className="status-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5">
+          <CalendarDays className="size-3.5" /> {formatDate(task.due_date)}
+        </span>
+        {task.recurrence_rule ? (
+          <span className="status-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5">
+            <Repeat2 className="size-3.5" /> {task.recurrence_rule}
+          </span>
+        ) : null}
+        <span className="status-pill rounded-full px-3 py-1.5">Created {formatDate(task.created_at)}</span>
       </div>
-    </div>
+
+      {task.tags && task.tags.length ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {task.tags.map((tag) => (
+            <span key={tag.id} className="rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-[var(--text-secondary)]">
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <AnimatePresence>
+        {isEditing ? (
+          <motion.form
+            initial={{ opacity: 0, height: 0, y: -8 }}
+            animate={{ opacity: 1, height: "auto", y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -8 }}
+            onSubmit={handleUpdate}
+            className="mt-6 overflow-hidden rounded-[24px] border border-white/8 bg-black/16 p-4"
+          >
+            <div className="grid gap-4">
+              <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell rounded-2xl px-4 py-3" required />
+              <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as Priority)} className="input-shell rounded-2xl px-4 py-3">
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
+                <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell rounded-2xl px-4 py-3" />
+              </div>
+              <select value={editRecurrenceRule} onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)} className="input-shell rounded-2xl px-4 py-3">
+                <option value="">No recurrence</option>
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
+              <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-5 py-3 text-sm">
+                  {loading ? "Saving..." : "Save changes"}
+                </button>
+                <button type="button" onClick={() => setIsEditing(false)} className="action-button-secondary rounded-2xl px-5 py-3 text-sm">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.form>
+        ) : null}
+      </AnimatePresence>
+    </motion.article>
   );
 };

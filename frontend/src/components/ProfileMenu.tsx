@@ -1,7 +1,9 @@
 "use client";
 
+import { Camera, LogOut, User2 } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 
@@ -18,15 +20,7 @@ function getProviderLabel(provider: string | null | undefined) {
   return provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
-function InitialsAvatar({
-  name,
-  email,
-  className,
-}: {
-  name: string | null | undefined;
-  email: string | null | undefined;
-  className?: string;
-}) {
+function InitialsAvatar({ name, email, className }: { name: string | null | undefined; email: string | null | undefined; className?: string }) {
   const letter = getInitialsLabel(name, email);
   return <span className={className}>{letter}</span>;
 }
@@ -45,7 +39,6 @@ export default function ProfileMenu() {
     return user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email || "User";
   }, [user]);
 
-  // Reset image error state when the user changes (so new avatar URL gets a fresh attempt)
   useEffect(() => setImgError(false), [user?.imageUrl]);
 
   useEffect(() => {
@@ -56,6 +49,7 @@ export default function ProfileMenu() {
         setIsOpen(false);
       }
     };
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsOpen(false);
@@ -105,11 +99,13 @@ export default function ProfileMenu() {
           throw new Error(data?.detail || "Failed to update profile photo");
         }
 
-        // Reset error state and force refetch
         setImgError(false);
         await refreshSession();
+        toast.success("Profile photo updated");
       } catch (error) {
-        setUploadError(error instanceof Error ? error.message : "Failed to update profile photo");
+        const message = error instanceof Error ? error.message : "Failed to update profile photo";
+        setUploadError(message);
+        toast.error(message);
       } finally {
         setIsUploading(false);
       }
@@ -117,9 +113,7 @@ export default function ProfileMenu() {
     [getToken, refreshSession]
   );
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const showImage = user.imageUrl && !imgError;
 
@@ -128,78 +122,47 @@ export default function ProfileMenu() {
       <button
         type="button"
         onClick={() => setIsOpen((value) => !value)}
-        className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-sm text-white/80"
+        className="flex size-12 items-center justify-center overflow-hidden rounded-2xl border border-white/8 bg-white/6 text-sm text-white/80 shadow-[0_12px_28px_rgba(0,0,0,0.2)]"
         aria-label="Open account menu"
         aria-expanded={isOpen}
       >
         {showImage ? (
-          <Image
-            src={user.imageUrl!}
-            alt={displayName}
-            width={44}
-            height={44}
-            className="h-full w-full object-cover"
-            unoptimized
-            onError={() => setImgError(true)}
-          />
+          <Image src={user.imageUrl!} alt={displayName} width={48} height={48} className="h-full w-full object-cover" unoptimized onError={() => setImgError(true)} />
         ) : (
-          <InitialsAvatar
-            name={user.firstName || user.name}
-            email={user.email}
-            className="h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm font-medium text-white/80"
-          />
+          <InitialsAvatar name={user.firstName || user.name} email={user.email} className="flex size-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(74,167,255,0.95),rgba(144,229,255,0.7))] text-sm font-semibold text-[#04121f]" />
         )}
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 z-50 mt-3 w-80 rounded-3xl border border-white/10 bg-slate-950/95 p-5 shadow-2xl backdrop-blur">
+        <div className="absolute right-0 z-50 mt-3 w-[320px] rounded-[28px] border border-white/10 bg-[rgba(8,12,20,0.98)] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-lg font-semibold text-white">
+            <div className="flex size-16 items-center justify-center overflow-hidden rounded-[24px] border border-white/8 bg-white/6 text-lg font-semibold text-white">
               {showImage ? (
-                <Image
-                  src={user.imageUrl!}
-                  alt={displayName}
-                  width={64}
-                  height={64}
-                  className="h-full w-full object-cover"
-                  unoptimized
-                  onError={() => setImgError(true)}
-                />
+                <Image src={user.imageUrl!} alt={displayName} width={64} height={64} className="h-full w-full object-cover" unoptimized onError={() => setImgError(true)} />
               ) : (
-                <InitialsAvatar
-                  name={user.firstName || user.name}
-                  email={user.email}
-                  className="h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg font-semibold text-white"
-                />
+                <InitialsAvatar name={user.firstName || user.name} email={user.email} className="flex size-16 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,rgba(74,167,255,0.95),rgba(144,229,255,0.7))] text-lg font-semibold text-[#04121f]" />
               )}
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-base font-semibold text-white">{displayName}</div>
-              <div className="truncate text-sm text-white/65">{user.email || "No email available"}</div>
-              <div className="mt-1 text-xs uppercase tracking-wide text-white/45">{getProviderLabel(user.provider)}</div>
+              <div className="truncate text-sm text-[var(--text-dim)]">{user.email || "No email available"}</div>
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/6 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">
+                <User2 className="size-3.5" /> {getProviderLabel(user.provider)}
+              </div>
             </div>
           </div>
 
-          <div className="mt-5 border-t border-white/10 pt-4">
+          <div className="mt-5 grid gap-3">
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleUpload} />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className="text-sm font-medium text-white/85 transition hover:text-white disabled:cursor-not-allowed disabled:text-white/40"
-            >
-              {isUploading ? "Uploading photo..." : "Change profile photo"}
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="action-button-secondary inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+              <Camera className="size-4" /> {isUploading ? "Uploading photo..." : "Change profile photo"}
             </button>
-            {uploadError ? <p className="mt-2 text-sm text-red-300">{uploadError}</p> : null}
+            {uploadError ? <p className="text-sm text-[#ffd4cf]">{uploadError}</p> : null}
           </div>
 
-          <div className="mt-5 border-t border-white/10 pt-4">
-            <button
-              type="button"
-              onClick={signOut}
-              className="text-sm font-medium text-red-400 transition hover:text-red-300"
-            >
-              Sign out
+          <div className="mt-5 border-t border-white/8 pt-4">
+            <button type="button" onClick={signOut} className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,135,124,0.2)] bg-[rgba(255,135,124,0.08)] px-4 py-2.5 text-sm text-[#ffd4cf] transition hover:bg-[rgba(255,135,124,0.12)]">
+              <LogOut className="size-4" /> Sign out
             </button>
           </div>
         </div>

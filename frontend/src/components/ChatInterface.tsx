@@ -1,51 +1,65 @@
-'use client';
+"use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
-import ReactMarkdown from 'react-markdown';
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowUp, Bot, LoaderCircle, MessageSquareText, Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
-import { useUser } from '@/context/AuthContext';
-import { useChat } from '@/hooks/useChat';
+import { useUser } from "@/context/AuthContext";
+import { useChat } from "@/hooks/useChat";
 
-interface Message {
+type Message = {
   id: string;
   text: string;
-  sender: 'user' | 'ai';
+  sender: "user" | "ai";
   timestamp: Date;
-}
+};
 
-interface ChatInterfaceProps {
+type ChatInterfaceProps = {
   initialMessages?: Message[];
-  showWelcome?: boolean;
   onTaskUpdated?: () => void;
-}
+};
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({
-  initialMessages = [],
-  onTaskUpdated,
-}) => {
-  const { messages, sendMessage, isLoading, startNewConversation, formatMessage } = useChat(initialMessages, {
+const suggestions = [
+  "Create a task to review the API docs tomorrow",
+  "Show all my high priority tasks",
+  "Mark my completed tasks as done",
+];
+
+const ChatInterface = ({ initialMessages = [], onTaskUpdated }: ChatInterfaceProps) => {
+  const { messages, sendMessage, isLoading, startNewConversation, formatMessage, sessionId, operationPerformed } = useChat(initialMessages, {
     autoLoadHistory: !initialMessages.length,
     enableStreaming: true,
   });
 
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState("");
   const { user, isLoaded: userLoaded } = useUser();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const handleNewConversation = useCallback(() => {
+    startNewConversation();
+    toast.success("Started a new chat session");
+  }, [startNewConversation]);
 
   useEffect(() => {
     const handleTasksUpdated = () => {
       onTaskUpdated?.();
     };
 
-    window.addEventListener('tasksUpdated', handleTasksUpdated);
-    return () => window.removeEventListener('tasksUpdated', handleTasksUpdated);
-  }, [onTaskUpdated]);
+    window.addEventListener("tasksUpdated", handleTasksUpdated);
+    window.addEventListener("todo:start-new-chat", handleNewConversation);
+    return () => {
+      window.removeEventListener("tasksUpdated", handleTasksUpdated);
+      window.removeEventListener("todo:start-new-chat", handleNewConversation);
+    };
+  }, [handleNewConversation, onTaskUpdated]);
 
   useEffect(() => {
     if (userLoaded && user) {
@@ -53,150 +67,152 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [userLoaded, user]);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSend = (e?: React.FormEvent) => {
+    e?.preventDefault();
 
     if (!user) {
-      alert('Please sign in to use the chat feature');
+      toast.error("Please sign in to use chat");
       return;
     }
 
     if (!inputText.trim() || isLoading) return;
     sendMessage(inputText);
-    setInputText('');
-  };
-
-  const handleNewConversation = () => {
-    if (confirm('Start a new conversation? This will clear your chat history.')) {
-      startNewConversation();
-    }
+    setInputText("");
   };
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-lg">
-      <div className="flex items-center justify-between border-b border-white/10 bg-slate-800/50 px-4 py-3">
+    <div className="section-card flex h-full min-h-[640px] flex-col overflow-hidden rounded-[30px]">
+      <div className="flex flex-col gap-4 border-b border-white/8 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            AI Assistant
-          </h2>
-          <p className="mt-0.5 text-xs text-white/60">
-            {messages.length} message{messages.length !== 1 ? 's' : ''} • Session: {messages.length > 0 ? 'Active' : 'New'}
-          </p>
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-ice)]">
+              <Bot className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-xl font-semibold tracking-[-0.04em] text-white">AI chat workspace</h2>
+              <p className="mt-1 text-sm text-[var(--text-dim)]">Session {sessionId.slice(-8)} · {messages.length} messages</p>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={handleNewConversation}
-          className="rounded-lg px-3 py-1.5 text-sm text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-          title="Start new conversation"
-        >
-          New chat
-        </button>
+        <div className="flex gap-2">
+          <button type="button" onClick={handleNewConversation} className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm">
+            <Plus className="size-4" /> New chat
+          </button>
+        </div>
       </div>
 
-      <div className="max-h-100 min-h-75 flex-1 space-y-4 overflow-y-auto p-4">
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-white/50">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10">
-              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </div>
-            <div className="text-center">
-              <p className="font-medium">No messages yet</p>
-              <p className="mt-1 text-sm">Try saying &quot;Create a task to buy groceries&quot;</p>
-            </div>
-          </div>
-        ) : (
-          messages
-            .filter((message) => !(message.sender === 'ai' && message.isStreaming && !message.text))
-            .map((message) => (
-            <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                  message.sender === 'user'
-                    ? 'rounded-br-md bg-blue-600 text-white shadow-lg shadow-blue-900/20'
-                    : 'rounded-bl-md border border-white/10 bg-white/10 text-white'
-                }`}
-              >
-                <div className="markdown-content text-sm leading-relaxed">
-                  {message.sender === 'ai' ? <ReactMarkdown>{message.text}</ReactMarkdown> : formatMessage(message.text)}
+      <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+            {messages.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-5 py-12 text-center">
+                <div className="flex size-20 items-center justify-center rounded-[28px] border border-white/8 bg-white/6 text-[var(--accent-ice)] shadow-[0_0_50px_rgba(144,229,255,0.12)]">
+                  <MessageSquareText className="size-8" />
                 </div>
-                <div className={`mt-2 flex items-center gap-2 text-xs ${message.sender === 'user' ? 'text-blue-200' : 'text-white/50'}`}>
-                  <span>
-                    {message.timestamp.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  {message.sender === 'ai' && <span className="text-white/40">• AI</span>}
+                <div>
+                  <h3 className="text-2xl font-semibold tracking-[-0.04em] text-white">Start with a task command</h3>
+                  <p className="mt-2 max-w-md text-sm text-[var(--text-dim)]">Use natural language to create, update, or search tasks without leaving the workspace.</p>
+                </div>
+                <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => setInputText(suggestion)}
+                      className="rounded-[22px] border border-white/8 bg-white/5 px-4 py-4 text-left text-sm text-[var(--text-secondary)] transition hover:border-white/12 hover:bg-white/8 hover:text-white"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
-          ))
-        )}
+            ) : (
+              <AnimatePresence initial={false}>
+                {messages
+                  .filter((message) => !(message.sender === "ai" && message.isStreaming && !message.text))
+                  .map((message) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div className={`max-w-[92%] rounded-[24px] px-4 py-4 sm:max-w-[80%] ${message.sender === "user" ? "bg-[linear-gradient(135deg,rgba(74,167,255,0.92),rgba(144,229,255,0.72))] text-[#04121f]" : "border border-white/8 bg-white/5 text-white"}`}>
+                        <div className="markdown-content text-sm leading-7">
+                          {message.sender === "ai" ? <ReactMarkdown>{message.text}</ReactMarkdown> : formatMessage(message.text)}
+                        </div>
+                        <div className={`mt-3 text-[11px] uppercase tracking-[0.24em] ${message.sender === "user" ? "text-[#0a2f4b]/70" : "text-[var(--text-faint)]"}`}>
+                          {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+              </AnimatePresence>
+            )}
 
-        {isLoading && !messages.some((m) => m.sender === 'ai' && m.isStreaming && m.text) && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md border border-white/10 bg-white/10 px-4 py-3 text-white">
-              <div className="flex items-center gap-2">
-                <div className="flex space-x-1">
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-white/60" style={{ animationDelay: '0ms' }} />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-white/60" style={{ animationDelay: '150ms' }} />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-white/60" style={{ animationDelay: '300ms' }} />
+            {isLoading && !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) ? (
+              <div className="flex justify-start">
+                <div className="inline-flex items-center gap-3 rounded-[22px] border border-white/8 bg-white/5 px-4 py-3 text-sm text-[var(--text-dim)]">
+                  <LoaderCircle className="size-4 animate-spin text-[var(--accent-ice)]" /> Thinking...
                 </div>
-                <span className="ml-2 text-sm text-white/60">Thinking...</span>
               </div>
+            ) : null}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={handleSend} className="border-t border-white/8 px-4 py-4 sm:px-6">
+            {!userLoaded ? (
+              <div className="py-4 text-center text-sm text-[var(--text-dim)]">Loading chat access...</div>
+            ) : !user ? (
+              <div className="py-4 text-center text-sm text-[var(--text-dim)]">
+                Please <Link href="/sign-in" className="text-[var(--accent-ice)] underline">sign in</Link> to use the assistant.
+              </div>
+            ) : (
+              <div className="rounded-[26px] border border-white/8 bg-white/4 p-3">
+                <textarea
+                  ref={inputRef}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder="Ask the assistant to create, update, or find tasks..."
+                  disabled={isLoading}
+                  className="min-h-[84px] w-full resize-none bg-transparent px-1 py-1 text-sm text-white outline-none placeholder:text-[var(--text-faint)] disabled:opacity-60"
+                  maxLength={5000}
+                />
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-faint)]">
+                    <Sparkles className="size-4 text-[var(--accent-ice)]" /> Shift+Enter for a new line
+                  </div>
+                  <button type="submit" disabled={!inputText.trim() || isLoading} className="action-button-primary inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+                    Send <ArrowUp className="size-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </form>
+        </div>
+
+        <aside className="border-t border-white/8 px-4 py-4 sm:px-6 lg:w-[320px] lg:border-l lg:border-t-0">
+          <div className="rounded-[26px] border border-white/8 bg-white/4 p-4">
+            <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Live context</div>
+            <div className="mt-3 text-lg font-semibold tracking-[-0.03em] text-white">Operation status</div>
+            <p className="mt-2 text-sm text-[var(--text-dim)]">The assistant will update tasks through the existing backend workflow and refresh the dashboard automatically.</p>
+            <div className="mt-4 rounded-[22px] border border-white/8 bg-black/18 p-4 text-sm text-[var(--text-secondary)]">
+              {operationPerformed ? (
+                <pre className="whitespace-pre-wrap break-words font-mono text-xs text-[var(--text-secondary)]">{JSON.stringify(operationPerformed, null, 2)}</pre>
+              ) : (
+                <span>No task action has been performed in this session yet.</span>
+              )}
             </div>
           </div>
-        )}
-
-        <div ref={messagesEndRef} />
+        </aside>
       </div>
-
-      <form onSubmit={handleSend} className="border-t border-white/10 bg-slate-900/30 p-3">
-        {!userLoaded ? (
-          <div className="py-2 text-center text-sm text-white/50">Loading...</div>
-        ) : !user ? (
-          <div className="py-2 text-center text-sm text-white/50">
-            Please <Link href="/sign-in" className="text-blue-400 underline hover:text-blue-300">sign in</Link> to use the chat
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(e);
-                  }
-                }}
-                placeholder="Ask me to create, update, or find tasks..."
-                disabled={isLoading}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 pr-12 text-white placeholder-white/40 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Type your message"
-                maxLength={5000}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/30">{inputText.length}/5000</div>
-            </div>
-            <button
-              type="submit"
-              disabled={!inputText.trim() || isLoading}
-              className={`rounded-lg px-4 py-2.5 font-medium transition-all ${
-                inputText.trim() && !isLoading ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20 hover:bg-blue-700' : 'cursor-not-allowed bg-white/5 text-white/40'
-              }`}
-              aria-label="Send message"
-            >
-              Send
-            </button>
-          </div>
-        )}
-      </form>
     </div>
   );
 };
