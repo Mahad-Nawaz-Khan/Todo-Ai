@@ -1450,6 +1450,10 @@ class AgentService:
         message = str(error).lower()
         return any(token in message for token in [
             "429",
+            "404",
+            "500",
+            "502",
+            "503",
             "rate limit",
             "quota",
             "too many requests",
@@ -1457,6 +1461,10 @@ class AgentService:
             "temporarily unavailable",
             "service unavailable",
             "connection",
+            "no endpoints found",
+            "not found",
+            "model not found",
+            "internal server error",
         ])
 
     def _has_any_provider_key(self) -> bool:
