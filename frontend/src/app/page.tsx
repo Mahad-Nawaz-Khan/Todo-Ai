@@ -170,9 +170,9 @@ export default function Dashboard() {
         <div className="space-y-4">
           <TaskForm onTaskCreated={handleTaskCreated} />
           <TagList />
-          <ChatInterface initialMessages={[]} variant="widget" />
         </div>
       </div>
+      <ChatInterface initialMessages={[]} variant="widget" />
     </AppShell>
   );
 }
