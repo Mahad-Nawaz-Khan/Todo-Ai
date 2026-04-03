@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 
 import AppShell from "@/components/AppShell";
 import ChatInterface from "@/components/ChatInterface";
-import ProfileMenu from "@/components/ProfileMenu";
 import TagList from "@/components/TagList";
 import { TaskForm } from "@/components/TaskForm";
 import { TaskList } from "@/components/TaskList";
@@ -171,16 +170,7 @@ export default function Dashboard() {
         <div className="space-y-4">
           <TaskForm onTaskCreated={handleTaskCreated} />
           <TagList />
-          <div className="section-card rounded-[24px] p-3.5 sm:rounded-[28px] sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Quick assistant</div>
-                <div className="mt-2 text-xl font-semibold tracking-[-0.03em] text-white">Inline chat</div>
-              </div>
-              <ProfileMenu />
-            </div>
-            <ChatInterface initialMessages={[]} variant="widget" />
-          </div>
+          <ChatInterface initialMessages={[]} variant="widget" />
         </div>
       </div>
     </AppShell>
