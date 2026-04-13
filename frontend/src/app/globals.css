@@ -288,6 +288,123 @@ select option {
   contain: layout paint style;
 }
 
+/* ─── Entry animations (pure CSS, no JS runtime cost) ─── */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeInUpSmall {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeInUpTiny {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-36px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes checkBounce {
+  0%   { transform: scale(1) rotate(0deg); }
+  40%  { transform: scale(1.08) rotate(-6deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes widgetSlideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fabPop {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes expandHeight {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 2000px; }
+}
+
+@keyframes collapseHeight {
+  from { opacity: 1; max-height: 2000px; }
+  to   { opacity: 0; max-height: 0; }
+}
+
+/* Utility classes for entry animations */
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out both;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.5s ease-out both;
+}
+
+.animate-fade-in-up-sm {
+  animation: fadeInUpSmall 0.22s ease-out both;
+}
+
+.animate-fade-in-up-tiny {
+  animation: fadeInUpTiny 0.3s ease-out both;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out both;
+}
+
+.animate-check-bounce {
+  animation: checkBounce 0.32s ease-out;
+}
+
+.animate-widget-up {
+  animation: widgetSlideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-fab-pop {
+  animation: fabPop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-expand {
+  animation: expandHeight 0.24s ease-out both;
+  overflow: hidden;
+}
+
+.animate-collapse {
+  animation: collapseHeight 0.2s ease-in both;
+  overflow: hidden;
+}
+
+/* Staggered children — apply to parent */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+
+/* Slide-in panel transition for mobile drawer */
+.slide-panel {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

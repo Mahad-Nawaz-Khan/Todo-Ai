@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, m } from "framer-motion";
 import { ListFilter, Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useDeferredValue, useMemo, useRef, useState } from "react";
 
@@ -271,59 +270,55 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
           </div>
         ) : null}
 
-        <AnimatePresence initial={false}>
-          {showControls ? (
-            <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-              <div className="mt-4 grid gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-4">
-                <label className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
-                  <Search className="size-4 text-[var(--text-faint)]" />
-                  <input
-                    type="text"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="Search titles, notes, and tags"
-                    className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[var(--text-faint)]"
-                  />
-                </label>
+        {showControls ? (
+          <div className="animate-expand mt-4 grid gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-4">
+            <label className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
+              <Search className="size-4 text-[var(--text-faint)]" />
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search titles, notes, and tags"
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[var(--text-faint)]"
+              />
+            </label>
 
-                <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
-                  <span className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">
-                    <ListFilter className="size-3.5" /> Status
-                  </span>
-                  <select
-                    value={filters.completed === null ? "" : filters.completed ? "done" : "open"}
-                    onChange={(e) => handleFilterChange("completed", e.target.value === "" ? null : e.target.value === "done")}
-                    className="w-full bg-transparent text-sm text-white outline-none"
-                  >
-                    <option value="">All</option>
-                    <option value="open">Open</option>
-                    <option value="done">Completed</option>
-                  </select>
-                </label>
+            <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
+              <span className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">
+                <ListFilter className="size-3.5" /> Status
+              </span>
+              <select
+                value={filters.completed === null ? "" : filters.completed ? "done" : "open"}
+                onChange={(e) => handleFilterChange("completed", e.target.value === "" ? null : e.target.value === "done")}
+                className="w-full bg-transparent text-sm text-white outline-none"
+              >
+                <option value="">All</option>
+                <option value="open">Open</option>
+                <option value="done">Completed</option>
+              </select>
+            </label>
 
-                <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
-                  <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Priority</span>
-                  <select value={filters.priority} onChange={(e) => handleFilterChange("priority", e.target.value as TaskFilters["priority"])} className="w-full bg-transparent text-sm text-white outline-none">
-                    <option value="">All</option>
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                  </select>
-                </label>
+            <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Priority</span>
+              <select value={filters.priority} onChange={(e) => handleFilterChange("priority", e.target.value as TaskFilters["priority"])} className="w-full bg-transparent text-sm text-white outline-none">
+                <option value="">All</option>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </label>
 
-                <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
-                  <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Sort</span>
-                  <select value={sortConfig.sortBy} onChange={(e) => handleSortChange(e.target.value as SortConfig["sortBy"])} className="w-full bg-transparent text-sm text-white outline-none">
-                    <option value="created_at">Created</option>
-                    <option value="updated_at">Updated</option>
-                    <option value="due_date">Due date</option>
-                    <option value="priority">Priority</option>
-                  </select>
-                </label>
-              </div>
-            </m.div>
-          ) : null}
-        </AnimatePresence>
+            <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Sort</span>
+              <select value={sortConfig.sortBy} onChange={(e) => handleSortChange(e.target.value as SortConfig["sortBy"])} className="w-full bg-transparent text-sm text-white outline-none">
+                <option value="created_at">Created</option>
+                <option value="updated_at">Updated</option>
+                <option value="due_date">Due date</option>
+                <option value="priority">Priority</option>
+              </select>
+            </label>
+          </div>
+        ) : null}
 
         <div className="mt-6 space-y-4">
           {loading ? <div className="text-sm text-[var(--text-dim)]">Loading tasks...</div> : null}
@@ -332,11 +327,9 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
               No tasks matched the current filters.
             </div>
           ) : null}
-          <AnimatePresence mode="popLayout">
-            {visibleTasks.map((task) => (
-              <TaskItem key={task.id} task={task} onUpdate={handleTaskUpdate} onDelete={handleTaskDelete} />
-            ))}
-          </AnimatePresence>
+          {visibleTasks.map((task) => (
+            <TaskItem key={task.id} task={task} onUpdate={handleTaskUpdate} onDelete={handleTaskDelete} />
+          ))}
         </div>
       </div>
     </section>

@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, m } from "framer-motion";
 import { Pencil, Tags, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -192,100 +191,98 @@ const TagList = () => {
         </span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {isOpen ? (
-          <m.div initial={{ opacity: 0, height: 0, y: -10 }} animate={{ opacity: 1, height: "auto", y: 0 }} exit={{ opacity: 0, height: 0, y: -10 }} className="overflow-hidden">
-            {error ? (
-              <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
-                {error}
-              </div>
-            ) : null}
-
-            <form onSubmit={createTag} className="mt-5 flex gap-2">
-              <input
-                type="text"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                placeholder="Add a reusable label"
-                className="input-shell flex-1 rounded-2xl px-4 py-3 text-sm"
-              />
-              <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-4 py-3 text-sm">
-                Add
-              </button>
-            </form>
-
-            <div className="mt-5 space-y-3">
-              {loading && tags.length === 0 ? (
-                <div className="text-sm text-[var(--text-dim)]">Loading tags...</div>
-              ) : tags.length === 0 ? (
-                <div className="rounded-[24px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-[var(--text-dim)]">No tags yet.</div>
-              ) : (
-                tags.map((tag) => {
-                  const isEditing = editingTagId === tag.id;
-
-                  return (
-                    <div key={tag.id} className="flex flex-col gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editingTagName}
-                          onChange={(e) => setEditingTagName(e.target.value)}
-                          className="input-shell w-full rounded-2xl px-4 py-3 text-sm sm:max-w-xs"
-                        />
-                      ) : (
-                        <div className="flex items-center gap-3">
-                          <span className="size-2.5 rounded-full bg-[var(--accent-ice)]" />
-                          <div className="text-sm font-medium text-white">{tag.name}</div>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2">
-                        {isEditing ? (
-                          <>
-                            <button type="button" onClick={() => void updateTag(tag.id)} className="action-button-primary rounded-2xl px-4 py-2 text-sm">
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingTagId(null);
-                                setEditingTagName("");
-                              }}
-                              className="action-button-secondary rounded-2xl px-4 py-2 text-sm"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingTagId(tag.id);
-                                setEditingTagName(tag.name);
-                              }}
-                              className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
-                            >
-                              <Pencil className="size-4" /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void deleteTag(tag.id)}
-                              className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,135,124,0.2)] bg-[rgba(255,135,124,0.08)] px-4 py-2 text-sm text-[#ffd4cf] transition hover:bg-[rgba(255,135,124,0.12)]"
-                            >
-                              <Trash2 className="size-4" /> Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+      {isOpen ? (
+        <div className="animate-expand overflow-hidden">
+          {error ? (
+            <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+              {error}
             </div>
-          </m.div>
-        ) : null}
-      </AnimatePresence>
+          ) : null}
+
+          <form onSubmit={createTag} className="mt-5 flex gap-2">
+            <input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              placeholder="Add a reusable label"
+              className="input-shell flex-1 rounded-2xl px-4 py-3 text-sm"
+            />
+            <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-4 py-3 text-sm">
+              Add
+            </button>
+          </form>
+
+          <div className="mt-5 space-y-3">
+            {loading && tags.length === 0 ? (
+              <div className="text-sm text-[var(--text-dim)]">Loading tags...</div>
+            ) : tags.length === 0 ? (
+              <div className="rounded-[24px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-[var(--text-dim)]">No tags yet.</div>
+            ) : (
+              tags.map((tag) => {
+                const isEditing = editingTagId === tag.id;
+
+                return (
+                  <div key={tag.id} className="animate-fade-in-up-sm flex flex-col gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editingTagName}
+                        onChange={(e) => setEditingTagName(e.target.value)}
+                        className="input-shell w-full rounded-2xl px-4 py-3 text-sm sm:max-w-xs"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <span className="size-2.5 rounded-full bg-[var(--accent-ice)]" />
+                        <div className="text-sm font-medium text-white">{tag.name}</div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      {isEditing ? (
+                        <>
+                          <button type="button" onClick={() => void updateTag(tag.id)} className="action-button-primary rounded-2xl px-4 py-2 text-sm">
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTagId(null);
+                              setEditingTagName("");
+                            }}
+                            className="action-button-secondary rounded-2xl px-4 py-2 text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTagId(tag.id);
+                              setEditingTagName(tag.name);
+                            }}
+                            className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
+                          >
+                            <Pencil className="size-4" /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void deleteTag(tag.id)}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,135,124,0.2)] bg-[rgba(255,135,124,0.08)] px-4 py-2 text-sm text-[#ffd4cf] transition hover:bg-[rgba(255,135,124,0.12)]"
+                          >
+                            <Trash2 className="size-4" /> Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 };

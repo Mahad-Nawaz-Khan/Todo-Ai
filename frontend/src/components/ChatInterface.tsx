@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, m } from "framer-motion";
 import {
   ArrowUp,
   Bot,
@@ -129,11 +128,8 @@ const OperationCard = memo(function OperationCard({
   if (!meta) return null;
   const Icon = meta.icon;
   return (
-    <m.div
-      initial={{ opacity: 0, y: 8, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
-      className="overflow-hidden rounded-[20px] border p-3.5"
+    <div
+      className="animate-fade-in-up-tiny overflow-hidden rounded-[20px] border p-3.5"
       style={{ background: meta.bg, borderColor: meta.border }}
     >
       <div className="flex items-start gap-3">
@@ -148,7 +144,7 @@ const OperationCard = memo(function OperationCard({
           <div className="mt-1 text-sm text-[var(--text-secondary)]">{meta.detail}</div>
         </div>
       </div>
-    </m.div>
+    </div>
   );
 });
 
@@ -165,12 +161,7 @@ const ChatBubble = memo(function ChatBubble({
   const maxW = isWidget ? "max-w-[90%]" : "sm:max-w-[78%] max-w-[94%]";
 
   return (
-    <m.div
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-      className={cn("flex", isUser ? "justify-end" : "justify-start")}
-    >
+    <div className={cn("animate-fade-in-up-sm flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
           "rounded-[20px] px-3.5 py-2.5 text-sm sm:rounded-[22px] sm:px-4 sm:py-3",
@@ -197,7 +188,7 @@ const ChatBubble = memo(function ChatBubble({
           {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
       </div>
-    </m.div>
+    </div>
   );
 });
 
@@ -286,6 +277,8 @@ const ChatInterface = ({
 
   const [inputText, setInputText] = useState("");
   const [widgetOpen, setWidgetOpen] = useState(false);
+  const [widgetVisible, setWidgetVisible] = useState(false);
+  const [fabVisible, setFabVisible] = useState(true);
   const router = useRouter();
   const { user, isLoaded: userLoaded } = useUser();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -306,6 +299,25 @@ const ChatInterface = ({
   useEffect(() => {
     if (userLoaded && user) inputRef.current?.focus();
   }, [userLoaded, user]);
+
+  /* Two-phase widget animation */
+  const openWidget = useCallback(() => {
+    setFabVisible(false);
+    setWidgetOpen(true);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setWidgetVisible(true);
+      });
+    });
+  }, []);
+
+  const closeWidget = useCallback(() => {
+    setWidgetVisible(false);
+    setTimeout(() => {
+      setWidgetOpen(false);
+      setFabVisible(true);
+    }, 250);
+  }, []);
 
   /* Handlers */
   const handleSend = useCallback(() => {
@@ -342,187 +354,173 @@ const ChatInterface = ({
     return (
       <>
         {/* Floating trigger button */}
-        <AnimatePresence>
-          {!widgetOpen && (
-            <m.button
-              key="widget-trigger"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 22 }}
-              onClick={() => setWidgetOpen(true)}
-              className="fixed bottom-5 right-5 z-[999] flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-[linear-gradient(135deg,var(--accent-blue),var(--accent-ice))] shadow-[0_8px_32px_rgba(74,167,255,0.35)] transition-shadow hover:shadow-[0_12px_40px_rgba(74,167,255,0.45)] sm:bottom-7 sm:right-7 sm:size-[60px] sm:rounded-[22px]"
-              aria-label="Open AI assistant"
-            >
-              <MessageSquareText className="size-6 text-[#04121f] sm:size-7" />
-              {messages.length > 0 && (
-                <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[var(--accent-ice)] text-[10px] font-bold text-[#04121f]">
-                  {messages.length}
-                </span>
-              )}
-            </m.button>
-          )}
-        </AnimatePresence>
+        {fabVisible && !widgetOpen && (
+          <button
+            onClick={openWidget}
+            className="animate-fab-pop fixed bottom-5 right-5 z-[999] flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-[linear-gradient(135deg,var(--accent-blue),var(--accent-ice))] shadow-[0_8px_32px_rgba(74,167,255,0.35)] transition-shadow hover:shadow-[0_12px_40px_rgba(74,167,255,0.45)] sm:bottom-7 sm:right-7 sm:size-[60px] sm:rounded-[22px]"
+            aria-label="Open AI assistant"
+          >
+            <MessageSquareText className="size-6 text-[#04121f] sm:size-7" />
+            {messages.length > 0 && (
+              <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[var(--accent-ice)] text-[10px] font-bold text-[#04121f]">
+                {messages.length}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Expanded widget panel */}
-        <AnimatePresence>
-          {widgetOpen && (
-            <>
-              {/* Backdrop (mobile) */}
-              <m.div
-                key="widget-backdrop"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-40 bg-[rgba(6,8,14,0.5)] backdrop-blur-sm sm:hidden"
-                onClick={() => setWidgetOpen(false)}
-              />
+        {widgetOpen && (
+          <>
+            {/* Backdrop (mobile) */}
+            <div
+              className={cn(
+                "fixed inset-0 z-40 bg-[rgba(6,8,14,0.5)] backdrop-blur-sm transition-opacity duration-200 sm:hidden",
+                widgetVisible ? "opacity-100" : "opacity-0"
+              )}
+              onClick={closeWidget}
+            />
 
-              <m.div
-                key="widget-panel"
-                initial={{ opacity: 0, y: 24, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 24, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 280, damping: 24 }}
-                className={cn(
-                  "fixed z-50 flex flex-col overflow-hidden border border-white/10 bg-[var(--bg-elevated)] shadow-[0_24px_80px_rgba(0,0,0,0.5)]",
-                  /* Mobile: full width bottom sheet */
-                  "inset-x-0 bottom-0 h-[85vh] rounded-t-[28px] sm:rounded-[28px]",
-                  /* Desktop: anchored bottom-right card */
-                  "sm:inset-x-auto sm:bottom-7 sm:right-7 sm:top-auto sm:h-[540px] sm:w-[400px]"
-                )}
-              >
-                {/* Widget header */}
-                <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-9 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-[var(--accent-ice)]">
-                      <Bot className="size-4" />
-                    </span>
+            <div
+              className={cn(
+                "fixed z-50 flex flex-col overflow-hidden border border-white/10 bg-[var(--bg-elevated)] shadow-[0_24px_80px_rgba(0,0,0,0.5)] transition-all duration-300",
+                /* Mobile: full width bottom sheet */
+                "inset-x-0 bottom-0 h-[85vh] rounded-t-[28px] sm:rounded-[28px]",
+                /* Desktop: anchored bottom-right card */
+                "sm:inset-x-auto sm:bottom-7 sm:right-7 sm:top-auto sm:h-[540px] sm:w-[400px]",
+                widgetVisible
+                  ? "translate-y-0 scale-100 opacity-100"
+                  : "translate-y-6 scale-[0.95] opacity-0"
+              )}
+            >
+              {/* Widget header */}
+              <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-[var(--accent-ice)]">
+                    <Bot className="size-4" />
+                  </span>
+                  <div>
+                    <div className="text-sm font-semibold text-white">AI assistant</div>
+                    <div className="text-[11px] text-[var(--text-faint)]">
+                      Session {shortSessionId} &middot; {messages.length} messages
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleNewConversation}
+                    className="action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
+                  >
+                    <Plus className="size-3" /> New
+                  </button>
+                  <button
+                    type="button"
+                    onClick={navigateToChat}
+                    className="action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
+                  >
+                    <ArrowUp className="size-3 rotate-45" /> Full chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeWidget}
+                    className="flex size-8 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-[var(--text-dim)] transition hover:bg-white/8 hover:text-white"
+                    aria-label="Close widget"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Operation status (if active) */}
+              {operationMeta && (
+                <div className="border-b border-white/8 px-4 py-3">
+                  <OperationCard operation={operationPerformed} />
+                </div>
+              )}
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-4 py-3">
+                {messages.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                    <div className="flex size-16 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-ice)] shadow-[0_0_40px_rgba(144,229,255,0.1)]">
+                      <Sparkles className="size-7" />
+                    </div>
                     <div>
-                      <div className="text-sm font-semibold text-white">AI assistant</div>
-                      <div className="text-[11px] text-[var(--text-faint)]">
-                        Session {shortSessionId} &middot; {messages.length} messages
+                      <div className="text-base font-semibold text-white sm:text-lg">
+                        Ask the assistant
+                      </div>
+                      <div className="mt-1.5 text-xs text-[var(--text-dim)] sm:text-sm">
+                        Create, update, or search tasks with natural language.
                       </div>
                     </div>
+                    <div className="grid w-full gap-2">
+                      {suggestions.slice(0, 2).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setInputText(s)}
+                          className="rounded-xl border border-white/8 bg-[var(--bg-strong)] px-3 py-2.5 text-left text-xs text-[var(--text-secondary)] transition hover:border-white/12 hover:bg-white/8 hover:text-white sm:text-sm"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleNewConversation}
-                      className="action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
-                    >
-                      <Plus className="size-3" /> New
-                    </button>
-                    <button
-                      type="button"
-                      onClick={navigateToChat}
-                      className="action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
-                    >
-                      <ArrowUp className="size-3 rotate-45" /> Full chat
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWidgetOpen(false)}
-                      className="flex size-8 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-[var(--text-dim)] transition hover:bg-white/8 hover:text-white"
-                      aria-label="Close widget"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Operation status (if active) */}
-                {operationMeta && (
-                  <div className="border-b border-white/8 px-4 py-3">
-                    <OperationCard operation={operationPerformed} />
+                ) : (
+                  <div className="space-y-2.5">
+                    {visibleMessages
+                      .filter((m) => !(m.sender === "ai" && m.isStreaming && !m.text))
+                      .map((m) => (
+                        <ChatBubble
+                          key={m.id}
+                          message={m}
+                          formatMessage={formatMessage}
+                          isWidget
+                        />
+                      ))}
+                    {isLoading &&
+                      !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-[var(--bg-strong)] px-3 py-2 text-xs text-[var(--text-dim)]">
+                          <LoaderCircle className="size-3.5 animate-spin text-[var(--accent-ice)]" />
+                          Thinking...
+                        </div>
+                      )}
+                    <div ref={messagesEndRef} />
                   </div>
                 )}
+              </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-4 py-3">
-                  {messages.length === 0 ? (
-                    <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                      <div className="flex size-16 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-ice)] shadow-[0_0_40px_rgba(144,229,255,0.1)]">
-                        <Sparkles className="size-7" />
-                      </div>
-                      <div>
-                        <div className="text-base font-semibold text-white sm:text-lg">
-                          Ask the assistant
-                        </div>
-                        <div className="mt-1.5 text-xs text-[var(--text-dim)] sm:text-sm">
-                          Create, update, or search tasks with natural language.
-                        </div>
-                      </div>
-                      <div className="grid w-full gap-2">
-                        {suggestions.slice(0, 2).map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => setInputText(s)}
-                            className="rounded-xl border border-white/8 bg-[var(--bg-strong)] px-3 py-2.5 text-left text-xs text-[var(--text-secondary)] transition hover:border-white/12 hover:bg-white/8 hover:text-white sm:text-sm"
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      <AnimatePresence initial={false} mode="popLayout">
-                        {visibleMessages
-                          .filter((m) => !(m.sender === "ai" && m.isStreaming && !m.text))
-                          .map((m) => (
-                            <ChatBubble
-                              key={m.id}
-                              message={m}
-                              formatMessage={formatMessage}
-                              isWidget
-                            />
-                          ))}
-                      </AnimatePresence>
-                      {isLoading &&
-                        !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
-                          <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-[var(--bg-strong)] px-3 py-2 text-xs text-[var(--text-dim)]">
-                            <LoaderCircle className="size-3.5 animate-spin text-[var(--accent-ice)]" />
-                            Thinking...
-                          </div>
-                        )}
-                      <div ref={messagesEndRef} />
-                    </div>
-                  )}
-                </div>
-
-                {/* Composer */}
-                <div className="border-t border-white/8 p-3">
-                  {!userLoaded ? (
-                    <div className="py-3 text-center text-xs text-[var(--text-dim)]">
-                      Loading chat access...
-                    </div>
-                  ) : !user ? (
-                    <div className="py-3 text-center text-xs text-[var(--text-dim)]">
-                      Please{" "}
-                      <Link href="/sign-in" className="text-[var(--accent-ice)] underline">
-                        sign in
-                      </Link>{" "}
-                      to use the assistant.
-                    </div>
-                  ) : (
-                    <Composer
-                      inputText={inputText}
-                      setInputText={setInputText}
-                      onSend={handleSend}
-                      isLoading={isLoading}
-                      disabled={false}
-                      inputRef={inputRef}
-                      compact
-                      hint="Ask the assistant to act on your tasks..."
-                    />
-                  )}
-                </div>
-              </m.div>
-            </>
-          )}
-        </AnimatePresence>
+              {/* Composer */}
+              <div className="border-t border-white/8 p-3">
+                {!userLoaded ? (
+                  <div className="py-3 text-center text-xs text-[var(--text-dim)]">
+                    Loading chat access...
+                  </div>
+                ) : !user ? (
+                  <div className="py-3 text-center text-xs text-[var(--text-dim)]">
+                    Please{" "}
+                    <Link href="/sign-in" className="text-[var(--accent-ice)] underline">
+                      sign in
+                    </Link>{" "}
+                    to use the assistant.
+                  </div>
+                ) : (
+                  <Composer
+                    inputText={inputText}
+                    setInputText={setInputText}
+                    onSend={handleSend}
+                    isLoading={isLoading}
+                    disabled={false}
+                    inputRef={inputRef}
+                    compact
+                    hint="Ask the assistant to act on your tasks..."
+                  />
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </>
     );
   }
@@ -587,7 +585,7 @@ const ChatInterface = ({
                 </div>
               </div>
             ) : (
-              <AnimatePresence initial={false}>
+              <>
                 {messages
                   .filter((m) => !(m.sender === "ai" && m.isStreaming && !m.text))
                   .map((m) => (
@@ -598,7 +596,7 @@ const ChatInterface = ({
                       isWidget={false}
                     />
                   ))}
-              </AnimatePresence>
+              </>
             )}
 
             {isLoading &&
@@ -671,7 +669,7 @@ const ChatInterface = ({
                           hour: "2-digit",
                           minute: "2-digit",
                         })
-                      : "—"}
+                      : "\u2014"}
                   </div>
                 </div>
               </div>

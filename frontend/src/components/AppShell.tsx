@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, m } from "framer-motion";
 import { Command, LayoutDashboard, Menu, MessageSquareText, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,6 +25,10 @@ const nav = [
 export default function AppShell({ children, title, subtitle, signedIn, userLabel }: AppShellProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  /* Two-phase animation: mount + visible, or hide + unmount */
+  const openDrawer = () => setMobileOpen(true);
+  const closeDrawer = () => setMobileOpen(false);
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)]">
@@ -92,7 +95,7 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
                 <div className="flex items-start gap-3">
                   <button
                     type="button"
-                    onClick={() => setMobileOpen(true)}
+                    onClick={openDrawer}
                     className="flex size-10 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-[var(--text-secondary)] lg:hidden sm:size-11 sm:rounded-2xl"
                     aria-label="Open navigation"
                   >
@@ -133,58 +136,59 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
             <main className="flex-1 overflow-x-hidden px-3 py-3 sm:px-6 sm:py-6">{children}</main>
           </div>
 
-          <AnimatePresence>
-            {mobileOpen ? (
-              <m.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-50 bg-[rgba(6,8,14,0.68)] backdrop-blur-sm lg:hidden"
-                onClick={() => setMobileOpen(false)}
-              >
-                <m.div
-                  initial={{ x: -36, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -36, opacity: 0 }}
-                  transition={{ type: "spring", stiffness: 220, damping: 24 }}
-                  className="h-full w-[86%] max-w-[320px] border-r border-white/8 bg-[rgba(8,12,20,0.98)] p-4"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <div className="mb-6 flex items-center gap-3">
-                    <div className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6">
-                      <Sparkles className="size-5 text-[var(--accent-ice)]" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Todo AI</div>
-                      <div className="text-base font-semibold text-white">Mobile workspace</div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {nav.map((item) => {
-                      const Icon = item.icon;
-                      const active = pathname === item.href;
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setMobileOpen(false)}
-                          className={cn(
-                            "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm",
-                            active
-                              ? "border-white/12 bg-white/10 text-white"
-                              : "border-transparent bg-transparent text-[var(--text-dim)]"
-                          )}
-                        >
-                          <Icon className="size-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </m.div>
-              </m.div>
-            ) : null}
-          </AnimatePresence>
+          {/* Mobile drawer — CSS transition */}
+          <div
+            className={cn(
+              "absolute inset-0 z-50 transition-opacity duration-200 lg:hidden",
+              mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+            )}
+          >
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-[rgba(6,8,14,0.68)] backdrop-blur-sm"
+              onClick={closeDrawer}
+            />
+            {/* Drawer panel */}
+            <div
+              className={cn(
+                "slide-panel absolute left-0 top-0 h-full w-[86%] max-w-[320px] border-r border-white/8 bg-[rgba(8,12,20,0.98)] p-4",
+                mobileOpen ? "translate-x-0 opacity-100" : "-translate-x-9 opacity-0"
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-6 flex items-center gap-3">
+                <div className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6">
+                  <Sparkles className="size-5 text-[var(--accent-ice)]" />
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Todo AI</div>
+                  <div className="text-base font-semibold text-white">Mobile workspace</div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {nav.map((item) => {
+                  const Icon = item.icon;
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={closeDrawer}
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm",
+                        active
+                          ? "border-white/12 bg-white/10 text-white"
+                          : "border-transparent bg-transparent text-[var(--text-dim)]"
+                      )}
+                    >
+                      <Icon className="size-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

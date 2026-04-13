@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, m } from "framer-motion";
 import { CalendarDays, CheckCircle2, Pencil, Repeat2, Trash2 } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -182,12 +181,8 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
   };
 
   return (
-    <m.article
-      layout="position"
-      initial={{ opacity: 0, y: 18, scale: 0.985 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.24, ease: "easeOut" }}
-      className={`content-auto task-card-contain section-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
+    <article
+      className={`content-auto task-card-contain section-card animate-fade-in-up-sm rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
     >
       {error ? (
         <div className="mb-4 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
@@ -204,20 +199,18 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
             <span className="status-pill rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">{taskStatus}</span>
           </div>
           <div className="mt-4 flex items-start gap-3">
-            <m.button
+            <button
               type="button"
               onClick={handleToggleComplete}
               disabled={loading}
-              animate={optimisticCompleted ? { scale: [1, 1.08, 1], rotate: [0, -6, 0] } : { scale: 1, rotate: 0 }}
-              transition={{ duration: 0.32, ease: "easeOut" }}
               className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl border transition active:scale-[0.92] sm:size-12 ${
                 optimisticCompleted
-                  ? "border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-[var(--success)] shadow-[0_10px_30px_rgba(126,240,184,0.12)]"
+                  ? "animate-check-bounce border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-[var(--success)] shadow-[0_10px_30px_rgba(126,240,184,0.12)]"
                   : "border-white/10 bg-white/6 text-[var(--text-dim)] hover:border-white/14 hover:text-white"
               }`}
             >
               <CheckCircle2 className="size-5" />
-            </m.button>
+            </button>
             <div className="min-w-0 flex-1">
               <h3 className={`text-lg font-semibold tracking-[-0.03em] ${optimisticCompleted ? "text-[rgba(255,255,255,0.58)] line-through" : "text-white"}`}>
                 {task.title}
@@ -277,45 +270,40 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
         </div>
       ) : null}
 
-      <AnimatePresence>
-        {isEditing ? (
-          <m.form
-            initial={{ opacity: 0, height: 0, y: -8 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -8 }}
-            onSubmit={handleUpdate}
-            className="mt-6 overflow-hidden rounded-[24px] border border-white/8 bg-black/16 p-4"
-          >
-            <div className="grid gap-4">
-              <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell rounded-2xl px-4 py-3" required />
-              <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
-              <div className="grid gap-4 md:grid-cols-2">
-                <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as Priority)} className="input-shell rounded-2xl px-4 py-3">
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                </select>
-                <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell rounded-2xl px-4 py-3" />
-              </div>
-              <select value={editRecurrenceRule} onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)} className="input-shell rounded-2xl px-4 py-3">
-                <option value="">No recurrence</option>
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
+      {isEditing ? (
+        <form
+          onSubmit={handleUpdate}
+          className="animate-expand mt-6 overflow-hidden rounded-[24px] border border-white/8 bg-black/16 p-4"
+        >
+          <div className="grid gap-4">
+            <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell rounded-2xl px-4 py-3" required />
+            <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
+            <div className="grid gap-4 md:grid-cols-2">
+              <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as Priority)} className="input-shell rounded-2xl px-4 py-3">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
               </select>
-              <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-5 py-3 text-sm">
-                  {loading ? "Saving..." : "Save changes"}
-                </button>
-                <button type="button" onClick={() => setIsEditing(false)} className="action-button-secondary rounded-2xl px-5 py-3 text-sm">
-                  Cancel
-                </button>
-              </div>
+              <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell rounded-2xl px-4 py-3" />
             </div>
-          </m.form>
-        ) : null}
-      </AnimatePresence>
-    </m.article>
+            <select value={editRecurrenceRule} onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)} className="input-shell rounded-2xl px-4 py-3">
+              <option value="">No recurrence</option>
+              <option value="DAILY">Daily</option>
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+            </select>
+            <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-5 py-3 text-sm">
+                {loading ? "Saving..." : "Save changes"}
+              </button>
+              <button type="button" onClick={() => setIsEditing(false)} className="action-button-secondary rounded-2xl px-5 py-3 text-sm">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </form>
+      ) : null}
+    </article>
   );
 });

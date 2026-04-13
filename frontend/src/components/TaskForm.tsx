@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence, m } from "framer-motion";
 import { CalendarDays, Plus, Repeat2, Sparkles, Tag as TagIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -106,122 +105,116 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
         </span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {isOpen ? (
-          <m.form
-            initial={{ opacity: 0, height: 0, y: -12 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -12 }}
-            transition={{ duration: 0.24, ease: "easeOut" }}
-            onSubmit={handleSubmit}
-            className="overflow-hidden"
-          >
-            {error ? (
-              <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
-                {error}
-              </div>
-            ) : null}
+      {isOpen ? (
+        <form
+          onSubmit={handleSubmit}
+          className="animate-expand overflow-hidden"
+        >
+          {error ? (
+            <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+              {error}
+            </div>
+          ) : null}
 
-            <div className="mt-5 grid gap-4">
+          <div className="mt-5 grid gap-4">
+            <div>
+              <label htmlFor="title" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                Title
+              </label>
+              <input
+                id="title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ship the new mobile dashboard"
+                className="input-shell w-full rounded-2xl px-4 py-3"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="description" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+                Description
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Optional context, checklist hints, or implementation notes"
+                className="input-shell min-h-[120px] w-full rounded-2xl px-4 py-3"
+                rows={4}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="title" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
-                  Title
-                </label>
-                <input
-                  id="title"
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ship the new mobile dashboard"
-                  className="input-shell w-full rounded-2xl px-4 py-3"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="description" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Optional context, checklist hints, or implementation notes"
-                  className="input-shell min-h-[120px] w-full rounded-2xl px-4 py-3"
-                  rows={4}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="priority" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                    <Sparkles className="size-4 text-[var(--accent-ice)]" /> Priority
-                  </label>
-                  <select
-                    id="priority"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as Priority)}
-                    className="input-shell w-full rounded-2xl px-4 py-3"
-                  >
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="dueDate" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                    <CalendarDays className="size-4 text-[var(--accent-amber)]" /> Due date
-                  </label>
-                  <input
-                    id="dueDate"
-                    type="date"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="input-shell w-full rounded-2xl px-4 py-3"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="recurrenceRule" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                  <Repeat2 className="size-4 text-[var(--accent-lime)]" /> Recurrence
+                <label htmlFor="priority" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                  <Sparkles className="size-4 text-[var(--accent-ice)]" /> Priority
                 </label>
                 <select
-                  id="recurrenceRule"
-                  value={recurrenceRule}
-                  onChange={(e) => setRecurrenceRule(e.target.value as RecurrenceInput)}
+                  id="priority"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as Priority)}
                   className="input-shell w-full rounded-2xl px-4 py-3"
                 >
-                  <option value="">No recurrence</option>
-                  <option value="DAILY">Daily</option>
-                  <option value="WEEKLY">Weekly</option>
-                  <option value="MONTHLY">Monthly</option>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
                 </select>
               </div>
-
               <div>
-                <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                  <TagIcon className="size-4 text-[var(--accent-blue)]" /> Tags
-                </div>
-                <TagSelector selectedTags={selectedTags} onTagsChange={setSelectedTags} />
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
-                  {loading ? "Creating task..." : "Create task"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="action-button-secondary rounded-2xl px-5 py-3 text-sm"
-                >
-                  Close
-                </button>
+                <label htmlFor="dueDate" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                  <CalendarDays className="size-4 text-[var(--accent-amber)]" /> Due date
+                </label>
+                <input
+                  id="dueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="input-shell w-full rounded-2xl px-4 py-3"
+                />
               </div>
             </div>
-          </m.form>
-        ) : null}
-      </AnimatePresence>
+
+            <div>
+              <label htmlFor="recurrenceRule" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                <Repeat2 className="size-4 text-[var(--accent-lime)]" /> Recurrence
+              </label>
+              <select
+                id="recurrenceRule"
+                value={recurrenceRule}
+                onChange={(e) => setRecurrenceRule(e.target.value as RecurrenceInput)}
+                className="input-shell w-full rounded-2xl px-4 py-3"
+              >
+                <option value="">No recurrence</option>
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                <TagIcon className="size-4 text-[var(--accent-blue)]" /> Tags
+              </div>
+              <TagSelector selectedTags={selectedTags} onTagsChange={setSelectedTags} />
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+                {loading ? "Creating task..." : "Create task"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className="action-button-secondary rounded-2xl px-5 py-3 text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </form>
+      ) : null}
     </section>
   );
 };
