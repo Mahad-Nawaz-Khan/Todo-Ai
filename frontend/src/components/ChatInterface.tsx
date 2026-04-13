@@ -485,8 +485,8 @@ const ChatInterface = ({
                     {isLoading &&
                       !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
                         <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 bg-[var(--bg-strong)] px-3 py-2 text-xs text-[var(--text-dim)]">
-                          <LoaderCircle className="size-3.5 animate-spin text-[var(--accent-ice)]" />
-                          Thinking...
+                          <LoaderCircle className="thinking-spinner size-3.5 text-[var(--accent-ice)]" />
+                          <span className="thinking-dots">Thinking</span>
                         </div>
                       )}
                     <div ref={messagesEndRef} />
@@ -609,8 +609,8 @@ const ChatInterface = ({
               !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
                 <div className="flex justify-start">
                   <div className="inline-flex items-center gap-3 rounded-[22px] border border-white/8 bg-[var(--bg-strong)] px-4 py-3 text-sm text-[var(--text-dim)]">
-                    <LoaderCircle className="size-4 animate-spin text-[var(--accent-ice)]" />
-                    Thinking...
+                    <LoaderCircle className="thinking-spinner size-4 text-[var(--accent-ice)]" />
+                    <span className="thinking-dots">Thinking</span>
                   </div>
                 </div>
               )}

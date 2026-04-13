@@ -396,6 +396,18 @@ select option {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes thinkSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes thinkDots {
+  0%, 20%  { content: ''; }
+  40%      { content: '.'; }
+  60%      { content: '..'; }
+  80%, 100% { content: '...'; }
+}
+
 /* ─── Animation utility classes ─── */
 /* All entry animations have 250ms delay so elements ease in smoothly */
 
@@ -465,6 +477,18 @@ select option {
 
 .animate-slide-up {
   animation: slideUp 0.3s var(--ease-out-expo) 250ms both;
+}
+
+/* Thinking spinner — standalone rotation */
+.thinking-spinner {
+  animation: thinkSpin 1s linear infinite;
+  display: inline-block;
+}
+
+/* Animated dots after "Thinking" text */
+.thinking-dots::after {
+  content: '';
+  animation: thinkDots 1.4s steps(1, end) infinite;
 }
 
 /* ─── Stagger delays ─── */

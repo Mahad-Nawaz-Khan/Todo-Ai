@@ -27,7 +27,6 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user } = useUser();
-  const userName = user?.firstName || user?.name || user?.email || 'friend';
 
   const { autoLoadHistory = true, enableStreaming = true } = options;
 
