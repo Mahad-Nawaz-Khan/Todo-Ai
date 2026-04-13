@@ -100,7 +100,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
             Capture work instantly with priority, due date, recurrence, and tags.
           </p>
         </div>
-        <span className="action-button-primary inline-flex size-12 items-center justify-center rounded-2xl">
+        <span className="action-button-primary btn-press inline-flex size-12 items-center justify-center rounded-2xl">
           <Plus className="size-5" />
         </span>
       </button>
@@ -111,7 +111,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
           className="animate-expand overflow-hidden"
         >
           {error ? (
-            <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+            <div className="error-banner mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
               {error}
             </div>
           ) : null}
@@ -201,13 +201,13 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={loading} className="btn-press action-button-primary rounded-2xl px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
                 {loading ? "Creating task..." : "Create task"}
               </button>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="action-button-secondary rounded-2xl px-5 py-3 text-sm"
+                className="btn-press action-button-secondary rounded-2xl px-5 py-3 text-sm"
               >
                 Close
               </button>

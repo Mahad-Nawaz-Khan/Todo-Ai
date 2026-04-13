@@ -26,7 +26,6 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  /* Two-phase animation: mount + visible, or hide + unmount */
   const openDrawer = () => setMobileOpen(true);
   const closeDrawer = () => setMobileOpen(false);
 
@@ -35,11 +34,11 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
       <div className="aurora-grid" />
       <div className="noise-overlay" />
       <div className="mx-auto flex min-h-screen max-w-[1500px] flex-col px-2 py-2 sm:px-4 sm:py-3 lg:px-6">
-        <div className="glass-panel relative flex min-h-[calc(100vh-1rem)] flex-1 overflow-hidden rounded-[24px] border border-white/8 sm:min-h-[calc(100vh-1.5rem)] sm:rounded-[32px]">
+        <div className="glass-panel animate-fade-in relative flex min-h-[calc(100vh-1rem)] flex-1 overflow-hidden rounded-[24px] border border-white/8 sm:min-h-[calc(100vh-1.5rem)] sm:rounded-[32px]">
           <aside className="hidden w-[260px] shrink-0 flex-col border-r border-white/7 bg-[rgba(255,255,255,0.03)] lg:flex">
             <div className="border-b border-white/7 px-5 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-[radial-gradient(circle_at_top,#9fe7ff,transparent_65%),rgba(255,255,255,0.06)] shadow-[0_0_40px_rgba(111,219,255,0.14)]">
+              <div className="flex items-center gap-3 animate-fade-in-up">
+                <div className="icon-glow flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-[radial-gradient(circle_at_top,#9fe7ff,transparent_65%),rgba(255,255,255,0.06)] shadow-[0_0_40px_rgba(111,219,255,0.14)]">
                   <Sparkles className="size-5 text-[var(--accent-ice)]" />
                 </div>
                 <div>
@@ -50,7 +49,7 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
             </div>
             <nav className="flex-1 px-4 py-4">
               <div className="mb-3 px-3 text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Workspace</div>
-              <div className="space-y-2">
+              <div className="space-y-2 stagger-children">
                 {nav.map((item) => {
                   const Icon = item.icon;
                   const active = pathname === item.href;
@@ -59,13 +58,13 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "group flex items-center gap-3 rounded-2xl border px-3 py-3 text-sm transition",
+                        "nav-link group flex items-center gap-3 rounded-2xl border px-3 py-3 text-sm animate-fade-in-up-sm",
                         active
                           ? "border-white/12 bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                           : "border-transparent bg-transparent text-[var(--text-dim)] hover:border-white/8 hover:bg-white/6 hover:text-white"
                       )}
                     >
-                      <span className="flex size-9 items-center justify-center rounded-2xl border border-white/8 bg-white/6">
+                      <span className="icon-glow flex size-9 items-center justify-center rounded-2xl border border-white/8 bg-white/6">
                         <Icon className="size-4" />
                       </span>
                       <span className="font-medium">{item.label}</span>
@@ -78,7 +77,7 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
               <button
                 type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent("todo:open-command-palette"))}
-                className="flex w-full items-center justify-between rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-left text-sm text-[var(--text-dim)] transition hover:border-white/12 hover:bg-white/9 hover:text-white"
+                className="btn-press flex w-full items-center justify-between rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-left text-sm text-[var(--text-dim)] hover:border-white/12 hover:bg-white/9 hover:text-white"
               >
                 <span className="flex items-center gap-3">
                   <Command className="size-4" />
@@ -90,13 +89,13 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            <header className="border-b border-white/7 px-3 py-3 sm:px-6 sm:py-4">
+            <header className="animate-fade-in border-b border-white/7 px-3 py-3 sm:px-6 sm:py-4">
               <div className="flex items-start justify-between gap-3 sm:gap-4">
                 <div className="flex items-start gap-3">
                   <button
                     type="button"
                     onClick={openDrawer}
-                    className="flex size-10 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-[var(--text-secondary)] lg:hidden sm:size-11 sm:rounded-2xl"
+                    className="btn-press flex size-10 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-[var(--text-secondary)] lg:hidden sm:size-11 sm:rounded-2xl"
                     aria-label="Open navigation"
                   >
                     <Menu className="size-5" />
@@ -111,21 +110,21 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
                   <button
                     type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent("todo:open-command-palette"))}
-                    className="hidden rounded-2xl border border-white/8 bg-white/6 px-3 py-2 text-sm text-[var(--text-dim)] transition hover:border-white/12 hover:bg-white/9 hover:text-white sm:flex sm:items-center sm:gap-3"
+                    className="btn-press hidden rounded-2xl border border-white/8 bg-white/6 px-3 py-2 text-sm text-[var(--text-dim)] hover:border-white/12 hover:bg-white/9 hover:text-white sm:flex sm:items-center sm:gap-3"
                   >
                     <Command className="size-4" />
                     <span>Search actions</span>
                   </button>
                   {signedIn ? (
                     <>
-                      <div className="hidden rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-right md:block">
+                      <div className="animate-fade-in-up-sm hidden rounded-2xl border border-white/8 bg-white/6 px-4 py-3 text-right md:block">
                         <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Active user</div>
                         <div className="mt-1 text-sm font-medium text-white">{userLabel || "User"}</div>
                       </div>
                       <ProfileMenu />
                     </>
                   ) : (
-                    <Link href="/sign-in" className="action-button-secondary px-4 py-2.5 text-sm">
+                    <Link href="/sign-in" className="btn-press action-button-secondary px-4 py-2.5 text-sm">
                       Sign in
                     </Link>
                   )}
@@ -136,19 +135,18 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
             <main className="flex-1 overflow-x-hidden px-3 py-3 sm:px-6 sm:py-6">{children}</main>
           </div>
 
-          {/* Mobile drawer — CSS transition */}
+          {/* Mobile drawer */}
           <div
             className={cn(
-              "absolute inset-0 z-50 transition-opacity duration-200 lg:hidden",
+              "absolute inset-0 z-50 transition-all duration-[350ms] lg:hidden",
               mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
             )}
+            style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
           >
-            {/* Backdrop */}
             <div
               className="absolute inset-0 bg-[rgba(6,8,14,0.68)] backdrop-blur-sm"
               onClick={closeDrawer}
             />
-            {/* Drawer panel */}
             <div
               className={cn(
                 "slide-panel absolute left-0 top-0 h-full w-[86%] max-w-[320px] border-r border-white/8 bg-[rgba(8,12,20,0.98)] p-4",
@@ -156,8 +154,8 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
               )}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mb-6 flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6">
+              <div className="mb-6 flex items-center gap-3 animate-fade-in-up">
+                <div className="icon-glow flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6">
                   <Sparkles className="size-5 text-[var(--accent-ice)]" />
                 </div>
                 <div>
@@ -165,7 +163,7 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
                   <div className="text-base font-semibold text-white">Mobile workspace</div>
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 stagger-children">
                 {nav.map((item) => {
                   const Icon = item.icon;
                   const active = pathname === item.href;
@@ -175,7 +173,7 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
                       href={item.href}
                       onClick={closeDrawer}
                       className={cn(
-                        "flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm",
+                        "nav-link flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm animate-fade-in-up-sm",
                         active
                           ? "border-white/12 bg-white/10 text-white"
                           : "border-transparent bg-transparent text-[var(--text-dim)]"

@@ -265,7 +265,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
         </div>
 
         {error ? (
-          <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+          <div className="error-banner mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
             {error}
           </div>
         ) : null}
@@ -320,10 +320,15 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
           </div>
         ) : null}
 
-        <div className="mt-6 space-y-4">
-          {loading ? <div className="text-sm text-[var(--text-dim)]">Loading tasks...</div> : null}
+        <div className="mt-6 space-y-4 stagger-tasks">
+          {loading ? (
+            <div className="animate-fade-in flex items-center gap-3 text-sm text-[var(--text-dim)]">
+              <div className="animate-shimmer size-5 rounded-full border border-white/10 bg-white/6" />
+              Loading tasks...
+            </div>
+          ) : null}
           {!loading && !visibleTasks.length ? (
-            <div className="rounded-[26px] border border-dashed border-white/10 bg-black/18 p-8 text-sm text-[var(--text-dim)]">
+            <div className="animate-fade-in-up-sm rounded-[26px] border border-dashed border-white/10 bg-black/18 p-8 text-sm text-[var(--text-dim)]">
               No tasks matched the current filters.
             </div>
           ) : null}

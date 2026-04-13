@@ -99,12 +99,12 @@ export default function SignInPage() {
             </div>
 
             {error || urlError ? (
-              <div className="mb-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">{error || urlError}</div>
+              <div className="error-banner mb-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">{error || urlError}</div>
             ) : null}
 
-            <div className="space-y-3">
+            <div className="space-y-3 stagger-children">
               {providers.map((provider) => (
-                <a key={provider.id} href={provider.href} className="action-button-secondary flex w-full items-center justify-between rounded-[22px] px-4 py-3 text-sm">
+                <a key={provider.id} href={provider.href} className="btn-press action-button-secondary flex w-full items-center justify-between rounded-[22px] px-4 py-3 text-sm animate-fade-in-up-sm">
                   <span className="flex items-center gap-3">
                     {provider.id === "google" ? <Mail className="size-4" /> : <Globe className="size-4" />}
                     {provider.label}
@@ -134,7 +134,7 @@ export default function SignInPage() {
                   </button>
                 </div>
               </div>
-              <button type="submit" disabled={loading} className="action-button-primary flex w-full items-center justify-center rounded-[22px] px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="submit" disabled={loading} className="btn-press action-button-primary flex w-full items-center justify-center rounded-[22px] px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
                 {loading ? "Signing in..." : "Sign in with email"}
               </button>
             </form>

@@ -182,10 +182,10 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
 
   return (
     <article
-      className={`content-auto task-card-contain section-card animate-fade-in-up-sm rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
+      className={`content-auto task-card-contain card-lift section-card animate-fade-in-up-sm rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
     >
       {error ? (
-        <div className="mb-4 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+        <div className="error-banner mb-4 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
           {error}
         </div>
       ) : null}
@@ -232,7 +232,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
               setEditTags(task.tags ? task.tags.map((tag) => tag.id) : []);
               setIsEditing(true);
             }}
-            className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
+            className="btn-press action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
             disabled={loading}
           >
             <Pencil className="size-4" /> Edit
@@ -240,7 +240,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
           <button
             type="button"
             onClick={handleDelete}
-            className="inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,135,124,0.2)] bg-[rgba(255,135,124,0.08)] px-4 py-2 text-sm text-[#ffd4cf] transition hover:bg-[rgba(255,135,124,0.12)]"
+            className="btn-press inline-flex items-center gap-2 rounded-2xl border border-[rgba(255,135,124,0.2)] bg-[rgba(255,135,124,0.08)] px-4 py-2 text-sm text-[#ffd4cf] transition hover:bg-[rgba(255,135,124,0.12)]"
             disabled={loading}
           >
             <Trash2 className="size-4" /> Delete
@@ -263,7 +263,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
       {task.tags && task.tags.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {task.tags.map((tag) => (
-            <span key={tag.id} className="rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-[var(--text-secondary)]">
+            <span key={tag.id} className="tag-pill rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-[var(--text-secondary)]">
               {tag.name}
             </span>
           ))}

@@ -17,6 +17,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { useUser } from "@/context/AuthContext";
@@ -173,7 +174,8 @@ const ChatBubble = memo(function ChatBubble({
       >
         <div
           className={cn(
-            "markdown-content text-[13px] leading-7",
+            "text-[13px] leading-7",
+            !isUser && "markdown-content",
             isWidget && "line-clamp-5"
           )}
         >
@@ -231,7 +233,7 @@ const Composer = memo(function Composer({
         placeholder={hint || "Ask the assistant to create, update, or find tasks..."}
         disabled={isLoading || disabled}
         className={cn(
-          "w-full resize-none bg-transparent px-1 text-sm text-black outline-none placeholder:text-[var(--text-faint)] disabled:opacity-50",
+          "w-full resize-none bg-transparent px-1 text-sm text-white outline-none placeholder:text-[var(--text-faint)] disabled:opacity-50",
           compact ? "min-h-[56px]" : "min-h-[72px] py-1"
         )}
         maxLength={5000}
@@ -245,7 +247,7 @@ const Composer = memo(function Composer({
           type="button"
           onClick={onSend}
           disabled={!inputText.trim() || isLoading || disabled}
-          className="action-button-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-2xl sm:text-sm"
+          className="btn-press action-button-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 sm:rounded-2xl sm:text-sm"
         >
           Send
           <ArrowUp className="size-3.5" />
@@ -350,8 +352,9 @@ const ChatInterface = ({
   const navigateToChat = useCallback(() => router.push("/chat"), [router]);
 
   /* ─── Widget: Floating button + expandable panel ─── */
+  /* Portal to body so position:fixed works despite backdrop-filter ancestors */
   if (isWidget) {
-    return (
+    const widget = (
       <>
         {/* Floating trigger button */}
         {fabVisible && !widgetOpen && (
@@ -410,14 +413,14 @@ const ChatInterface = ({
                   <button
                     type="button"
                     onClick={handleNewConversation}
-                    className="action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
+                    className="btn-press action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
                   >
                     <Plus className="size-3" /> New
                   </button>
                   <button
                     type="button"
                     onClick={navigateToChat}
-                    className="action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
+                    className="btn-press action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
                   >
                     <ArrowUp className="size-3 rotate-45" /> Full chat
                   </button>
@@ -523,6 +526,9 @@ const ChatInterface = ({
         )}
       </>
     );
+
+    if (typeof document === "undefined") return widget;
+    return createPortal(widget, document.body);
   }
 
   /* ─── Full chat workspace ─── */
@@ -546,7 +552,7 @@ const ChatInterface = ({
         <button
           type="button"
           onClick={handleNewConversation}
-          className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm"
+          className="btn-press action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm"
         >
           <Plus className="size-4" /> New chat
         </button>

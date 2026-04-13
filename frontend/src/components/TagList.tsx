@@ -194,7 +194,7 @@ const TagList = () => {
       {isOpen ? (
         <div className="animate-expand overflow-hidden">
           {error ? (
-            <div className="mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
+            <div className="error-banner mt-5 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
               {error}
             </div>
           ) : null}
@@ -207,12 +207,12 @@ const TagList = () => {
               placeholder="Add a reusable label"
               className="input-shell flex-1 rounded-2xl px-4 py-3 text-sm"
             />
-            <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-4 py-3 text-sm">
+            <button type="submit" disabled={loading} className="btn-press action-button-primary rounded-2xl px-4 py-3 text-sm">
               Add
             </button>
           </form>
 
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 space-y-3 stagger-children">
             {loading && tags.length === 0 ? (
               <div className="text-sm text-[var(--text-dim)]">Loading tags...</div>
             ) : tags.length === 0 ? (
@@ -232,7 +232,7 @@ const TagList = () => {
                       />
                     ) : (
                       <div className="flex items-center gap-3">
-                        <span className="size-2.5 rounded-full bg-[var(--accent-ice)]" />
+                        <span className="tag-pill size-2.5 rounded-full bg-[var(--accent-ice)]" />
                         <div className="text-sm font-medium text-white">{tag.name}</div>
                       </div>
                     )}
@@ -240,7 +240,7 @@ const TagList = () => {
                     <div className="flex items-center gap-2">
                       {isEditing ? (
                         <>
-                          <button type="button" onClick={() => void updateTag(tag.id)} className="action-button-primary rounded-2xl px-4 py-2 text-sm">
+                          <button type="button" onClick={() => void updateTag(tag.id)} className="btn-press action-button-primary rounded-2xl px-4 py-2 text-sm">
                             Save
                           </button>
                           <button
@@ -249,7 +249,7 @@ const TagList = () => {
                               setEditingTagId(null);
                               setEditingTagName("");
                             }}
-                            className="action-button-secondary rounded-2xl px-4 py-2 text-sm"
+                            className="btn-press action-button-secondary rounded-2xl px-4 py-2 text-sm"
                           >
                             Cancel
                           </button>
@@ -262,7 +262,7 @@ const TagList = () => {
                               setEditingTagId(tag.id);
                               setEditingTagName(tag.name);
                             }}
-                            className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
+                            className="btn-press action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm"
                           >
                             <Pencil className="size-4" /> Edit
                           </button>

@@ -47,18 +47,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
       const history = await chatService.getHistory();
 
       if (!history.messages || history.messages.length === 0) {
-        const welcomeText = `Hello ${userName}! I'm your AI assistant for managing tasks. You can ask me to:\n\n• Create tasks\n• Complete tasks\n• Search for tasks\n• List your tasks\n\nHow can I help you today?`;
-        const welcomeMessage: Message = {
-          id: Date.now().toString(),
-          text: welcomeText,
-          sender: 'ai',
-          timestamp: new Date(),
-        };
-        setMessages([welcomeMessage]);
-
-        try {
-          await chatService.saveWelcomeMessage(welcomeText);
-        } catch {}
+        setMessages([]);
       } else {
         setMessages(history.messages);
       }
@@ -66,7 +55,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
     } finally {
       setIsLoading(false);
     }
-  }, [isSignedIn, userName]);
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (autoLoadHistory && isLoaded && isSignedIn) {
@@ -262,17 +251,8 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
       setMessages([]);
       setOperationPerformed(null);
       setSessionId(chatService.getSessionId());
-
-      const welcomeMessage: Message = {
-        id: Date.now().toString(),
-        text: `Hello ${userName}! I'm your AI assistant for managing tasks. You can ask me to:\n\n• Create tasks\n• Complete tasks\n• Search for tasks\n• List your tasks\n\nHow can I help you today?`,
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-
-      setMessages([welcomeMessage]);
     } catch {}
-  }, [userName]);
+  }, []);
 
   const formatMessage = useCallback((text: string) => {
     return text.split('\n').map((line, i) => (

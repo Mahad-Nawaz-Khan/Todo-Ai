@@ -94,10 +94,10 @@ export default function Dashboard() {
                     Capture tasks, manage tags, and operate through an AI assistant in a refined dark interface designed for speed, clarity, and exceptional mobile UX.
                   </p>
                   <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                    <Link href="/sign-up" className="action-button-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm">
+                    <Link href="/sign-up" className="btn-press action-button-primary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm">
                       Start free <ArrowRight className="size-4" />
                     </Link>
-                    <Link href="/sign-in" className="action-button-secondary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm">
+                    <Link href="/sign-in" className="btn-press action-button-secondary inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm">
                       I already have an account
                     </Link>
                   </div>
@@ -107,8 +107,8 @@ export default function Dashboard() {
                   {showcaseCards.map((card) => {
                     const Icon = card.icon;
                     return (
-                      <div key={card.title} className="section-card animate-fade-in-up rounded-[26px] p-5">
-                        <div className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-ice)]">
+                      <div key={card.title} className="card-lift section-card animate-fade-in-up rounded-[26px] p-5">
+                        <div className="icon-glow flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-ice)]">
                           <Icon className="size-5" />
                         </div>
                         <h2 className="mt-4 text-lg font-semibold tracking-[-0.03em] text-white">{card.title}</h2>
@@ -119,7 +119,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="section-card animate-fade-in-scale rounded-[30px] p-5 sm:p-6" style={{ animationDelay: "0.1s" }}>
+              <div className="card-lift section-card animate-fade-in-scale rounded-[30px] p-5 sm:p-6" style={{ animationDelay: "0.35s" }}>
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Live preview</div>

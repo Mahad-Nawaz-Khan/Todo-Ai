@@ -22,6 +22,7 @@
   --shadow-panel: 0 16px 64px rgba(0, 0, 0, 0.34);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @theme inline {
@@ -138,13 +139,19 @@ select option {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(18px);
+  transition: border-color 250ms var(--ease-out-expo), box-shadow 250ms var(--ease-out-expo);
+}
+
+.section-card:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 72px rgba(0, 0, 0, 0.38);
 }
 
 .input-shell {
   border: 1px solid var(--stroke-soft);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-primary);
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition: border-color 250ms ease, background 250ms ease, box-shadow 250ms ease;
 }
 
 .input-shell::placeholder {
@@ -164,7 +171,7 @@ select option {
   color: #04121f;
   font-weight: 600;
   box-shadow: 0 14px 34px rgba(74, 167, 255, 0.24);
-  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+  transition: transform 250ms var(--ease-out-expo), box-shadow 250ms var(--ease-out-expo), filter 250ms ease;
 }
 
 .action-button-primary:hover {
@@ -173,11 +180,15 @@ select option {
   box-shadow: 0 18px 40px rgba(74, 167, 255, 0.28);
 }
 
+.action-button-primary:active {
+  transform: translateY(0) scale(0.97);
+}
+
 .action-button-secondary {
   border: 1px solid var(--stroke-soft);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
-  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+  transition: border-color 250ms ease, background 250ms ease, color 250ms ease, transform 250ms var(--ease-out-expo);
 }
 
 .action-button-secondary:hover {
@@ -186,10 +197,20 @@ select option {
   color: white;
 }
 
+.action-button-secondary:active {
+  transform: scale(0.97);
+}
+
 .status-pill {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-secondary);
+  transition: background 250ms ease, border-color 250ms ease;
+}
+
+.status-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .priority-high {
@@ -277,18 +298,18 @@ select option {
   }
 }
 
-/* Skip rendering off-screen content — 30-60% render time improvement */
+/* Skip rendering off-screen content */
 .content-auto {
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }
 
-/* Task card containment — isolates paint/layout per card */
+/* Task card containment */
 .task-card-contain {
   contain: layout paint style;
 }
 
-/* ─── Entry animations (pure CSS, no JS runtime cost) ─── */
+/* ─── Keyframes ─── */
 
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(18px); }
@@ -346,63 +367,191 @@ select option {
   to   { opacity: 0; max-height: 0; }
 }
 
-/* Utility classes for entry animations */
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  20%  { transform: translateX(-4px); }
+  40%  { transform: translateX(4px); }
+  60%  { transform: translateX(-3px); }
+  80%  { transform: translateX(2px); }
+}
+
+@keyframes tagPop {
+  0%   { opacity: 0; transform: scale(0.8); }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(144, 229, 255, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(144, 229, 255, 0.08); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Animation utility classes ─── */
+/* All entry animations have 250ms delay so elements ease in smoothly */
+
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out both;
+  animation: fadeInUp 0.5s var(--ease-out-expo) 250ms both;
 }
 
 .animate-fade-in-scale {
-  animation: fadeInScale 0.5s ease-out both;
+  animation: fadeInScale 0.5s var(--ease-out-expo) 250ms both;
 }
 
 .animate-fade-in-up-sm {
-  animation: fadeInUpSmall 0.22s ease-out both;
+  animation: fadeInUpSmall 0.35s var(--ease-out-expo) 250ms both;
 }
 
 .animate-fade-in-up-tiny {
-  animation: fadeInUpTiny 0.3s ease-out both;
+  animation: fadeInUpTiny 0.35s var(--ease-out-expo) 250ms both;
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: slideInLeft 0.35s var(--ease-out-expo) 250ms both;
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.2s ease-out both;
+  animation: fadeIn 0.35s ease-out 250ms both;
 }
 
 .animate-check-bounce {
-  animation: checkBounce 0.32s ease-out;
+  animation: checkBounce 0.4s var(--ease-out-expo);
 }
 
 .animate-widget-up {
-  animation: widgetSlideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: widgetSlideUp 0.4s var(--ease-out-expo) 250ms both;
 }
 
 .animate-fab-pop {
-  animation: fabPop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fabPop 0.4s var(--ease-out-expo) 250ms both;
 }
 
 .animate-expand {
-  animation: expandHeight 0.24s ease-out both;
+  animation: expandHeight 0.4s var(--ease-out-expo) 250ms both;
   overflow: hidden;
 }
 
 .animate-collapse {
-  animation: collapseHeight 0.2s ease-in both;
+  animation: collapseHeight 0.3s ease-in both;
   overflow: hidden;
 }
 
-/* Staggered children — apply to parent */
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+.animate-error-shake {
+  animation: errorShake 0.4s ease-out 250ms both;
+}
+
+.animate-tag-pop {
+  animation: tagPop 0.3s var(--ease-out-expo) 250ms both;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s var(--ease-out-expo) 250ms both;
+}
+
+/* ─── Stagger delays ─── */
+/* 250ms base + incremental stagger for children */
+
+.stagger-children > * { animation-fill-mode: both; }
+.stagger-children > *:nth-child(1) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 450ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 550ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 650ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 750ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 850ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 950ms; }
+
+/* Stagger for task list items — slower cascade */
+.stagger-tasks > * { animation-fill-mode: both; }
+.stagger-tasks > *:nth-child(1) { animation-delay: 250ms; }
+.stagger-tasks > *:nth-child(2) { animation-delay: 380ms; }
+.stagger-tasks > *:nth-child(3) { animation-delay: 510ms; }
+.stagger-tasks > *:nth-child(4) { animation-delay: 640ms; }
+.stagger-tasks > *:nth-child(5) { animation-delay: 770ms; }
+.stagger-tasks > *:nth-child(6) { animation-delay: 900ms; }
+.stagger-tasks > *:nth-child(7) { animation-delay: 1030ms; }
+.stagger-tasks > *:nth-child(8) { animation-delay: 1160ms; }
+.stagger-tasks > *:nth-child(n+9) { animation-delay: 1290ms; }
 
 /* Slide-in panel transition for mobile drawer */
 .slide-panel {
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+  transition: transform 0.35s var(--ease-out-expo), opacity 0.35s ease;
+}
+
+/* Tag pill animation */
+.tag-pill {
+  animation: tagPop 0.3s var(--ease-out-expo) 250ms both;
+}
+
+/* Nav link hover indicator */
+.nav-link {
+  transition: background 250ms ease, border-color 250ms ease, color 250ms ease, transform 250ms var(--ease-out-expo);
+}
+
+.nav-link:hover {
+  transform: translateX(2px);
+}
+
+.nav-link:active {
+  transform: scale(0.98);
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 250ms var(--ease-out-expo), box-shadow 250ms var(--ease-out-expo), border-color 250ms ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+}
+
+/* Button micro-interaction */
+.btn-press {
+  transition: transform 250ms var(--ease-out-expo), box-shadow 250ms var(--ease-out-expo), background 250ms ease, border-color 250ms ease, color 250ms ease;
+}
+
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+/* Icon container hover glow */
+.icon-glow {
+  transition: box-shadow 250ms ease, background 250ms ease, border-color 250ms ease;
+}
+
+.icon-glow:hover {
+  box-shadow: 0 0 20px rgba(144, 229, 255, 0.15);
+  border-color: rgba(144, 229, 255, 0.2);
+}
+
+/* Error banner entrance */
+.error-banner {
+  animation: errorShake 0.4s ease-out, fadeInUpSmall 0.35s var(--ease-out-expo) both;
+}
+
+/* Opacity transition for conditional elements */
+.fade-transition {
+  transition: opacity 250ms ease, transform 250ms var(--ease-out-expo);
 }
 
 @media (prefers-reduced-motion: reduce) {
