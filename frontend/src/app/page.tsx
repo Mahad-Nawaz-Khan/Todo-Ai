@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { ArrowRight, CheckCheck, Command, MessageSquareText, ShieldCheck, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -84,7 +84,7 @@ export default function Dashboard() {
 
             <main className="grid gap-8 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:py-12">
               <div>
-                <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                <m.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                   <div className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/6 px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">
                     <Star className="size-3.5 text-[var(--accent-amber)]" /> Raycast-like productivity redesign
                   </div>
@@ -102,25 +102,25 @@ export default function Dashboard() {
                       I already have an account
                     </Link>
                   </div>
-                </motion.div>
+                </m.div>
 
                 <div className="mt-8 grid gap-3 md:grid-cols-3">
                   {showcaseCards.map((card, index) => {
                     const Icon = card.icon;
                     return (
-                      <motion.div key={card.title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 * index }} className="section-card rounded-[26px] p-5">
+                      <m.div key={card.title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 * index }} className="section-card rounded-[26px] p-5">
                         <div className="flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-ice)]">
                           <Icon className="size-5" />
                         </div>
                         <h2 className="mt-4 text-lg font-semibold tracking-[-0.03em] text-white">{card.title}</h2>
                         <p className="mt-2 text-sm leading-6 text-[var(--text-dim)]">{card.description}</p>
-                      </motion.div>
+                      </m.div>
                     );
                   })}
                 </div>
               </div>
 
-              <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.1 }} className="section-card rounded-[30px] p-5 sm:p-6">
+              <m.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, delay: 0.1 }} className="section-card rounded-[30px] p-5 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Live preview</div>
@@ -148,7 +148,7 @@ export default function Dashboard() {
                     <CheckCheck className="size-4 text-[var(--accent-lime)]" /> Use the assistant to create and update tasks without touching the backend contract.
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             </main>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { ArrowLeft, Eye, EyeOff, Globe, Mail, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
@@ -69,7 +69,7 @@ export default function SignUpPage() {
       <div className="noise-overlay" />
       <div className="mx-auto flex min-h-screen max-w-7xl items-center px-4 py-6 sm:px-6 lg:px-8">
         <div className="grid w-full gap-4 lg:grid-cols-[1fr_1fr]">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="section-card order-2 rounded-[32px] p-6 sm:p-8 lg:order-1 lg:min-h-[760px]">
+          <m.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="section-card order-2 rounded-[32px] p-6 sm:p-8 lg:order-1 lg:min-h-[760px]">
             <Link href="/" className="inline-flex items-center gap-2 text-sm text-[var(--text-dim)] transition hover:text-white">
               <ArrowLeft className="size-4" /> Back to home
             </Link>
@@ -89,9 +89,9 @@ export default function SignUpPage() {
                 <div key={item} className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 text-sm text-[var(--text-secondary)]">{item}</div>
               ))}
             </div>
-          </motion.div>
+          </m.div>
 
-          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="glass-panel order-1 rounded-[32px] border border-white/8 p-6 sm:p-8 lg:order-2">
+          <m.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="glass-panel order-1 rounded-[32px] border border-white/8 p-6 sm:p-8 lg:order-2">
             <div className="mb-6">
               <div className="text-[11px] uppercase tracking-[0.3em] text-[var(--text-faint)]">Todo AI</div>
               <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white">Create your account</h2>
@@ -163,7 +163,7 @@ export default function SignUpPage() {
             <p className="mt-6 text-center text-sm text-[var(--text-dim)]">
               Already have an account? <Link href="/sign-in" className="text-[var(--accent-ice)] underline">Sign in</Link>
             </p>
-          </motion.div>
+          </m.div>
         </div>
       </div>
     </div>

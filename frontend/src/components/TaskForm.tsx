@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { CalendarDays, Plus, Repeat2, Sparkles, Tag as TagIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -108,7 +108,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
 
       <AnimatePresence initial={false}>
         {isOpen ? (
-          <motion.form
+          <m.form
             initial={{ opacity: 0, height: 0, y: -12 }}
             animate={{ opacity: 1, height: "auto", y: 0 }}
             exit={{ opacity: 0, height: 0, y: -12 }}
@@ -219,7 +219,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
                 </button>
               </div>
             </div>
-          </motion.form>
+          </m.form>
         ) : null}
       </AnimatePresence>
     </section>

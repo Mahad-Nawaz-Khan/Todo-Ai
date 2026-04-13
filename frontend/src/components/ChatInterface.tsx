@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import {
   ArrowUp,
   Bot,
@@ -129,7 +129,7 @@ const OperationCard = memo(function OperationCard({
   if (!meta) return null;
   const Icon = meta.icon;
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
@@ -148,7 +148,7 @@ const OperationCard = memo(function OperationCard({
           <div className="mt-1 text-sm text-[var(--text-secondary)]">{meta.detail}</div>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -165,7 +165,7 @@ const ChatBubble = memo(function ChatBubble({
   const maxW = isWidget ? "max-w-[90%]" : "sm:max-w-[78%] max-w-[94%]";
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 10, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
@@ -197,7 +197,7 @@ const ChatBubble = memo(function ChatBubble({
           {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -240,7 +240,7 @@ const Composer = memo(function Composer({
         placeholder={hint || "Ask the assistant to create, update, or find tasks..."}
         disabled={isLoading || disabled}
         className={cn(
-          "w-full resize-none bg-transparent px-1 text-sm text-white outline-none placeholder:text-[var(--text-faint)] disabled:opacity-50",
+          "w-full resize-none bg-transparent px-1 text-sm text-black outline-none placeholder:text-[var(--text-faint)] disabled:opacity-50",
           compact ? "min-h-[56px]" : "min-h-[72px] py-1"
         )}
         maxLength={5000}
@@ -344,14 +344,14 @@ const ChatInterface = ({
         {/* Floating trigger button */}
         <AnimatePresence>
           {!widgetOpen && (
-            <motion.button
+            <m.button
               key="widget-trigger"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ type: "spring", stiffness: 260, damping: 22 }}
               onClick={() => setWidgetOpen(true)}
-              className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-[linear-gradient(135deg,var(--accent-blue),var(--accent-ice))] shadow-[0_8px_32px_rgba(74,167,255,0.35)] transition-shadow hover:shadow-[0_12px_40px_rgba(74,167,255,0.45)] sm:bottom-7 sm:right-7 sm:size-[60px] sm:rounded-[22px]"
+              className="fixed bottom-5 right-5 z-[999] flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-[linear-gradient(135deg,var(--accent-blue),var(--accent-ice))] shadow-[0_8px_32px_rgba(74,167,255,0.35)] transition-shadow hover:shadow-[0_12px_40px_rgba(74,167,255,0.45)] sm:bottom-7 sm:right-7 sm:size-[60px] sm:rounded-[22px]"
               aria-label="Open AI assistant"
             >
               <MessageSquareText className="size-6 text-[#04121f] sm:size-7" />
@@ -360,7 +360,7 @@ const ChatInterface = ({
                   {messages.length}
                 </span>
               )}
-            </motion.button>
+            </m.button>
           )}
         </AnimatePresence>
 
@@ -369,7 +369,7 @@ const ChatInterface = ({
           {widgetOpen && (
             <>
               {/* Backdrop (mobile) */}
-              <motion.div
+              <m.div
                 key="widget-backdrop"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -378,7 +378,7 @@ const ChatInterface = ({
                 onClick={() => setWidgetOpen(false)}
               />
 
-              <motion.div
+              <m.div
                 key="widget-panel"
                 initial={{ opacity: 0, y: 24, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -519,7 +519,7 @@ const ChatInterface = ({
                     />
                   )}
                 </div>
-              </motion.div>
+              </m.div>
             </>
           )}
         </AnimatePresence>

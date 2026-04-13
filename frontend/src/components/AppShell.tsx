@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Command, LayoutDashboard, Menu, MessageSquareText, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -135,14 +135,14 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
 
           <AnimatePresence>
             {mobileOpen ? (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 className="absolute inset-0 z-50 bg-[rgba(6,8,14,0.68)] backdrop-blur-sm lg:hidden"
                 onClick={() => setMobileOpen(false)}
               >
-                <motion.div
+                <m.div
                   initial={{ x: -36, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   exit={{ x: -36, opacity: 0 }}
@@ -181,8 +181,8 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
                       );
                     })}
                   </div>
-                </motion.div>
-              </motion.div>
+                </m.div>
+              </m.div>
             ) : null}
           </AnimatePresence>
         </div>

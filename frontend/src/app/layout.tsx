@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import dynamic from "next/dynamic";
 
+import MotionProvider from "@/components/MotionProvider";
 import ScrollToTop from "@/components/ScrollToTop";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -31,10 +32,12 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          <ScrollToTop />
-          {children}
-          <AppCommandPalette />
-          <Toaster theme="dark" richColors position="top-right" />
+          <MotionProvider>
+            <ScrollToTop />
+            {children}
+            <AppCommandPalette />
+            <Toaster theme="dark" richColors position="top-right" />
+          </MotionProvider>
         </AuthProvider>
       </body>
     </html>

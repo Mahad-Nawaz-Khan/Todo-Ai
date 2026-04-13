@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { CalendarDays, CheckCircle2, Pencil, Repeat2, Trash2 } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -182,12 +182,12 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
   };
 
   return (
-    <motion.article
-      layout
+    <m.article
+      layout="position"
       initial={{ opacity: 0, y: 18, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.24, ease: "easeOut" }}
-      className={`section-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
+      className={`content-auto task-card-contain section-card rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
     >
       {error ? (
         <div className="mb-4 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
@@ -203,29 +203,28 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
             </span>
             <span className="status-pill rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em]">{taskStatus}</span>
           </div>
-          <motion.div layout className="mt-4 flex items-start gap-3">
-            <motion.button
+          <div className="mt-4 flex items-start gap-3">
+            <m.button
               type="button"
               onClick={handleToggleComplete}
               disabled={loading}
-              whileTap={{ scale: 0.92 }}
               animate={optimisticCompleted ? { scale: [1, 1.08, 1], rotate: [0, -6, 0] } : { scale: 1, rotate: 0 }}
               transition={{ duration: 0.32, ease: "easeOut" }}
-              className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl border transition sm:size-12 ${
+              className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl border transition active:scale-[0.92] sm:size-12 ${
                 optimisticCompleted
                   ? "border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-[var(--success)] shadow-[0_10px_30px_rgba(126,240,184,0.12)]"
                   : "border-white/10 bg-white/6 text-[var(--text-dim)] hover:border-white/14 hover:text-white"
               }`}
             >
               <CheckCircle2 className="size-5" />
-            </motion.button>
+            </m.button>
             <div className="min-w-0 flex-1">
               <h3 className={`text-lg font-semibold tracking-[-0.03em] ${optimisticCompleted ? "text-[rgba(255,255,255,0.58)] line-through" : "text-white"}`}>
                 {task.title}
               </h3>
               {task.description ? <p className="mt-2 text-sm leading-6 text-[var(--text-dim)]">{task.description}</p> : null}
             </div>
-          </motion.div>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -256,7 +255,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
         </div>
       </div>
 
-      <motion.div layout className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--text-dim)]">
+      <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--text-dim)]">
         <span className="status-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5">
           <CalendarDays className="size-3.5" /> {formatDate(task.due_date)}
         </span>
@@ -266,7 +265,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
           </span>
         ) : null}
         <span className="status-pill rounded-full px-3 py-1.5">Created {formatDate(task.created_at)}</span>
-      </motion.div>
+      </div>
 
       {task.tags && task.tags.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -280,7 +279,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
 
       <AnimatePresence>
         {isEditing ? (
-          <motion.form
+          <m.form
             initial={{ opacity: 0, height: 0, y: -8 }}
             animate={{ opacity: 1, height: "auto", y: 0 }}
             exit={{ opacity: 0, height: 0, y: -8 }}
@@ -314,9 +313,9 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
                 </button>
               </div>
             </div>
-          </motion.form>
+          </m.form>
         ) : null}
       </AnimatePresence>
-    </motion.article>
+    </m.article>
   );
 });

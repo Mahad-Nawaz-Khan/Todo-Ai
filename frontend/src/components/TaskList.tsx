@@ -1,8 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { ListFilter, Search, SlidersHorizontal } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useDeferredValue, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
 import type { TagsChangedDetail } from "@/types/events";
@@ -178,19 +178,22 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
     setTasks((prev) => (prev.some((task) => task.id === createdTask.id) ? prev : [createdTask, ...prev]));
   }, [createdTask]);
 
+  const deferredFilters = useDeferredValue(filters);
+  const deferredSort = useDeferredValue(sortConfig);
+
   const visibleTasks = useMemo(() => {
     let result = tasks;
 
-    if (filters.completed !== null) {
-      result = result.filter((task) => task.completed === filters.completed);
+    if (deferredFilters.completed !== null) {
+      result = result.filter((task) => task.completed === deferredFilters.completed);
     }
 
-    if (filters.priority) {
-      result = result.filter((task) => task.priority === filters.priority);
+    if (deferredFilters.priority) {
+      result = result.filter((task) => task.priority === deferredFilters.priority);
     }
 
-    if (filters.search) {
-      const query = filters.search.toLowerCase();
+    if (deferredFilters.search) {
+      const query = deferredFilters.search.toLowerCase();
       result = result.filter((task) => {
         const tagNames = Array.isArray(task.tags) ? task.tags.map((tag) => tag.name).join(" ") : "";
         const haystack = `${task.title ?? ""} ${task.description ?? ""} ${tagNames}`.toLowerCase();
@@ -198,15 +201,15 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
       });
     }
 
-    const direction = sortConfig.order === "asc" ? 1 : -1;
+    const direction = deferredSort.order === "asc" ? 1 : -1;
     const priorityRank: Record<Priority, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 
     return [...result].sort((a, b) => {
-      if (sortConfig.sortBy === "priority") {
+      if (deferredSort.sortBy === "priority") {
         return ((priorityRank[a.priority] ?? 0) - (priorityRank[b.priority] ?? 0)) * direction;
       }
 
-      if (sortConfig.sortBy === "due_date") {
+      if (deferredSort.sortBy === "due_date") {
         const aDate = a.due_date ? Date.parse(a.due_date) : null;
         const bDate = b.due_date ? Date.parse(b.due_date) : null;
         if (aDate === null && bDate === null) return 0;
@@ -215,11 +218,11 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
         return (aDate - bDate) * direction;
       }
 
-      const aTime = a[sortConfig.sortBy] ? Date.parse(a[sortConfig.sortBy] as string) : 0;
-      const bTime = b[sortConfig.sortBy] ? Date.parse(b[sortConfig.sortBy] as string) : 0;
+      const aTime = a[deferredSort.sortBy] ? Date.parse(a[deferredSort.sortBy] as string) : 0;
+      const bTime = b[deferredSort.sortBy] ? Date.parse(b[deferredSort.sortBy] as string) : 0;
       return (aTime - bTime) * direction;
     });
-  }, [filters, sortConfig, tasks]);
+  }, [deferredFilters, deferredSort, tasks]);
 
   const handleTaskUpdate = useCallback((updatedTask: Task) => {
     setTasks((prev) => {
@@ -270,7 +273,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
 
         <AnimatePresence initial={false}>
           {showControls ? (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <m.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <div className="mt-4 grid gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-4">
                 <label className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
                   <Search className="size-4 text-[var(--text-faint)]" />
@@ -318,7 +321,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
                   </select>
                 </label>
               </div>
-            </motion.div>
+            </m.div>
           ) : null}
         </AnimatePresence>
 
