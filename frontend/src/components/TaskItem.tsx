@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, CheckCircle2, Pencil, Repeat2, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
@@ -31,7 +31,7 @@ function priorityClass(priority: Priority) {
   return "priority-medium";
 }
 
-export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
+export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDescription, setEditDescription] = useState(task.description || "");
@@ -319,4 +319,4 @@ export const TaskItem = ({ task, onUpdate, onDelete }: TaskItemProps) => {
       </AnimatePresence>
     </motion.article>
   );
-};
+});

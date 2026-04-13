@@ -52,8 +52,8 @@ const nextConfig: NextConfig = {
   compress: true,
   // Optimize bundle loading
   modularizeImports: {
-    "@heroicons/react": {
-      transform: "@heroicons/react/{{kebabCase member}}",
+    "lucide-react": {
+      transform: "lucide-react/dist/esm/icons/{{kebabCase member}}",
     },
   },
 };

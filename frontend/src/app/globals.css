@@ -103,6 +103,7 @@ select option {
   position: fixed;
   inset: 0;
   opacity: 0.18;
+  contain: strict;
   background-image:
     radial-gradient(rgba(255, 255, 255, 0.18) 0.5px, transparent 0.5px),
     radial-gradient(rgba(255, 255, 255, 0.12) 0.5px, transparent 0.5px);
@@ -115,6 +116,7 @@ select option {
   pointer-events: none;
   position: fixed;
   inset: 0;
+  contain: strict;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
@@ -124,12 +126,14 @@ select option {
 }
 
 .glass-panel {
+  contain: content;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.028));
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(22px);
 }
 
 .section-card {
+  contain: content;
   border: 1px solid var(--stroke-soft);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
   box-shadow: var(--shadow-panel);
@@ -270,5 +274,15 @@ select option {
 @media (max-width: 640px) {
   .noise-overlay {
     opacity: 0.12;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

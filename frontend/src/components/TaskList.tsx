@@ -221,7 +221,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
     });
   }, [filters, sortConfig, tasks]);
 
-  const handleTaskUpdate = (updatedTask: Task) => {
+  const handleTaskUpdate = useCallback((updatedTask: Task) => {
     setTasks((prev) => {
       const index = prev.findIndex((task) => task.id === updatedTask.id);
       if (index === -1) return [updatedTask, ...prev];
@@ -229,11 +229,11 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
       next[index] = updatedTask;
       return next;
     });
-  };
+  }, []);
 
-  const handleTaskDelete = (deletedTaskId: number) => {
+  const handleTaskDelete = useCallback((deletedTaskId: number) => {
     setTasks((prev) => prev.filter((task) => task.id !== deletedTaskId));
-  };
+  }, []);
 
   const handleFilterChange = <K extends keyof TaskFilters>(filterName: K, value: TaskFilters[K]) => {
     setFilters((prev) => ({ ...prev, [filterName]: value }));
@@ -329,7 +329,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
               No tasks matched the current filters.
             </div>
           ) : null}
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {visibleTasks.map((task) => (
               <TaskItem key={task.id} task={task} onUpdate={handleTaskUpdate} onDelete={handleTaskDelete} />
             ))}

@@ -23,6 +23,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
   const [operationPerformed, setOperationPerformed] = useState<unknown>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const typingAnimationRef = useRef(0);
+  const streamRafRef = useRef(0);
 
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const { user } = useUser();
@@ -77,6 +78,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
       if (typingAnimationRef.current) {
         window.clearTimeout(typingAnimationRef.current);
       }
+      if (streamRafRef.current) {
+        cancelAnimationFrame(streamRafRef.current);
+        streamRafRef.current = 0;
+      }
     };
   }, [autoLoadHistory, isLoaded, isSignedIn, loadHistory]);
 
@@ -125,11 +130,31 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
     try {
       if (enableStreaming) {
+        let pendingDelta = '';
+
+        const flushStreamDelta = () => {
+          if (!pendingDelta) return;
+          const deltaToFlush = pendingDelta;
+          pendingDelta = '';
+          streamRafRef.current = 0;
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === aiMessageId ? { ...msg, text: msg.text + deltaToFlush } : msg))
+          );
+        };
+
         abortControllerRef.current = chatService.sendMessageStream(text, {
           onContent: (delta: string) => {
-            setMessages((prev) => prev.map((msg) => (msg.id === aiMessageId ? { ...msg, text: msg.text + delta } : msg)));
+            pendingDelta += delta;
+            if (!streamRafRef.current) {
+              streamRafRef.current = requestAnimationFrame(flushStreamDelta);
+            }
           },
           onDone: (response) => {
+            if (streamRafRef.current) {
+              cancelAnimationFrame(streamRafRef.current);
+              streamRafRef.current = 0;
+            }
+            pendingDelta = '';
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === aiMessageId
@@ -152,6 +177,11 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
             abortControllerRef.current = null;
           },
           onError: () => {
+            if (streamRafRef.current) {
+              cancelAnimationFrame(streamRafRef.current);
+              streamRafRef.current = 0;
+            }
+            pendingDelta = '';
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === aiMessageId

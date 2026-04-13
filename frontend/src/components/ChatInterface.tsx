@@ -15,14 +15,16 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useUser } from "@/context/AuthContext";
 import { useChat } from "@/hooks/useChat";
 import { cn } from "@/lib/utils";
+
+const ReactMarkdown = dynamic(() => import("react-markdown"), { ssr: false });
 
 /* ─── Types ─── */
 
@@ -118,7 +120,7 @@ function getOperationMeta(operation: unknown) {
 
 /* ─── Sub-components ─── */
 
-function OperationCard({
+const OperationCard = memo(function OperationCard({
   operation,
 }: {
   operation: unknown;
@@ -148,9 +150,9 @@ function OperationCard({
       </div>
     </motion.div>
   );
-}
+});
 
-function ChatBubble({
+const ChatBubble = memo(function ChatBubble({
   message,
   formatMessage,
   isWidget,
@@ -197,9 +199,9 @@ function ChatBubble({
       </div>
     </motion.div>
   );
-}
+});
 
-function Composer({
+const Composer = memo(function Composer({
   inputText,
   setInputText,
   onSend,
@@ -260,7 +262,7 @@ function Composer({
       </div>
     </div>
   );
-}
+});
 
 /* ─── Main Component ─── */
 
@@ -466,7 +468,7 @@ const ChatInterface = ({
                     </div>
                   ) : (
                     <div className="space-y-2.5">
-                      <AnimatePresence initial={false}>
+                      <AnimatePresence initial={false} mode="popLayout">
                         {visibleMessages
                           .filter((m) => !(m.sender === "ai" && m.isStreaming && !m.text))
                           .map((m) => (

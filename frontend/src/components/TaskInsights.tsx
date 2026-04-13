@@ -1,10 +1,12 @@
+import { memo } from "react";
+
 import type { Task } from "@/types/task";
 
 function isOverdue(task: Task) {
   return Boolean(task.due_date && !task.completed && new Date(task.due_date).getTime() < Date.now());
 }
 
-export default function TaskInsights({ tasks }: { tasks: Task[] }) {
+export default memo(function TaskInsights({ tasks }: { tasks: Task[] }) {
   const total = tasks.length;
   const completed = tasks.filter((task) => task.completed).length;
   const overdue = tasks.filter(isOverdue).length;
@@ -28,4 +30,4 @@ export default function TaskInsights({ tasks }: { tasks: Task[] }) {
       ))}
     </div>
   );
-}
+});
