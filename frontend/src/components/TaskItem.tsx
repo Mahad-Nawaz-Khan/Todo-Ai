@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CheckCircle2, Pencil, Repeat2, Trash2 } from "lucide-react";
+import { CalendarDays, CheckCircle2, Pencil, Repeat2, Sparkles, Tag as TagIcon, Trash2 } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -276,28 +276,59 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
           className="animate-expand mt-6 overflow-hidden rounded-[24px] border border-white/8 bg-black/16 p-4"
         >
           <div className="grid gap-4">
-            <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell rounded-2xl px-4 py-3" required />
-            <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
-            <div className="grid gap-4 md:grid-cols-2">
-              <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as Priority)} className="input-shell rounded-2xl px-4 py-3">
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-              </select>
-              <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell rounded-2xl px-4 py-3" />
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Title</label>
+              <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" required />
             </div>
-            <select value={editRecurrenceRule} onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)} className="input-shell rounded-2xl px-4 py-3">
-              <option value="">No recurrence</option>
-              <option value="DAILY">Daily</option>
-              <option value="WEEKLY">Weekly</option>
-              <option value="MONTHLY">Monthly</option>
-            </select>
-            <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Description</label>
+              <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-w-0 w-full min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                  <Sparkles className="size-4 text-[var(--accent-ice)]" /> Priority
+                </label>
+                <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as Priority)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3">
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                  <CalendarDays className="size-4 text-[var(--accent-amber)]" /> Due date
+                </label>
+                <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                <Repeat2 className="size-4 text-[var(--accent-lime)]" /> Recurrence
+              </label>
+              <select value={editRecurrenceRule} onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3">
+                <option value="">No recurrence</option>
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                <TagIcon className="size-4 text-[var(--accent-blue)]" /> Tags
+              </div>
+              <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
+            </div>
+
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" disabled={loading} className="action-button-primary rounded-2xl px-5 py-3 text-sm">
+              <button type="submit" disabled={loading} className="btn-press action-button-primary rounded-2xl px-5 py-3 text-sm">
                 {loading ? "Saving..." : "Save changes"}
               </button>
-              <button type="button" onClick={() => setIsEditing(false)} className="action-button-secondary rounded-2xl px-5 py-3 text-sm">
+              <button type="button" onClick={() => setIsEditing(false)} className="btn-press action-button-secondary rounded-2xl px-5 py-3 text-sm">
                 Cancel
               </button>
             </div>

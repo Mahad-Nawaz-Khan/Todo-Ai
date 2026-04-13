@@ -127,7 +127,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ship the new mobile dashboard"
-                className="input-shell w-full rounded-2xl px-4 py-3"
+                className="input-shell min-w-0 w-full rounded-2xl px-4 py-3"
                 required
               />
             </div>
@@ -141,7 +141,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Optional context, checklist hints, or implementation notes"
-                className="input-shell min-h-[120px] w-full rounded-2xl px-4 py-3"
+                className="input-shell min-w-0 min-h-[120px] w-full rounded-2xl px-4 py-3"
                 rows={4}
               />
             </div>
@@ -155,7 +155,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
                   id="priority"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as Priority)}
-                  className="input-shell w-full rounded-2xl px-4 py-3"
+                  className="input-shell min-w-0 w-full rounded-2xl px-4 py-3"
                 >
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
@@ -171,7 +171,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="input-shell w-full rounded-2xl px-4 py-3"
+                  className="input-shell min-w-0 w-full rounded-2xl px-4 py-3"
                 />
               </div>
             </div>
@@ -184,7 +184,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
                 id="recurrenceRule"
                 value={recurrenceRule}
                 onChange={(e) => setRecurrenceRule(e.target.value as RecurrenceInput)}
-                className="input-shell w-full rounded-2xl px-4 py-3"
+                className="input-shell min-w-0 w-full rounded-2xl px-4 py-3"
               >
                 <option value="">No recurrence</option>
                 <option value="DAILY">Daily</option>

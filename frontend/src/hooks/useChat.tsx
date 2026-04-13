@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { useAuth, useUser } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import chatService from '@/services/chatService';
 
 interface Message {
@@ -26,7 +26,6 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
   const streamRafRef = useRef(0);
 
   const { isLoaded, isSignedIn, getToken } = useAuth();
-  const { user } = useUser();
 
   const { autoLoadHistory = true, enableStreaming = true } = options;
 
