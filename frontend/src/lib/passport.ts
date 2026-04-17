@@ -27,7 +27,7 @@ function configurePassport() {
         {
           clientID: googleClientId,
           clientSecret: googleClientSecret,
-          callbackURL: `${appUrl}/api/auth/callback/google`,
+          callbackURL: `${appUrl}/api/auth/google/callback`,
           scope: ["profile", "email"],
         },
         (_accessToken: string, _refreshToken: string, profile: GoogleProfile, done: (error: unknown, user?: OAuthUser) => void) => {
@@ -53,7 +53,7 @@ function configurePassport() {
         {
           clientID: githubClientId,
           clientSecret: githubClientSecret,
-          callbackURL: `${appUrl}/api/auth/callback/github`,
+          callbackURL: `${appUrl}/api/auth/github/callback`,
           scope: ["user:email"],
         },
         (_accessToken: string, _refreshToken: string, profile: GitHubProfile, done: (error: unknown, user?: OAuthUser) => void) => {

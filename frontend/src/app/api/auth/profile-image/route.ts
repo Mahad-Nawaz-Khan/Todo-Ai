@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
   try {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-    const res = await fetch(`${apiBaseUrl}/api/v1/auth/profile-image?userId=${encodeURIComponent(userId)}`, {
+    const res = await fetch(`${apiBaseUrl}/api/v1/auth/profile-image/${encodeURIComponent(userId)}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
     });
