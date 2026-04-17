@@ -21,6 +21,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(chatService.getSessionId());
   const [operationPerformed, setOperationPerformed] = useState<unknown>(null);
+  const operationTimerRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const typingAnimationRef = useRef(0);
   const streamRafRef = useRef(0);
@@ -69,6 +70,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
         cancelAnimationFrame(streamRafRef.current);
         streamRafRef.current = 0;
       }
+      if (operationTimerRef.current) {
+        window.clearTimeout(operationTimerRef.current);
+        operationTimerRef.current = 0;
+      }
     };
   }, [autoLoadHistory, isLoaded, isSignedIn, loadHistory]);
 
@@ -103,7 +108,6 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
-    setOperationPerformed(null);
 
     const aiMessageId = (Date.now() + 1).toString();
     const aiPlaceholder: Message = {
@@ -137,6 +141,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
             }
           },
           onDone: (response) => {
+            if (operationTimerRef.current) {
+              window.clearTimeout(operationTimerRef.current);
+              operationTimerRef.current = 0;
+            }
             if (streamRafRef.current) {
               cancelAnimationFrame(streamRafRef.current);
               streamRafRef.current = 0;
@@ -157,6 +165,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
             if (response.operation_performed) {
               setOperationPerformed(response.operation_performed);
+              operationTimerRef.current = window.setTimeout(() => {
+                setOperationPerformed(null);
+                operationTimerRef.current = 0;
+              }, 2000);
               setTimeout(() => window.dispatchEvent(new CustomEvent('tasksUpdated')), 500);
             }
 
@@ -182,6 +194,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
         });
       } else {
         const response = await chatService.sendMessage(text);
+        if (operationTimerRef.current) {
+          window.clearTimeout(operationTimerRef.current);
+          operationTimerRef.current = 0;
+        }
         const finalText = response.message.content;
         let index = 0;
 
@@ -213,6 +229,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
           if (response.operation_performed) {
             setOperationPerformed(response.operation_performed);
+            operationTimerRef.current = window.setTimeout(() => {
+              setOperationPerformed(null);
+              operationTimerRef.current = 0;
+            }, 2000);
             setTimeout(() => window.dispatchEvent(new CustomEvent('tasksUpdated')), 500);
           }
 

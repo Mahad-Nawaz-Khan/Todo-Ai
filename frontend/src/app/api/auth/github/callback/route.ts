@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { handleProviderCallback } from "@/lib/auth-api";
-
 export async function GET(req: NextRequest) {
-  try {
-    const res = NextResponse.next();
-    await handleProviderCallback("github", req as unknown as Parameters<typeof handleProviderCallback>[1], res as unknown as Parameters<typeof handleProviderCallback>[2]);
-    return res;
-  } catch {
-    return NextResponse.redirect(new URL("/sign-in?error=github_auth_failed", req.url));
-  }
+  const callbackUrl = new URL("/api/oauth/callback/github", req.url);
+  callbackUrl.search = new URL(req.url).search;
+  return NextResponse.redirect(callbackUrl);
 }

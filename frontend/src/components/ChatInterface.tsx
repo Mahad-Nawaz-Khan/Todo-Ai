@@ -435,7 +435,7 @@ const ChatInterface = ({
                 </div>
               </div>
 
-              {/* Operation status (if active) */}
+              {/* Operation status (auto-dismiss) */}
               {operationMeta && (
                 <div className="border-b border-white/8 px-4 py-3">
                   <OperationCard operation={operationPerformed} />
@@ -653,6 +653,13 @@ const ChatInterface = ({
         {/* Context panel (desktop only) */}
         <aside className="hidden border-l border-white/8 lg:flex lg:w-[300px] lg:flex-col">
           <div className="flex-1 overflow-y-auto p-4">
+            {/* Last action */}
+            {operationMeta && (
+              <div className="mb-4">
+                <OperationCard operation={operationPerformed} />
+              </div>
+            )}
+
             {/* Session stats */}
             <div className="mb-4">
               <div className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">
@@ -681,35 +688,6 @@ const ChatInterface = ({
               </div>
             </div>
 
-            {/* Operation status */}
-            <div className="mb-4">
-              <div className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">
-                Last action
-              </div>
-              <div className="mt-3">
-                {operationMeta ? (
-                  <OperationCard operation={operationPerformed} />
-                ) : (
-                  <div className="rounded-[18px] border border-white/8 bg-(--bg-soft) px-3 py-3 text-sm text-(--text-dim)">
-                    No task action performed in this session yet.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Raw payload */}
-            {operationPerformed != null && (
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">
-                  Raw payload
-                </div>
-                <div className="mt-3 overflow-hidden rounded-[18px] border border-white/8 bg-(--bg-soft)">
-                  <pre className="overflow-auto p-3 font-mono text-[11px] leading-5 text-(--text-secondary)">
-                    {JSON.stringify(operationPerformed, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            )}
           </div>
         </aside>
       </div>
