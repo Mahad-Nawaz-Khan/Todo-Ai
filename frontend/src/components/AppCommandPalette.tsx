@@ -95,21 +95,21 @@ export default function AppCommandPalette() {
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
-          <Search className="size-4 text-[var(--text-dim)]" />
+          <Search className="size-4 text-(--text-dim)" />
           <Command.Input
             autoFocus
             placeholder="Jump to pages, create tasks, or control the workspace"
-            className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-faint)]"
+            className="w-full bg-transparent text-sm text-(--text-primary) outline-none placeholder:text-(--text-faint)"
           />
-          <kbd className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.28em] text-[var(--text-faint)]">
+          <kbd className="rounded-full border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.28em] text-(--text-faint)">
             esc
           </kbd>
         </div>
         <Command.List className="max-h-[420px] overflow-y-auto p-3">
-          <Command.Empty className="px-3 py-8 text-center text-sm text-[var(--text-dim)]">
+          <Command.Empty className="px-3 py-8 text-center text-sm text-(--text-dim)">
             Nothing matched that search.
           </Command.Empty>
-          <Command.Group heading="Actions" className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">
+          <Command.Group heading="Actions" className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">
             {items.map((item) => {
               const Icon = item.icon;
               return (
@@ -120,9 +120,9 @@ export default function AppCommandPalette() {
                     item.action();
                     setOpen(false);
                   }}
-                  className="mt-2 flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-3 py-3 text-sm text-[var(--text-secondary)] outline-none transition data-[selected=true]:border-white/10 data-[selected=true]:bg-white/8 data-[selected=true]:text-white"
+                  className="mt-2 flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-3 py-3 text-sm text-(--text-secondary) outline-none transition data-[selected=true]:border-white/10 data-[selected=true]:bg-white/8 data-[selected=true]:text-white"
                 >
-                  <span className="flex size-9 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-ice)]">
+                  <span className="flex size-9 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-(--accent-ice)">
                     <Icon className="size-4" />
                   </span>
                   <span className="font-medium">{item.label}</span>

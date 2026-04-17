@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { TagsChangedDetail } from "@/types/events";
 import type { Priority, Task } from "@/types/task";
 
+import { CustomSelect } from "./CustomSelect";
 import { TaskItem } from "./TaskItem";
 import TaskInsights from "./TaskInsights";
 
@@ -252,12 +253,12 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
     <section className="space-y-4">
       <TaskInsights tasks={tasks} />
 
-      <div className="section-card rounded-[24px] p-4 sm:rounded-[30px] sm:p-6">
+      <div className="section-card rounded-[30px] p-4 md:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Task board</p>
+            <p className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">Task board</p>
             <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Your active workspace</h2>
-            <p className="mt-2 text-sm text-[var(--text-dim)]">Filter, sort, and edit tasks while keeping the backend contract untouched.</p>
+            <p className="mt-2 text-sm text-(--text-dim)">Filter, sort, and edit tasks while keeping the backend contract untouched.</p>
           </div>
           <button type="button" onClick={() => setShowControls((value) => !value)} className="action-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm">
             <SlidersHorizontal className="size-4" /> {showControls ? "Hide controls" : "Show controls"}
@@ -270,65 +271,73 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
           </div>
         ) : null}
 
-        {showControls ? (
-          <div className="animate-expand mt-4 grid gap-2 sm:mt-5 sm:gap-3 lg:grid-cols-4">
-            <label className="flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
-              <Search className="size-4 text-[var(--text-faint)]" />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search titles, notes, and tags"
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[var(--text-faint)]"
-              />
-            </label>
+        <label className="mt-4 flex items-center gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 md:mt-5">
+          <Search className="size-4 text-(--text-faint)" />
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search titles, notes, and tags"
+            className="w-full bg-transparent text-sm text-white outline-none placeholder:text-(--text-faint)"
+          />
+        </label>
 
-            <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
-              <span className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">
+        {showControls ? (
+          <div className="animate-expand mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
+              <span className="mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-(--text-faint)">
                 <ListFilter className="size-3.5" /> Status
               </span>
-              <select
+              <CustomSelect
                 value={filters.completed === null ? "" : filters.completed ? "done" : "open"}
-                onChange={(e) => handleFilterChange("completed", e.target.value === "" ? null : e.target.value === "done")}
-                className="w-full bg-transparent text-sm text-white outline-none"
-              >
-                <option value="">All</option>
-                <option value="open">Open</option>
-                <option value="done">Completed</option>
-              </select>
-            </label>
+                onChange={(value) => handleFilterChange("completed", value === "" ? null : value === "done")}
+                options={[
+                  { value: "", label: "All" },
+                  { value: "open", label: "Open" },
+                  { value: "done", label: "Completed" },
+                ]}
+              />
+            </div>
 
-            <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
-              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Priority</span>
-              <select value={filters.priority} onChange={(e) => handleFilterChange("priority", e.target.value as TaskFilters["priority"])} className="w-full bg-transparent text-sm text-white outline-none">
-                <option value="">All</option>
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-              </select>
-            </label>
+            <div className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-(--text-faint)">Priority</span>
+              <CustomSelect
+                value={filters.priority}
+                onChange={(value) => handleFilterChange("priority", value as TaskFilters["priority"])}
+                options={[
+                  { value: "", label: "All" },
+                  { value: "LOW", label: "Low" },
+                  { value: "MEDIUM", label: "Medium" },
+                  { value: "HIGH", label: "High" },
+                ]}
+              />
+            </div>
 
-            <label className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3 text-sm text-[var(--text-secondary)]">
-              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-[var(--text-faint)]">Sort</span>
-              <select value={sortConfig.sortBy} onChange={(e) => handleSortChange(e.target.value as SortConfig["sortBy"])} className="w-full bg-transparent text-sm text-white outline-none">
-                <option value="created_at">Created</option>
-                <option value="updated_at">Updated</option>
-                <option value="due_date">Due date</option>
-                <option value="priority">Priority</option>
-              </select>
-            </label>
+            <div className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-3">
+              <span className="mb-2 block text-[11px] uppercase tracking-[0.24em] text-(--text-faint)">Sort</span>
+              <CustomSelect
+                value={sortConfig.sortBy}
+                onChange={(value) => handleSortChange(value as SortConfig["sortBy"])}
+                options={[
+                  { value: "created_at", label: "Created" },
+                  { value: "updated_at", label: "Updated" },
+                  { value: "due_date", label: "Due date" },
+                  { value: "priority", label: "Priority" },
+                ]}
+              />
+            </div>
           </div>
         ) : null}
 
         <div className="mt-6 space-y-4 stagger-tasks">
           {loading ? (
-            <div className="animate-fade-in flex items-center gap-3 text-sm text-[var(--text-dim)]">
+            <div className="animate-fade-in flex items-center gap-3 text-sm text-(--text-dim)">
               <div className="animate-shimmer size-5 rounded-full border border-white/10 bg-white/6" />
               Loading tasks...
             </div>
           ) : null}
           {!loading && !visibleTasks.length ? (
-            <div className="animate-fade-in-up-sm rounded-[26px] border border-dashed border-white/10 bg-black/18 p-8 text-sm text-[var(--text-dim)]">
+            <div className="animate-fade-in-up-sm rounded-[26px] border border-dashed border-white/10 bg-black/18 p-8 text-sm text-(--text-dim)">
               No tasks matched the current filters.
             </div>
           ) : null}

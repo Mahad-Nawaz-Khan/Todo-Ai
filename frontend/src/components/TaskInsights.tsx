@@ -20,12 +20,12 @@ export default memo(function TaskInsights({ tasks }: { tasks: Task[] }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
       {cards.map((card) => (
-        <div key={card.label} className="glass-panel rounded-[20px] border border-white/8 p-3 sm:rounded-[26px] sm:p-5">
-          <div className="text-[10px] uppercase tracking-[0.24em] text-[var(--text-faint)] sm:text-[11px] sm:tracking-[0.28em]">{card.label}</div>
-          <div className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-white sm:mt-3 sm:text-3xl">{card.value}</div>
-          <div className="mt-1 text-xs text-[var(--text-dim)] sm:mt-2 sm:text-sm">{card.detail}</div>
+        <div key={card.label} className="glass-panel rounded-[26px] border border-white/8 p-4 md:p-5">
+          <div className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">{card.label}</div>
+          <div className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-white md:text-3xl">{card.value}</div>
+          <div className="mt-1 text-xs text-(--text-dim) md:mt-2 md:text-sm">{card.detail}</div>
         </div>
       ))}
     </div>

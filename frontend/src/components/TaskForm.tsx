@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import type { Priority, RecurrenceInput, Task, TaskUpsertPayload } from "@/types/task";
 
+import { CustomSelect } from "./CustomSelect";
 import TagSelector from "./TagSelector";
 
 type TaskFormProps = {
@@ -91,12 +92,12 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
   };
 
   return (
-    <section className="section-card rounded-[28px] p-5 sm:p-6">
+    <section className="section-card rounded-[28px] p-4 md:p-6">
       <button type="button" onClick={() => setIsOpen((value) => !value)} className="flex w-full items-start justify-between gap-4 text-left">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Quick capture</p>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">Quick capture</p>
           <h3 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-white">Create a new task</h3>
-          <p className="mt-2 max-w-md text-sm text-[var(--text-dim)]">
+          <p className="mt-2 max-w-md text-sm text-(--text-dim)">
             Capture work instantly with priority, due date, recurrence, and tags.
           </p>
         </div>
@@ -116,9 +117,9 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-4">
+          <div className="mt-5 grid gap-4 min-w-0">
             <div>
-              <label htmlFor="title" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="title" className="mb-2 block text-sm font-medium text-(--text-secondary)">
                 Title
               </label>
               <input
@@ -133,7 +134,7 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
             </div>
 
             <div>
-              <label htmlFor="description" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="description" className="mb-2 block text-sm font-medium text-(--text-secondary)">
                 Description
               </label>
               <textarea
@@ -146,25 +147,24 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 min-w-0 grid-cols-1 md:grid-cols-2">
               <div>
-                <label htmlFor="priority" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                  <Sparkles className="size-4 text-[var(--accent-ice)]" /> Priority
+                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                  <Sparkles className="size-4 text-(--accent-ice)" /> Priority
                 </label>
-                <select
-                  id="priority"
+                <CustomSelect
                   value={priority}
-                  onChange={(e) => setPriority(e.target.value as Priority)}
-                  className="input-shell min-w-0 w-full rounded-2xl px-4 py-3"
-                >
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                </select>
+                  onChange={(value) => setPriority(value as Priority)}
+                  options={[
+                    { value: "LOW", label: "Low" },
+                    { value: "MEDIUM", label: "Medium" },
+                    { value: "HIGH", label: "High" },
+                  ]}
+                />
               </div>
               <div>
-                <label htmlFor="dueDate" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                  <CalendarDays className="size-4 text-[var(--accent-amber)]" /> Due date
+                <label htmlFor="dueDate" className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                  <CalendarDays className="size-4 text-(--accent-amber)" /> Due date
                 </label>
                 <input
                   id="dueDate"
@@ -177,30 +177,29 @@ export const TaskForm = ({ onTaskCreated }: TaskFormProps) => {
             </div>
 
             <div>
-              <label htmlFor="recurrenceRule" className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                <Repeat2 className="size-4 text-[var(--accent-lime)]" /> Recurrence
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                <Repeat2 className="size-4 text-(--accent-lime)" /> Recurrence
               </label>
-              <select
-                id="recurrenceRule"
+              <CustomSelect
                 value={recurrenceRule}
-                onChange={(e) => setRecurrenceRule(e.target.value as RecurrenceInput)}
-                className="input-shell min-w-0 w-full rounded-2xl px-4 py-3"
-              >
-                <option value="">No recurrence</option>
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-              </select>
+                onChange={(value) => setRecurrenceRule(value as RecurrenceInput)}
+                options={[
+                  { value: "", label: "No recurrence" },
+                  { value: "DAILY", label: "Daily" },
+                  { value: "WEEKLY", label: "Weekly" },
+                  { value: "MONTHLY", label: "Monthly" },
+                ]}
+              />
             </div>
 
             <div>
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                <TagIcon className="size-4 text-[var(--accent-blue)]" /> Tags
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                <TagIcon className="size-4 text-(--accent-blue)" /> Tags
               </div>
               <TagSelector selectedTags={selectedTags} onTagsChange={setSelectedTags} />
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 md:flex-row">
               <button type="submit" disabled={loading} className="btn-press action-button-primary rounded-2xl px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60">
                 {loading ? "Creating task..." : "Create task"}
               </button>

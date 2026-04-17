@@ -7,7 +7,7 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
   const { user, isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) {
-    return <div className="grid min-h-screen place-items-center bg-[var(--bg-main)] text-[var(--text-dim)]">Loading chat workspace...</div>;
+    return <div className="grid min-h-screen place-items-center bg-(--bg-main) text-(--text-dim)">Loading chat workspace...</div>;
   }
 
   return (

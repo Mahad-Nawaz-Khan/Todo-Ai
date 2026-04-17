@@ -159,24 +159,24 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
               onClick={() => toggleTag(tag.id)}
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/12"
             >
-              <span className="size-2 rounded-full bg-[var(--accent-ice)]" />
+              <span className="size-2 rounded-full bg-(--accent-ice)" />
               {tag.name}
             </button>
           ))
         ) : (
-          <span className="text-sm text-[var(--text-dim)]">No tags selected yet.</span>
+          <span className="text-sm text-(--text-dim)">No tags selected yet.</span>
         )}
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+      <div className="mt-4 space-y-3 min-w-0">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter existing tags"
-          className="input-shell rounded-2xl px-4 py-3 text-sm"
+          className="input-shell min-w-0 w-full rounded-2xl px-4 py-3 text-sm"
         />
-        <div className="flex gap-2">
+        <div className="flex gap-2 min-w-0">
           <input
             type="text"
             value={newTag}
@@ -188,9 +188,9 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
               }
             }}
             placeholder="New tag"
-            className="input-shell min-w-0 rounded-2xl px-4 py-3 text-sm"
+            className="input-shell min-w-0 w-full rounded-2xl px-4 py-3 text-sm"
           />
-          <button type="button" onClick={() => void createTag()} disabled={isLoading} className="action-button-secondary rounded-2xl px-4 py-3">
+          <button type="button" onClick={() => void createTag()} disabled={isLoading} className="action-button-secondary rounded-2xl px-4 py-3 shrink-0">
             <Plus className="size-4" />
           </button>
         </div>
@@ -207,7 +207,7 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
               className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition ${
                 selected
                   ? "border-[rgba(144,229,255,0.24)] bg-[rgba(144,229,255,0.12)] text-white"
-                  : "border-white/8 bg-white/5 text-[var(--text-dim)] hover:border-white/12 hover:bg-white/8 hover:text-white"
+                  : "border-white/8 bg-white/5 text-(--text-dim) hover:border-white/12 hover:bg-white/8 hover:text-white"
               }`}
             >
               {selected ? <Check className="size-3.5" /> : <span className="size-2 rounded-full bg-white/25" />}
@@ -215,7 +215,7 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
             </button>
           );
         })}
-        {!visibleTags.length && !isLoading ? <span className="text-sm text-[var(--text-dim)]">No tags matched that search.</span> : null}
+        {!visibleTags.length && !isLoading ? <span className="text-sm text-(--text-dim)">No tags matched that search.</span> : null}
       </div>
     </div>
   );

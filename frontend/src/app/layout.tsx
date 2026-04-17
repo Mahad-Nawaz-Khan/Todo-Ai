@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 
 import ScrollToTop from "@/components/ScrollToTop";
 import { AuthProvider } from "@/context/AuthContext";
+import Footer from "@/components/Footer";
 
 const AppCommandPalette = dynamic(() => import("@/components/AppCommandPalette"));
 
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
           {children}
           <AppCommandPalette />
           <Toaster theme="dark" richColors position="top-right" />
+          <Footer />
         </AuthProvider>
       </body>
     </html>

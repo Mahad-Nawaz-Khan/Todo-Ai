@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarDays, CheckCircle2, Pencil, Repeat2, Sparkles, Tag as TagIcon, Trash2 } from "lucide-react";
+import { CustomSelect } from "./CustomSelect";
 import { memo, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -182,7 +183,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
 
   return (
     <article
-      className={`content-auto task-card-contain card-lift section-card animate-fade-in-up-sm rounded-[24px] p-4 sm:rounded-[28px] sm:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
+      className={`content-auto task-card-contain card-lift section-card animate-fade-in-up-sm rounded-[28px] p-4 md:p-5 ${optimisticCompleted ? "border-[rgba(126,240,184,0.18)] bg-[rgba(126,240,184,0.06)] shadow-[0_0_0_1px_rgba(126,240,184,0.05),0_16px_40px_rgba(126,240,184,0.08)]" : ""}`}
     >
       {error ? (
         <div className="error-banner mb-4 rounded-2xl border border-[rgba(255,135,124,0.24)] bg-[rgba(255,135,124,0.08)] px-4 py-3 text-sm text-[#ffd4cf]">
@@ -203,10 +204,10 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
               type="button"
               onClick={handleToggleComplete}
               disabled={loading}
-              className={`mt-1 flex size-11 shrink-0 items-center justify-center rounded-2xl border transition active:scale-[0.92] sm:size-12 ${
+              className={`mt-1 flex size-12 shrink-0 items-center justify-center rounded-2xl border transition active:scale-[0.92] ${
                 optimisticCompleted
-                  ? "animate-check-bounce border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-[var(--success)] shadow-[0_10px_30px_rgba(126,240,184,0.12)]"
-                  : "border-white/10 bg-white/6 text-[var(--text-dim)] hover:border-white/14 hover:text-white"
+                  ? "animate-check-bounce border-[rgba(126,240,184,0.24)] bg-[rgba(126,240,184,0.12)] text-(--success) shadow-[0_10px_30px_rgba(126,240,184,0.12)]"
+                  : "border-white/10 bg-white/6 text-(--text-dim) hover:border-white/14 hover:text-white"
               }`}
             >
               <CheckCircle2 className="size-5" />
@@ -215,7 +216,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
               <h3 className={`text-lg font-semibold tracking-[-0.03em] ${optimisticCompleted ? "text-[rgba(255,255,255,0.58)] line-through" : "text-white"}`}>
                 {task.title}
               </h3>
-              {task.description ? <p className="mt-2 text-sm leading-6 text-[var(--text-dim)]">{task.description}</p> : null}
+              {task.description ? <p className="mt-2 text-sm leading-6 text-(--text-dim)">{task.description}</p> : null}
             </div>
           </div>
         </div>
@@ -248,7 +249,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2 text-xs text-[var(--text-dim)]">
+      <div className="mt-5 flex flex-wrap gap-2 text-xs text-(--text-dim)">
         <span className="status-pill inline-flex items-center gap-2 rounded-full px-3 py-1.5">
           <CalendarDays className="size-3.5" /> {formatDate(task.due_date)}
         </span>
@@ -263,7 +264,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
       {task.tags && task.tags.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {task.tags.map((tag) => (
-            <span key={tag.id} className="tag-pill rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-[var(--text-secondary)]">
+            <span key={tag.id} className="tag-pill rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-(--text-secondary)">
               {tag.name}
             </span>
           ))}
@@ -273,58 +274,66 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
       {isEditing ? (
         <form
           onSubmit={handleUpdate}
-          className="animate-expand mt-6 overflow-hidden rounded-[24px] border border-white/8 bg-black/16 p-4"
+          className="animate-expand mt-6 min-w-0 overflow-hidden rounded-[24px] border border-white/8 bg-black/16 p-4"
         >
-          <div className="grid gap-4">
+          <div className="grid gap-4 min-w-0">
             <div>
-              <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Title</label>
+              <label className="mb-2 block text-sm font-medium text-(--text-secondary)">Title</label>
               <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" required />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Description</label>
+              <label className="mb-2 block text-sm font-medium text-(--text-secondary)">Description</label>
               <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-w-0 w-full min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 min-w-0 grid-cols-1 md:grid-cols-2">
               <div>
-                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                  <Sparkles className="size-4 text-[var(--accent-ice)]" /> Priority
+                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                  <Sparkles className="size-4 text-(--accent-ice)" /> Priority
                 </label>
-                <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as Priority)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3">
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                </select>
+                <CustomSelect
+                  value={editPriority}
+                  onChange={(value) => setEditPriority(value as Priority)}
+                  options={[
+                    { value: "LOW", label: "Low" },
+                    { value: "MEDIUM", label: "Medium" },
+                    { value: "HIGH", label: "High" },
+                  ]}
+                />
               </div>
               <div>
-                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                  <CalendarDays className="size-4 text-[var(--accent-amber)]" /> Due date
+                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                  <CalendarDays className="size-4 text-(--accent-amber)" /> Due date
                 </label>
                 <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" />
               </div>
             </div>
 
             <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                <Repeat2 className="size-4 text-[var(--accent-lime)]" /> Recurrence
+              <label className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                <Repeat2 className="size-4 text-(--accent-lime)" /> Recurrence
               </label>
-              <select value={editRecurrenceRule} onChange={(e) => setEditRecurrenceRule(e.target.value as RecurrenceInput)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3">
-                <option value="">No recurrence</option>
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-              </select>
+              <CustomSelect
+                value={editRecurrenceRule}
+                onChange={(value) => setEditRecurrenceRule(value as RecurrenceInput)}
+                options={[
+                  { value: "", label: "No recurrence" },
+                  { value: "DAILY", label: "Daily" },
+                  { value: "WEEKLY", label: "Weekly" },
+                  { value: "MONTHLY", label: "Monthly" },
+                ]}
+              />
             </div>
 
             <div>
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
-                <TagIcon className="size-4 text-[var(--accent-blue)]" /> Tags
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                <TagIcon className="size-4 text-(--accent-blue)" /> Tags
               </div>
               <TagSelector selectedTags={editTags} onTagsChange={setEditTags} />
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex flex-col gap-3 md:flex-row">
               <button type="submit" disabled={loading} className="btn-press action-button-primary rounded-2xl px-5 py-3 text-sm">
                 {loading ? "Saving..." : "Save changes"}
               </button>

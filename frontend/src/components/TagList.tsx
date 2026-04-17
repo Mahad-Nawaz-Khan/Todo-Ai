@@ -179,14 +179,14 @@ const TagList = () => {
   };
 
   return (
-    <section className="section-card rounded-[28px] p-5 sm:p-6">
+    <section className="section-card rounded-[28px] p-4 md:p-6">
       <button type="button" onClick={() => setIsOpen((value) => !value)} className="flex w-full items-start justify-between gap-4 text-left">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Taxonomy</p>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">Taxonomy</p>
           <h3 className="mt-2 text-xl font-semibold tracking-[-0.04em] text-white">Manage tags</h3>
-          <p className="mt-2 text-sm text-[var(--text-dim)]">Keep reusable labels tidy across the whole workspace.</p>
+          <p className="mt-2 text-sm text-(--text-dim)">Keep reusable labels tidy across the whole workspace.</p>
         </div>
-        <span className="flex size-12 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-[var(--accent-blue)]">
+        <span className="flex size-12 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-(--accent-blue)">
           <Tags className="size-5" />
         </span>
       </button>
@@ -214,25 +214,25 @@ const TagList = () => {
 
           <div className="mt-5 space-y-3 stagger-children">
             {loading && tags.length === 0 ? (
-              <div className="text-sm text-[var(--text-dim)]">Loading tags...</div>
+              <div className="text-sm text-(--text-dim)">Loading tags...</div>
             ) : tags.length === 0 ? (
-              <div className="rounded-[24px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-[var(--text-dim)]">No tags yet.</div>
+              <div className="rounded-[24px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-(--text-dim)">No tags yet.</div>
             ) : (
               tags.map((tag) => {
                 const isEditing = editingTagId === tag.id;
 
                 return (
-                  <div key={tag.id} className="animate-fade-in-up-sm flex flex-col gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div key={tag.id} className="animate-fade-in-up-sm flex flex-col gap-3 rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 md:flex-row md:items-center md:justify-between">
                     {isEditing ? (
                       <input
                         type="text"
                         value={editingTagName}
                         onChange={(e) => setEditingTagName(e.target.value)}
-                        className="input-shell w-full rounded-2xl px-4 py-3 text-sm sm:max-w-xs"
+                        className="input-shell w-full rounded-2xl px-4 py-3 text-sm md:max-w-xs"
                       />
                     ) : (
                       <div className="flex items-center gap-3">
-                        <span className="tag-pill size-2.5 rounded-full bg-[var(--accent-ice)]" />
+                        <span className="tag-pill size-2.5 rounded-full bg-(--accent-ice)" />
                         <div className="text-sm font-medium text-white">{tag.name}</div>
                       </div>
                     )}

@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Eye, EyeOff, Globe, Mail, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Sparkles } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 
@@ -62,20 +63,20 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--bg-main)] text-[var(--text-primary)]">
+    <div className="relative min-h-screen overflow-hidden bg-(--bg-main) text-(--text-primary)">
       <div className="aurora-grid" />
       <div className="noise-overlay" />
-      <div className="mx-auto flex min-h-screen max-w-7xl items-center px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-screen max-w-7xl items-center px-4 py-6 md:px-8 lg:px-12">
         <div className="grid w-full gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="section-card animate-fade-in-up order-2 rounded-[32px] p-6 sm:p-8 lg:order-1 lg:min-h-[760px]">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm text-[var(--text-dim)] transition hover:text-white">
+          <div className="section-card animate-fade-in-up order-2 rounded-[32px] p-6 md:p-8 lg:order-1 lg:min-h-[760px]">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-(--text-dim) transition hover:text-white">
               <ArrowLeft className="size-4" /> Back to home
             </Link>
-            <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/6 px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">
-              <Sparkles className="size-3.5 text-[var(--accent-ice)]" /> Sign in
+            <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/6 px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">
+              <Sparkles className="size-3.5 text-(--accent-ice)" /> Sign in
             </div>
-            <h1 className="mt-6 text-4xl font-semibold tracking-[-0.07em] text-white sm:text-5xl">Return to your command center.</h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[var(--text-dim)]">
+            <h1 className="mt-6 text-4xl font-semibold tracking-[-0.07em] text-white md:text-5xl">Return to your command center.</h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-(--text-dim)">
               Continue with your existing account and pick up the same tasks, tags, and AI chat workflows instantly.
             </p>
             <div className="mt-10 grid gap-3">
@@ -84,18 +85,18 @@ export default function SignInPage() {
                 "Open the redesigned mobile-first dashboard immediately after login.",
                 "Use AI chat to create, update, and search tasks with the same backend contract.",
               ].map((item) => (
-                <div key={item} className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 text-sm text-[var(--text-secondary)]">
+                <div key={item} className="rounded-[24px] border border-white/8 bg-white/4 px-4 py-4 text-sm text-(--text-secondary)">
                   {item}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="glass-panel animate-fade-in-scale order-1 rounded-[32px] border border-white/8 p-6 sm:p-8 lg:order-2">
+          <div className="glass-panel animate-fade-in-scale order-1 rounded-[32px] border border-white/8 p-6 md:p-8 lg:order-2">
             <div className="mb-6">
-              <div className="text-[11px] uppercase tracking-[0.3em] text-[var(--text-faint)]">Todo AI</div>
+              <div className="text-[11px] uppercase tracking-[0.3em] text-(--text-faint)">Todo AI</div>
               <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white">Welcome back</h2>
-              <p className="mt-2 text-sm text-[var(--text-dim)]">Sign in with a provider or your email account.</p>
+              <p className="mt-2 text-sm text-(--text-dim)">Sign in with a provider or your email account.</p>
             </div>
 
             {error || urlError ? (
@@ -104,32 +105,29 @@ export default function SignInPage() {
 
             <div className="space-y-3 stagger-children">
               {providers.map((provider) => (
-                <a key={provider.id} href={provider.href} className="btn-press action-button-secondary flex w-full items-center justify-between rounded-[22px] px-4 py-3 text-sm animate-fade-in-up-sm">
-                  <span className="flex items-center gap-3">
-                    {provider.id === "google" ? <Mail className="size-4" /> : <Globe className="size-4" />}
-                    {provider.label}
-                  </span>
-                  <Sparkles className="size-4 text-[var(--text-faint)]" />
+                <a key={provider.id} href={provider.href} className="btn-press action-button-secondary flex w-full items-center justify-center gap-3 rounded-[22px] px-4 py-3 text-sm animate-fade-in-up-sm">
+                  <Image src={`/icons/${provider.id}.svg`} alt={provider.label} width={20} height={20} className="size-5 shrink-0" />
+                  {provider.label}
                 </a>
               ))}
             </div>
 
             <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-white/8" />
-              <span className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">or use email</span>
+              <span className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">or use email</span>
               <div className="h-px flex-1 bg-white/8" />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="email" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Email</label>
+                <label htmlFor="email" className="mb-2 block text-sm font-medium text-(--text-secondary)">Email</label>
                 <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="input-shell w-full rounded-[22px] px-4 py-3 text-sm" />
               </div>
               <div>
-                <label htmlFor="password" className="mb-2 block text-sm font-medium text-[var(--text-secondary)]">Password</label>
+                <label htmlFor="password" className="mb-2 block text-sm font-medium text-(--text-secondary)">Password</label>
                 <div className="input-shell flex items-center rounded-[22px] px-4 py-3">
-                  <input id="password" type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-[var(--text-faint)]" />
-                  <button type="button" onClick={() => setShowPassword((value) => !value)} className="text-[var(--text-faint)] transition hover:text-white">
+                  <input id="password" type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-(--text-faint)" />
+                  <button type="button" onClick={() => setShowPassword((value) => !value)} className="text-(--text-faint) transition hover:text-white">
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
@@ -139,8 +137,8 @@ export default function SignInPage() {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-sm text-[var(--text-dim)]">
-              Need an account? <Link href="/sign-up" className="text-[var(--accent-ice)] underline">Create one</Link>
+            <p className="mt-6 text-center text-sm text-(--text-dim)">
+              Need an account? <Link href="/sign-up" className="text-(--accent-ice) underline">Create one</Link>
             </p>
           </div>
         </div>

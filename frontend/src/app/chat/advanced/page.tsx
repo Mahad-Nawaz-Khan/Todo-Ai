@@ -30,12 +30,12 @@ export default function AdvancedChatPage() {
 
   return (
     <div className="grid gap-4">
-      <div className="section-card rounded-[28px] p-5 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="section-card rounded-[28px] p-4 md:p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--text-faint)]">Chat lab</div>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-(--text-faint)">Chat lab</div>
             <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Preview different chat states</h2>
-            <p className="mt-2 text-sm text-[var(--text-dim)]">Use this page to inspect the UI with seeded history or a fresh conversation shell.</p>
+            <p className="mt-2 text-sm text-(--text-dim)">Use this page to inspect the UI with seeded history or a fresh conversation shell.</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setMode("demo")} className={`rounded-2xl px-4 py-2.5 text-sm ${mode === "demo" ? "action-button-primary" : "action-button-secondary"}`}>
