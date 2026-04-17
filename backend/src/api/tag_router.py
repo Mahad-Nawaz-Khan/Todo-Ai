@@ -1,13 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlmodel import Session
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
-from ..rate_limit import limiter
 from ..middleware.auth import get_current_user
 from ..database import get_session
 from ..services.auth_service import auth_service
 from ..services.tag_service import tag_service
+
+# Initialize rate limiter for this router
+limiter = Limiter(key_func=get_remote_address)
 
 
 router = APIRouter(prefix="/api/v1", tags=["tags"])

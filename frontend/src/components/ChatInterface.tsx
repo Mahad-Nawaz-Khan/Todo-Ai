@@ -26,36 +26,6 @@ import { cn } from "@/lib/utils";
 
 const ReactMarkdown = dynamic(() => import("react-markdown"), { ssr: false });
 
-/* ─── Thinking Indicator (JS-driven dots) ─── */
-
-function ThinkingIndicator({ compact }: { compact?: boolean }) {
-  const [dots, setDots] = useState("");
-  useEffect(() => {
-    const id = setInterval(() => {
-      setDots((d) => (d.length >= 3 ? "" : d + "."));
-    }, 400);
-    return () => clearInterval(id);
-  }, []);
-
-  if (compact) {
-    return (
-      <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 border-(--bg-strong) px-3 py-2 text-xs text-(--text-dim)">
-        <LoaderCircle className="thinking-spinner size-3.5 text-(--accent-ice)" />
-        <span>Thinking{dots}</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex justify-start">
-      <div className="inline-flex items-center gap-3 rounded-[22px] border border-white/8 border-(--bg-strong) px-4 py-3 text-sm text-(--text-dim)">
-        <LoaderCircle className="thinking-spinner size-4 text-(--accent-ice)" />
-        <span>Thinking{dots}</span>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Types ─── */
 
 type Message = {
@@ -514,7 +484,10 @@ const ChatInterface = ({
                       ))}
                     {isLoading &&
                       !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
-                        <ThinkingIndicator compact />
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 border-(--bg-strong) px-3 py-2 text-xs text-(--text-dim)">
+                          <LoaderCircle className="thinking-spinner size-3.5 text-(--accent-ice)" />
+                          <span className="thinking-dots">Thinking</span>
+                        </div>
                       )}
                     <div ref={messagesEndRef} />
                   </div>
@@ -634,7 +607,12 @@ const ChatInterface = ({
 
             {isLoading &&
               !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
-                <ThinkingIndicator />
+                <div className="flex justify-start">
+                  <div className="inline-flex items-center gap-3 rounded-[22px] border border-white/8 border-(--bg-strong) px-4 py-3 text-sm text-(--text-dim)">
+                    <LoaderCircle className="thinking-spinner size-4 text-(--accent-ice)" />
+                    <span className="thinking-dots">Thinking</span>
+                  </div>
+                </div>
               )}
             <div ref={messagesEndRef} />
           </div>
