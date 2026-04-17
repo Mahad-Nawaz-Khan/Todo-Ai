@@ -4,10 +4,11 @@ import os
 import hashlib
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
-from passlib.context import CryptContext
+from pwdlib.hashers.bcrypt import BcryptHasher
+
+pwd_context = BcryptHasher()
 from pydantic import BaseModel, field_validator
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from ..rate_limit import limiter
 from sqlmodel import Session, select
 
 from ..database import get_session
@@ -18,7 +19,6 @@ from ..services.auth_service import auth_service
 
 logger = logging.getLogger(__name__)
 
-limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1", tags=["auth"])
 
 MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024
@@ -157,12 +157,6 @@ async def upload_profile_image(
 # ---------------------------------------------------------------------------
 # Email / password authentication
 # ---------------------------------------------------------------------------
-
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto",
-    bcrypt__truncate_error=False,
-)
 
 MIN_PASSWORD_LENGTH = 8
 

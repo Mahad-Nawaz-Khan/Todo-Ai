@@ -3,15 +3,13 @@ Chat API Router - Endpoints for AI Chatbot functionality
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlmodel import Session
 from typing import Optional, Dict, Any
+from ..rate_limit import limiter
 from ..middleware.auth import get_current_user
 from ..database import get_session
 from ..services.chat_service import chat_service
 from ..services.auth_service import auth_service
-from ..services.agent_service import agent_service
 from ..models.chat_models import (
     ChatMessageCreate,
     ChatResponse,
@@ -23,9 +21,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
-# Initialize rate limiter for this router
-limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
@@ -88,6 +83,7 @@ async def send_chat_message(
             "email": current_user.get("email", ""),
         }
 
+        from ..services.agent_service import agent_service
         ai_result = await agent_service.process_message(
             content=message_data.content,
             user_id=user_id,

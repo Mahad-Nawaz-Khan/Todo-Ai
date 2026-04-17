@@ -168,7 +168,7 @@ const ChatBubble = memo(function ChatBubble({
           "rounded-[22px] px-4 py-3 text-sm",
           maxW,
           isUser
-            ? "bg-(--accent-blue) text-[#04121f]"
+            ? "bg-[linear-gradient(135deg,var(--accent-blue),var(--accent-ice))] text-[#04121f]"
             : "border border-white/8 border-(--bg-strong) text-foreground"
         )}
       >
@@ -378,7 +378,7 @@ const ChatInterface = ({
             {/* Backdrop (mobile) */}
             <div
               className={cn(
-                "fixed inset-0 z-40 bg-[var(--bg-overlay)] backdrop-blur-sm transition-opacity duration-200 md:hidden",
+                "fixed inset-0 z-40 bg-[rgba(6,8,14,0.5)] backdrop-blur-sm transition-opacity duration-200 sm:hidden",
                 widgetVisible ? "opacity-100" : "opacity-0"
               )}
               onClick={closeWidget}

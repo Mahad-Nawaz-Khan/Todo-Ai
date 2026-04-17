@@ -42,7 +42,8 @@
       "Bash(node -p \"JSON.stringify\\(require\\(''./package.json''\\).scripts,null,2\\)\")",
       "Bash(du -sh node_modules/framer-motion)",
       "Bash(grep -r \"framer-motion\" package.json)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

@@ -4,25 +4,22 @@ Streaming Chat API Router - Endpoints for AI Chatbot with SSE streaming.
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlmodel import Session
 from typing import Optional, Dict, Any, AsyncIterator
 import json
 import logging
 
+from ..rate_limit import limiter
 from ..middleware.auth import get_current_user
 from ..database import get_session, engine
 from ..services.chat_service import chat_service
 from ..services.auth_service import auth_service
-from ..services.agent_service import agent_service
 from ..models.chat_models import ChatInteraction, ChatMessage, ChatMessageCreate
 
 
 logger = logging.getLogger(__name__)
 
 
-limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat-streaming"])
 
 
@@ -75,6 +72,8 @@ async def _stream_response_generator(
     user_info: Optional[Dict[str, str]] = None,
 ) -> AsyncIterator[str]:
     try:
+        from ..services.agent_service import agent_service
+
         if not agent_service.is_available():
             yield _sse_payload({"type": "error", "content": "AI service is not available. Please ensure a provider key is configured."})
             yield _sse_done()

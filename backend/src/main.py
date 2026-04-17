@@ -1,24 +1,19 @@
 from contextlib import asynccontextmanager
 import logging
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from sqlmodel import SQLModel
 
+from .rate_limit import limiter
 from .database import DATABASE_URL, engine
 
-# Load environment variables
 load_dotenv(override=True)
-
-# Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -57,23 +52,9 @@ async def lifespan(app: FastAPI):
         conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS profile_image_content_type VARCHAR'))
         conn.commit()
 
-    # Initialize the OpenAI Agents SDK service
-    try:
-        from .services.agent_service import agent_service
-
-        agent_service.initialize()
-
-        if agent_service.is_available():
-            app.state.agent_service = agent_service
-            print("✓ OpenAI Agents SDK initialized successfully")
-        else:
-            print("⚠ OpenAI Agents SDK not available - falling back to rule-based processing")
-            print("  To enable: Set OPENROUTER_API_KEY environment variable")
-            app.state.agent_service = None
-    except Exception as e:
-        print(f"⚠ Warning: Could not initialize OpenAI Agents SDK: {e}")
-        print("  Falling back to rule-based processing")
-        app.state.agent_service = None
+    # Mark agent_service as uninitialized — will lazy-load on first chat request
+    app.state.agent_service = None
+    app.state._agent_initialized = False
 
     yield
     # Clean up on shutdown if needed
