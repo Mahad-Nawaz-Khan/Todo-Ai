@@ -98,7 +98,9 @@ async def _stream_response_generator(
                         yield _sse_payload({"type": "content_delta", "content": delta})
 
                 elif event["type"] == "final":
-                    full_response_content = event.get("content", full_response_content)
+                    final_content = event.get("content") or full_response_content
+                    if len(final_content) >= len(full_response_content):
+                        full_response_content = final_content
 
                     interaction = db.get(ChatInteraction, interaction_id)
                     user_message = db.get(ChatMessage, user_message_id)

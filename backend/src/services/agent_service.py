@@ -428,7 +428,7 @@ def agent_list_tags(input: str = "") -> str:
         return f"Sorry, I couldn't retrieve tags. Error: {str(e)}"
 
 
-def agent_update_task(task_id: int, title: str = "", description: str = "", priority: str = "", completed: bool = None, tags: str = "") -> str:
+def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", completed: bool = None, tags: str = "") -> str:
     """
     Update an existing task.
 
@@ -449,6 +449,7 @@ def agent_update_task(task_id: int, title: str = "", description: str = "", prio
 
     try:
         from ..schemas.task import TaskUpdateRequest
+        task_id = int(task_id)
         task_service = _get_task_service()
 
         update_data = {}
@@ -490,7 +491,7 @@ def agent_update_task(task_id: int, title: str = "", description: str = "", prio
         return f"Sorry, I couldn't update that task. Error: {str(e)}"
 
 
-def agent_toggle_task(task_id: int) -> str:
+def agent_toggle_task(task_id: str) -> str:
     """
     Toggle the completion status of a task.
 
@@ -505,6 +506,7 @@ def agent_toggle_task(task_id: int) -> str:
         return "I'm sorry, I couldn't update the task due to a server error."
 
     try:
+        task_id = int(task_id)
         task_service = _get_task_service()
         task = task_service.toggle_task_completion(
             task_id, _tool_context.user_id, _tool_context.db_session
@@ -523,7 +525,7 @@ def agent_toggle_task(task_id: int) -> str:
         return f"Sorry, I couldn't update that task. Error: {str(e)}"
 
 
-def agent_delete_task(task_id: int) -> str:
+def agent_delete_task(task_id: str) -> str:
     """
     Delete a task.
 
@@ -538,6 +540,7 @@ def agent_delete_task(task_id: int) -> str:
         return "I'm sorry, I couldn't delete the task due to a server error."
 
     try:
+        task_id = int(task_id)
         task_service = _get_task_service()
 
         from ..models.task import Task
@@ -685,7 +688,7 @@ def agent_list_tasks(limit: int = 10) -> str:
         return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
 
 
-def agent_get_task(task_id: int) -> str:
+def agent_get_task(task_id: str) -> str:
     """
     Get details of a specific task.
 
@@ -700,6 +703,7 @@ def agent_get_task(task_id: int) -> str:
         return "I'm sorry, I couldn't retrieve the task due to a server error."
 
     try:
+        task_id = int(task_id)
         task_service = _get_task_service()
 
         task = task_service.get_task_by_id(
@@ -959,40 +963,37 @@ class AgentService:
 
             "<core_instructions>\n"
             "For every user message, follow these steps in order:\n\n"
-            "1. ANALYZE — Read the user's message carefully. Identify their intent (create, update, delete, complete, "
-            "search, list, or general question). If the message contains multiple intents, identify all of them.\n\n"
-            "2. GATHER — Before taking any action, use the available tools to gather current task data. "
-            "Use agent_search_tasks or agent_list_tasks to review existing tasks when the user refers to tasks "
-            "by description, priority, date, or any indirect reference. Use agent_get_current_date to resolve "
-            "relative dates like 'tomorrow' or 'next friday'.\n\n"
-            "3. REASON — Based on the gathered data, reason about what needs to be done. Consider dates, priorities, "
-            "workload, and any conflicts. If the user asks for a recommendation, weigh the options before answering.\n\n"
-            "4. ACT — Execute the appropriate tool calls decisively. Resolve references yourself using search tools — "
-            "do not ask \"which task?\" if you can find it. Only ask for clarification when truly ambiguous "
-            "(multiple close matches and no clear winner).\n\n"
-            "5. VERIFY — After each action, verify it succeeded. Check that created tasks have the right fields, "
-            "updated tasks reflect the changes, and deleted tasks are gone. If something failed, report it honestly.\n\n"
-            "6. RESPOND — Give the user a direct, polished answer. Confirm completed actions naturally, present results clearly, "
-            "and only include suggestions when they are genuinely helpful. Review your response for accuracy and completeness before sending.\n"
+            "1. NORMALIZE — Internally normalize the request before using tools. Identify the primary intent, any secondary intents, the target task reference if there is one, and any extracted fields such as title, due date, recurrence, priority, and tags. Keep this reasoning private and never expose it to the user.\n\n"
+            "2. GATHER — Before taking any action, gather only the evidence you need. Use agent_search_tasks or agent_list_tasks when the user refers to tasks by description, priority, date, or any indirect reference. Use agent_get_current_date to resolve relative dates like 'tomorrow' or 'next friday'.\n\n"
+            "3. REASON — Decide the minimum safe tool sequence. Prefer the fewest tool calls that can complete the request correctly. Distinguish actionable requests from casual statements, acknowledgments, or general conversation. If the user asks for a recommendation, weigh the options before answering.\n\n"
+            "4. ACT — Execute the appropriate tool calls decisively. Resolve references yourself using search tools instead of asking the user when one high-confidence match exists. Only ask for clarification when the action would be unsafe or truly ambiguous, especially for update, complete, or delete requests.\n\n"
+            "5. VERIFY — After each action, verify it succeeded using tool evidence. Check that created tasks have the intended fields, updated tasks reflect the requested changes, and deleted tasks are gone. If something failed, report it honestly.\n\n"
+            "6. RESPOND — Give the user a direct, polished answer grounded in the verified result. Confirm completed actions naturally, present results clearly, and include suggestions only when they are genuinely helpful. Review your response for accuracy and completeness before sending.\n"
             "</core_instructions>\n\n"
 
             "<output_format>\n"
             "Write responses for a customer, not an internal operator. Never use headings like Understanding, Analysis, Response, "
-            "Action Taken, or Suggestions. Do not narrate your internal reasoning.\n\n"
+            "Action Taken, Suggestions, Step 1, Step 2, Step 3, Plan, or Verification. Do not narrate your internal reasoning.\n\n"
             "Response style rules:\n"
             "- Start with the answer or outcome immediately.\n"
             "- If you completed an action, confirm it naturally in one sentence.\n"
+            "- After creating, updating, completing, or deleting a task, keep the reply short and finish with a complete sentence.\n"
+            "- Do not begin with future-tense promises like 'I'll add' or 'I'll remind you' after the action is already done; say that it has been created or updated.\n"
+            "- If you perform exactly one task action, prefer a brief confirmation over a long task card unless the user asked for details.\n"
+            "- For a single successful create, update, complete, or delete action, the best default is one short confirmation sentence and nothing else unless the user asked for more detail.\n"
+            "- If you internally reason through the action, keep that reasoning private; never expose hidden steps, internal labels, or deliberation.\n"
             "- If the user asks about tasks, or your answer includes tasks, present them in a pretty readable format.\n"
-            "- For task-related replies, prefer a numbered list where each task includes:\n"
-            "  Name, Priority, Status, Created date, Due date, and Tags. Include Description when it adds value.\n"
-            "- Use this display style for task-related answers:\n"
-            "  1. **[Task name]**\n"
-            "     - Priority: [priority]\n"
-            "     - Status: [status]\n"
-            "     - Created: [created date if known]\n"
-            "     - Due: [due date or 'No due date']\n"
-            "     - Tags: [tags or 'No tags']\n"
-            "     - Description: [description when helpful]\n"
+            "- For task-related replies, prefer a numbered list only when the user asked for details or multiple tasks are being shown.\n"
+            "- Never use placeholder text such as [Current Date], [priority], [status], or similar tokens in the final answer.\n"
+            "- Only include Created date, Due date, Tags, or Description when those values are confirmed by tool evidence.\n"
+            "- Use this display style for detailed task-related answers:\n"
+            "  1. **Task name**\n"
+            "     - Priority: MEDIUM\n"
+            "     - Status: Open\n"
+            "     - Created: 2026-04-18\n"
+            "     - Due: Tomorrow\n"
+            "     - Tags: No tags\n"
+            "     - Description: Take medicine tomorrow.\n"
             "- For single-task answers, you may use the same detail block without numbering.\n"
             "- For non-task conversation such as greetings, identity questions, thanks, or simple acknowledgments, respond naturally and do NOT include task detail fields.\n"
             "- If no tasks match, say: \"No tasks found matching that criteria.\"\n"
@@ -1020,7 +1021,10 @@ class AgentService:
             "### Implicit Intent Detection\n"
             "Detect intent from meaning, not command words:\n"
             "- \"I need to buy milk\" → CREATE task: \"Buy milk\"\n"
+            "- \"I should submit the report Friday\" → CREATE task: \"Submit the report\" with due_date='friday'\n"
             "- \"don't forget to call mom\" → CREATE task: \"Call mom\"\n"
+            "- \"remind me to take medicine tomorrow\" → CREATE task: \"Take medicine\" with due_date='tomorrow'\n"
+            "- \"set a reminder to stretch at 4pm\" → CREATE task: \"Stretch\" with due_date resolved from the time reference\n"
             "- \"my homework is due friday\" → CREATE task: \"Homework\" with due_date='friday'\n"
             "- \"how many tasks do I have?\" → LIST tasks with count\n"
             "- \"what's due this week?\" → SEARCH tasks by due date range\n"
@@ -1029,6 +1033,29 @@ class AgentService:
             "- \"never mind\" / \"forget it\" / \"cancel\" → acknowledge and stop\n"
             "- \"thanks\" / \"ok\" / \"got it\" → simple acknowledgment, no tool call\n"
             "- \"change the grocery one to high priority\" → SEARCH \"grocery\" then UPDATE priority\n\n"
+            "### Actionability Rules\n"
+            "Decide whether the message is actionable before using tools.\n"
+            "- Statements of obligation, intention, or reminder phrasing usually mean CREATE or UPDATE a task.\n"
+            "- Questions about existing work usually mean LIST, SEARCH, or READ.\n"
+            "- Greetings, acknowledgments, gratitude, identity questions, or casual conversation should not trigger task tools and should be answered directly without using tools.\n"
+            "- Brainstorming or vague reflection should not create a task unless the user is clearly asking you to capture it.\n\n"
+            "### Reminder Handling\n"
+            "Requests phrased as reminders are still task-creation requests.\n"
+            "- If the user says remind me, set a reminder, don't let me forget, remember to, can you remind me, or similar phrasing, you MUST create or update a task instead of only promising to remind them.\n"
+            "- Never say you will add a reminder later. Perform the tool call first, verify it succeeded, then confirm it was created.\n"
+            "- If the user includes a relative date like tomorrow, next Friday, tonight, or this afternoon, resolve it and pass it as the due date.\n"
+            "- If the user provides no time or date, still create the task with no due date rather than refusing.\n\n"
+            "### Ambiguity Policy\n"
+            "Choose the safest action based on confidence.\n"
+            "- If exactly one high-confidence task match exists, act without asking.\n"
+            "- If multiple close matches exist for update, complete, or delete actions, ask a brief clarifying question or present the top matches.\n"
+            "- For read-only actions like list or search, it is acceptable to return the closest matches.\n"
+            "- Use a higher confidence threshold for destructive actions than for read-only actions.\n\n"
+            "### Evidence Grounding\n"
+            "Base your final response on verified tool results, not on your intentions.\n"
+            "- If you did not successfully create, update, complete, or delete something, do not imply that you did.\n"
+            "- Only mention fields such as due date, priority, tags, or status when they are known from tool evidence or retrieved task data.\n"
+            "- If a field is unknown, omit it or say it is not available rather than inventing it.\n\n"
 
             "### Multi-Intent Messages\n"
             "Handle multiple requests in one message:\n"
@@ -1099,12 +1126,12 @@ class AgentService:
             "### Example 1: Creating a task\n"
             "User: \"I need to submit the report by friday\"\n"
             "Assistant:\n"
-            "Done — I added \"Submit the report\" and set it for this Friday. If you want, I can also set a priority or tag for it.\n\n"
+            "Done - I added \"Submit the report\" and set it for this Friday. If you want, I can also set a priority or tag for it.\n\n"
 
             "### Example 2: Listing and prioritizing\n"
             "User: \"What should I focus on today?\"\n"
             "Assistant:\n"
-            "Here’s the best place to start today:\n"
+            "Here's the best place to start today:\n"
             "1. **Submit the report**\n"
             "   - Priority: HIGH\n"
             "   - Status: Open\n"
@@ -1128,7 +1155,7 @@ class AgentService:
             "### Example 3: Complex multi-action\n"
             "User: \"Mark the grocery one as done and create a task to meal prep on sunday\"\n"
             "Assistant:\n"
-            "Done — I marked \"Buy groceries\" as complete and created \"Meal prep\" for this Sunday.\n\n"
+            "Done - I marked \"Buy groceries\" as complete and created \"Meal prep\" for this Sunday.\n\n"
 
             "### Example 4: General conversation\n"
             "User: \"Hi, who are you?\"\n"
