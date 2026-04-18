@@ -337,7 +337,7 @@ def _resolve_tags(tags_str: str) -> List[int]:
     return tag_ids
 
 
-def agent_get_current_date() -> str:
+def agent_get_current_date(input: str = "") -> str:
     """
     Get the current date.
 
@@ -394,7 +394,7 @@ def agent_create_tag(name: str, color: str = "#94A3B8") -> str:
         return f"Sorry, I couldn't create that tag. Error: {str(e)}"
 
 
-def agent_list_tags() -> str:
+def agent_list_tags(input: str = "") -> str:
     """
     List all tags for the user.
 
@@ -725,7 +725,7 @@ def agent_get_task(task_id: int) -> str:
         return f"Sorry, I couldn't retrieve the task. Error: {str(e)}"
 
 
-def agent_show_conversation_summary() -> str:
+def agent_show_conversation_summary(input: str = "") -> str:
     """
     Show a summary of what has happened in our conversation so far.
 
@@ -771,7 +771,7 @@ def agent_show_conversation_summary() -> str:
         return "Sorry, I couldn't retrieve the conversation summary."
 
 
-def agent_get_all_tasks() -> str:
+def agent_get_all_tasks(input: str = "") -> str:
     """
     Get all tasks for the user so you can find the right one to operate on.
 
