@@ -1308,8 +1308,8 @@ class AgentService:
 
         self._z_ai_api_key = os.getenv("Z_AI_API_KEY")
         self._z_ai_model = os.getenv("Z_AI_MODEL", "glm-4.7-flash")
-        self._openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-        self._openrouter_model = os.getenv("OPENROUTER_MODEL", "qwen/qwen3.6-plus-preview:free")
+        self._groq_api_key = os.getenv("GROQ_API_KEY")
+        self._groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
         self._provider_timeout_seconds = float(os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "20"))
         self._last_provider_used = None
 
@@ -1562,7 +1562,7 @@ class AgentService:
         ])
 
     def _has_any_provider_key(self) -> bool:
-        return bool(self._z_ai_api_key or self._openrouter_api_key)
+        return bool(self._z_ai_api_key or self._groq_api_key)
 
     def _has_configured_providers(self) -> bool:
         return len(self._provider_configs) > 0
@@ -1708,20 +1708,20 @@ class AgentService:
     def _create_provider_configs(self):
         self._provider_configs = []
 
-        if self._openrouter_api_key:
-            openrouter_client = self._AsyncOpenAI(
-                api_key=self._openrouter_api_key,
-                base_url="https://openrouter.ai/api/v1"
+        if self._groq_api_key:
+            groq_client = self._AsyncOpenAI(
+                api_key=self._groq_api_key,
+                base_url="https://api.groq.com/openai/v1"
             )
-            openrouter_model = self._OpenAIChatCompletionsModel(
-                model=self._openrouter_model,
-                openai_client=openrouter_client,
+            groq_model = self._OpenAIChatCompletionsModel(
+                model=self._groq_model,
+                openai_client=groq_client,
             )
             self._provider_configs.append({
-                "label": "OpenRouter",
+                "label": "Groq",
                 "run_config": self._RunConfig(
-                    model=openrouter_model,
-                    model_provider=openrouter_client,
+                    model=groq_model,
+                    model_provider=groq_client,
                     tracing_disabled=True,
                 ),
             })

@@ -54,7 +54,7 @@ Todo-Ai/
 - Python 3.11+
 - PostgreSQL (or use SQLite for local development)
 - Google/GitHub OAuth credentials (optional, for social login)
-- OpenRouter API key (optional, for AI features — falls back to rule-based processing)
+- Groq API key (optional, for AI features — falls back to rule-based processing)
 
 ### Backend Setup
 
@@ -103,7 +103,7 @@ The frontend runs at `http://localhost:3000` and proxies API calls to the backen
 | `SECRET_KEY`          | JWT signing key                               | *(required)*             |
 | `FRONTEND_URL`        | Frontend origin for CORS                      | `http://localhost:3000`  |
 | `PORT`                | Server port                                   | `8000`                   |
-| `OPENROUTER_API_KEY`  | API key for OpenRouter/AI features            | *(optional)*             |
+| `GROQ_API_KEY`        | API key for Groq/AI features                  | *(optional)*             |
 | `GOOGLE_CLIENT_ID`    | Google OAuth client ID                        | *(optional)*             |
 | `GOOGLE_CLIENT_SECRET`| Google OAuth client secret                    | *(optional)*             |
 | `GITHUB_CLIENT_ID`    | GitHub OAuth client ID                        | *(optional)*             |
@@ -334,7 +334,7 @@ docker build -t todo-ai-backend .
 docker run -p 8000:8000 \
   -e DATABASE_URL="postgresql://user:password@host:5432/todo_ai" \
   -e SECRET_KEY="your-secret-key" \
-  -e OPENROUTER_API_KEY="your-key" \
+  -e GROQ_API_KEY="your-key" \
   todo-ai-backend
 ```
 

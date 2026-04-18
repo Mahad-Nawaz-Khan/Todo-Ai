@@ -143,7 +143,7 @@ tests/
 
 ## AI Chat System
 
-The chat system uses the OpenAI Agents SDK (via OpenRouter) to process natural language and perform task operations.
+The chat system uses the OpenAI Agents SDK (via Groq) to process natural language and perform task operations.
 
 ### How it works
 1. User sends a message through the chat interface
@@ -180,7 +180,7 @@ pytest -v                       # Verbose output
 | `SECRET_KEY`          | JWT signing key                               | *(required)*             |
 | `FRONTEND_URL`        | Frontend URL for CORS                         | `http://localhost:3000`  |
 | `PORT`                | Server port                                   | `8000`                   |
-| `OPENROUTER_API_KEY`  | OpenRouter API key for AI features            | *(optional)*             |
+| `GROQ_API_KEY`        | Groq API key for AI features                  | *(optional)*             |
 | `GOOGLE_CLIENT_ID`    | Google OAuth client ID                        | *(optional)*             |
 | `GOOGLE_CLIENT_SECRET`| Google OAuth client secret                    | *(optional)*             |
 | `GITHUB_CLIENT_ID`    | GitHub OAuth client ID                        | *(optional)*             |

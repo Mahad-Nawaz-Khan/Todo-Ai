@@ -585,7 +585,7 @@ DATABASE_URL=postgresql://user:password@prod-host:5432/todo_ai
 SECRET_KEY=<generate-with-secrets.token_urlsafe(32)>
 ENVIRONMENT=production
 DEBUG=False
-OPENROUTER_API_KEY=<your-key>
+GROQ_API_KEY=<your-key>
 ```
 
 ## Performance Optimization
