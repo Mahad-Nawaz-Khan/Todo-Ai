@@ -14,6 +14,8 @@ from sqlmodel import SQLModel
 
 from .database import DATABASE_URL, engine
 
+logger = logging.getLogger(__name__)
+
 # Load environment variables
 load_dotenv(override=True)
 
