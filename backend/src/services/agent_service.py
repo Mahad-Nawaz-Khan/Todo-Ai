@@ -77,6 +77,7 @@ def agent_create_task(
     recurrence: str = "",
     tags: str = "",
 ) -> str:
+    """Create a new task. If a task with the same title already exists, updates it instead. priority must be HIGH, MEDIUM, or LOW. due_date accepts relative phrases like 'tomorrow', 'next monday', or ISO dates. recurrence can be daily, weekly, or monthly. tags is a comma-separated list of tag names."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't create the task due to a server error."
@@ -240,6 +241,7 @@ def _resolve_tags(tags_str: str) -> List[int]:
 
 
 def agent_get_current_date(input: str = "") -> str:
+    """Returns the current UTC date and day of week. Use this before interpreting relative dates like 'tomorrow' or 'next week'."""
     try:
         today = datetime.utcnow()
         return f"Today is {today.strftime('%Y-%m-%d (%A)')}. "
@@ -248,6 +250,7 @@ def agent_get_current_date(input: str = "") -> str:
 
 
 def agent_create_tag(name: str, color: str = "#94A3B8") -> str:
+    """Create a new tag with a name and optional hex color. Returns error if tag already exists."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't create the tag due to a server error."
@@ -270,6 +273,7 @@ def agent_create_tag(name: str, color: str = "#94A3B8") -> str:
 
 
 def agent_list_tags(input: str = "") -> str:
+    """List all tags belonging to the current user with their IDs and names."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve tags due to a server error."
@@ -285,6 +289,7 @@ def agent_list_tags(input: str = "") -> str:
 
 
 def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", completed: bool = None, tags: str = "") -> str:
+    """Update an existing task by its ID. Only the fields you provide will be changed. Verifies the task exists before updating. priority must be HIGH, MEDIUM, or LOW. tags is comma-separated tag names."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't update the task due to a server error."
@@ -322,6 +327,7 @@ def agent_update_task(task_id: str, title: str = "", description: str = "", prio
 
 
 def agent_toggle_task(task_id: str) -> str:
+    """Toggle a task between completed and not completed by its ID. Verifies the task exists first."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't update the task due to a server error."
@@ -342,6 +348,7 @@ def agent_toggle_task(task_id: str) -> str:
 
 
 def agent_delete_task(task_id: str) -> str:
+    """Delete a task by its ID. Permanently removes the task. Verifies the task exists and belongs to the user before deleting."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete the task due to a server error."
@@ -398,6 +405,7 @@ def _find_tasks_for_search(search_term: str, completed: Optional[bool] = None, l
 
 
 def agent_delete_by_search(search_term: str) -> str:
+    """Find tasks matching a search term and delete. If multiple tasks match, returns the list and asks to call agent_delete_task with a specific ID instead."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete tasks due to a server error."
@@ -414,6 +422,7 @@ def agent_delete_by_search(search_term: str) -> str:
 
 
 def agent_search_tasks(search: str = "", completed: bool = None, priority: str = "", limit: int = 10) -> str:
+    """Search the user's tasks by text, completion status, or priority. Returns matching tasks with their titles, statuses, and due dates."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't search tasks due to a server error."
@@ -436,6 +445,7 @@ def agent_search_tasks(search: str = "", completed: bool = None, priority: str =
 
 
 def agent_list_tasks(limit: int = 10) -> str:
+    """List the user's pending (not completed) tasks. Returns titles and priorities."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve tasks due to a server error."
@@ -451,6 +461,7 @@ def agent_list_tasks(limit: int = 10) -> str:
 
 
 def agent_get_task(task_id: str) -> str:
+    """Get full details of a single task by its ID: title, status, description, due date, and priority."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve the task due to a server error."
@@ -472,6 +483,7 @@ def agent_get_task(task_id: str) -> str:
 
 
 def agent_show_conversation_summary(input: str = "") -> str:
+    """Show a summary of recent conversation messages between the user and assistant."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve conversation history."
@@ -493,6 +505,7 @@ def agent_show_conversation_summary(input: str = "") -> str:
 
 
 def agent_get_all_tasks(input: str = "") -> str:
+    """Get all tasks for the user (both completed and pending), up to 50. Use this only when the user explicitly asks for everything."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve tasks due to a server error."
@@ -507,6 +520,7 @@ def agent_get_all_tasks(input: str = "") -> str:
 
 
 def agent_complete_by_search(search_term: str) -> str:
+    """Find incomplete tasks matching a search term so the user can pick which one to complete. Returns matching tasks with IDs. Then call agent_toggle_task with the chosen ID."""
     try:
         tasks = _find_tasks_for_search(search_term, completed=False, limit=10)
         if not tasks:
@@ -517,6 +531,7 @@ def agent_complete_by_search(search_term: str) -> str:
 
 
 def agent_uncomplete_by_search(search_term: str) -> str:
+    """Find completed tasks matching a search term so the user can pick which one to reopen. Returns matching tasks with IDs. Then call agent_toggle_task with the chosen ID."""
     try:
         tasks = _find_tasks_for_search(search_term, completed=True, limit=10)
         if not tasks:
@@ -527,6 +542,7 @@ def agent_uncomplete_by_search(search_term: str) -> str:
 
 
 def agent_update_by_search(search_term: str, title: str = "", description: str = "", priority: str = "") -> str:
+    """Find tasks matching a search term so the user can pick which one to update. Returns matching tasks with IDs. Then call agent_update_task with the chosen ID and new values."""
     try:
         tasks = _find_tasks_for_search(search_term, limit=10)
         if not tasks:
@@ -555,6 +571,7 @@ def _response_mentions_unverified_task(response_text: str, grounded_tasks: List[
 
 
 def agent_verify_task_answer(draft_response: str, grounded_task_snapshot: str = "") -> str:
+    """Verify that a draft response does not reference task titles or details that do not exist in the user's actual tasks. Returns VERIFIED or UNVERIFIED."""
     if not _tool_context:
         return "Verification unavailable."
     grounded_tasks = _find_tasks_for_user_search(_tool_context.db_session, _tool_context.user_id, "", None, 15)
@@ -566,6 +583,7 @@ def agent_verify_task_answer(draft_response: str, grounded_task_snapshot: str = 
 
 
 def agent_confirm_task_exists(task_id: str) -> str:
+    """Check whether a task with the given ID exists for this user. Returns verified task title or a not-found message. Always call this before update, delete, or toggle operations."""
     if not _tool_context:
         return "Task verification unavailable."
     try:
@@ -578,6 +596,7 @@ def agent_confirm_task_exists(task_id: str) -> str:
 
 
 def agent_get_grounded_task_context(search_term: str = "") -> str:
+    """Fetch verified task data for the current user. Returns compact lines with ID, status, priority, due date, and title. Use to ground your answer in real data."""
     if not _tool_context:
         return "Grounding unavailable."
     tasks = _find_tasks_for_user_search(_tool_context.db_session, _tool_context.user_id, search_term, None, 8)
@@ -815,6 +834,11 @@ class AgentService:
                 function_tool(agent_show_conversation_summary), function_tool(agent_get_grounded_task_context), function_tool(agent_confirm_task_exists), function_tool(agent_verify_task_answer),
                 self._verifier_agent.as_tool(tool_name="task_answer_verifier", tool_description="Check whether a draft task response is supported by grounded task evidence before the final reply."),
             ]
+            # Strip _args-suffixed schema titles that confuse non-OpenAI providers
+            for tool in self._tools:
+                schema = getattr(tool, "params_json_schema", None)
+                if isinstance(schema, dict):
+                    schema.pop("title", None)
             self._agent = Agent(name="TaskManagerOrchestrator", instructions=self._build_system_prompt, tools=self._tools)
             self._initialized = True
         except ImportError as error:
