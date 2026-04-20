@@ -739,6 +739,10 @@ class AgentService:
 
     async def _finalize_response_text(self, response_text: str, operation_performed: Optional[Dict[str, Any]]) -> str:
         verified_text = self._post_validate_response(response_text, operation_performed)
+        # Skip the verifier subagent when an operation was already confirmed —
+        # the tool itself verified the task exists before acting.
+        if operation_performed and operation_performed.get("task_id"):
+            return verified_text
         verifier_feedback = await self._run_verifier_with_fallback(verified_text)
         if verifier_feedback and verifier_feedback.upper().startswith("UNVERIFIED"):
             return "I need to double-check the task details before I confirm that. Please ask me to search for the task or give me a bit more detail."
