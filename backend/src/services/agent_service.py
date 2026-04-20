@@ -291,8 +291,8 @@ def agent_list_tags(input: str = "") -> str:
         return f"Sorry, I couldn't retrieve tags. Error: {str(e)}"
 
 
-def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", completed: str = "", due_date: str = "", tags: str = "") -> str:
-    """Update an existing task by its ID. Only the fields you provide will be changed. Verifies the task exists before updating. priority must be HIGH, MEDIUM, or LOW. completed should be 'true' or 'false' when provided. due_date accepts relative phrases like 'tomorrow', 'next monday', or ISO dates. tags is comma-separated tag names."""
+def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", completed: bool = None, due_date: str = "", tags: str = "") -> str:
+    """Update an existing task by its ID. Only the fields you provide will be changed. Verifies the task exists before updating. priority must be HIGH, MEDIUM, or LOW. completed must be a boolean when provided. due_date should be passed as an exact ISO date like YYYY-MM-DD after reasoning from the user's request. tags is comma-separated tag names."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't update the task due to a server error."
@@ -305,7 +305,6 @@ def agent_update_task(task_id: str, title: str = "", description: str = "", prio
 
         task_service = _get_task_service()
         update_data = {}
-        normalized_completed = completed.strip().lower() if isinstance(completed, str) else ""
         parsed_due_date = _parse_relative_date(due_date) if due_date else None
         if title:
             update_data["title"] = title
@@ -313,13 +312,8 @@ def agent_update_task(task_id: str, title: str = "", description: str = "", prio
             update_data["description"] = description
         if priority:
             update_data["priority"] = priority
-        if normalized_completed:
-            if normalized_completed in {"true", "yes", "1", "completed", "done", "finish", "finished"}:
-                update_data["completed"] = True
-            elif normalized_completed in {"false", "no", "0", "pending", "open", "incomplete", "uncomplete", "uncompleted", "not completed"}:
-                update_data["completed"] = False
-            else:
-                return "Please provide completed as true or false."
+        if completed is not None:
+            update_data["completed"] = completed
         if parsed_due_date:
             update_data["due_date"] = parsed_due_date
         if tags:
@@ -637,24 +631,31 @@ def agent_uncomplete_by_search(search_term: str) -> str:
         return f"Sorry, I couldn't reopen those tasks. Error: {str(e)}"
 
 
-def agent_update_by_search(search_term: str, title: str = "", description: str = "", priority: str = "") -> str:
-    """Find tasks matching a search term and update the first match with the provided fields. If multiple tasks match, updates only the first one and mentions the others."""
+def agent_update_by_search(search_term: str, title: str = "", description: str = "", priority: str = "", due_date: str = "", tags: str = "") -> str:
+    """Find tasks matching a search term and update the first match with the provided fields. Use this when the user refers to a task by name instead of ID. due_date should be passed as an exact ISO date like YYYY-MM-DD after reasoning from the user's request. tags is comma-separated tag names. If multiple tasks match, do not guess."""
     try:
         tasks = _find_tasks_for_search(search_term, limit=10)
         if not tasks:
             return "You have no matching tasks to update."
         if len(tasks) > 1:
-            return _format_task_lines(tasks, f"Multiple tasks match '{search_term}'. Please provide the exact task ID using agent_update_task instead:")
+            return _format_task_lines(tasks, f"Multiple tasks match '{search_term}'. Please provide the exact task ID or a more specific task name:")
         from ..schemas.task import TaskUpdateRequest
         update_data = {}
+        parsed_due_date = _parse_relative_date(due_date) if due_date else None
         if title:
             update_data["title"] = title
         if description:
             update_data["description"] = description
         if priority:
             update_data["priority"] = priority
+        if parsed_due_date:
+            update_data["due_date"] = parsed_due_date
+        if tags:
+            tag_ids = _resolve_tags(tags)
+            if tag_ids:
+                update_data["tag_ids"] = tag_ids
         if not update_data:
-            return "Please provide at least one field to update (title, description, or priority)."
+            return "Please provide at least one field to update (title, description, priority, due date, or tags)."
         task = tasks[0]
         updated = _get_task_service().update_task(task.id, TaskUpdateRequest(**update_data), _tool_context.user_id, _tool_context.db_session)
         _mark_operation_performed("update_task", {"task_id": task.id})
@@ -769,7 +770,7 @@ class AgentService:
     @staticmethod
     def _build_system_prompt(context, agent) -> str:
         return (
-            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When creating a new task, always call the create tool with both a clear title and a short, useful description. If the user gives only a title or a brief request, infer a concise description from their wording instead of leaving it blank. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
+            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When creating a new task, always call the create tool with both a clear title and a short, useful description. If the user gives only a title or a brief request, infer a concise description from their wording instead of leaving it blank. For updates, reason about the user's request before calling a tool: if the user refers to a task by name or phrase rather than an exact ID, prefer the search-based update tool instead of the ID-based update tool. Convert relative due-date requests such as 'tomorrow' or '2 days later' into an exact date string before calling an update tool. Only pass completed as a real boolean, never as text. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
         )
 
     def _build_input_text(self, content: str, conversation_history: Optional[List[Dict[str, Any]]] = None, user_info: Optional[Dict[str, str]] = None, task_context: str = "") -> str:
