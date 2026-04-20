@@ -95,15 +95,17 @@ export async function GET(req: NextRequest) {
     });
 
     const token = signSession({ user });
-    const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     const redirectTarget = parsedState.redirectTarget && parsedState.redirectTarget.startsWith("/")
       ? parsedState.redirectTarget
       : "/";
     const response = NextResponse.redirect(new URL(redirectTarget, req.url));
-    response.headers.set(
-      "Set-Cookie",
-      `${getSessionCookieName()}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800${secure}`
-    );
+    response.cookies.set(getSessionCookieName(), token, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 604800,
+      secure: process.env.NODE_ENV === "production",
+    });
     response.cookies.delete(OAUTH_STATE_COOKIE);
     return response;
   } catch (error) {
