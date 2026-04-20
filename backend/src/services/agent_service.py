@@ -77,7 +77,7 @@ def agent_create_task(
     recurrence: str = "",
     tags: str = "",
 ) -> str:
-    """Create a new task. If a task with the same title already exists, updates it instead. priority must be HIGH, MEDIUM, or LOW. due_date accepts relative phrases like 'tomorrow', 'next monday', or ISO dates. recurrence can be daily, weekly, or monthly. tags is a comma-separated list of tag names."""
+    """Create a new task. Always provide a short, concrete description when calling this tool, even if the user did not explicitly ask for one. If a task with the same title already exists, updates it instead. priority must be HIGH, MEDIUM, or LOW. due_date accepts relative phrases like 'tomorrow', 'next monday', or ISO dates. recurrence can be daily, weekly, or monthly. tags is a comma-separated list of tag names."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't create the task due to a server error."
@@ -96,12 +96,15 @@ def agent_create_task(
         parsed_due_date = _parse_relative_date(due_date) if due_date else None
         parsed_recurrence = _parse_recurrence(recurrence) if recurrence else None
         tag_ids = _resolve_tags(tags) if tags else []
+        normalized_description = description.strip() if description else ""
+        if not normalized_description:
+            normalized_description = f"Task: {title.strip()}"
 
         if existing_tasks:
             task = existing_tasks[0]
             update_data = {}
-            if description and description != (task.description or ""):
-                update_data["description"] = description
+            if normalized_description and normalized_description != (task.description or ""):
+                update_data["description"] = normalized_description
             if priority and priority != (task.priority or "MEDIUM"):
                 update_data["priority"] = priority
             if parsed_due_date and parsed_due_date != task.due_date:
@@ -122,7 +125,7 @@ def agent_create_task(
 
         task_data = TaskCreateRequest(
             title=title,
-            description=description if description else None,
+            description=normalized_description,
             priority=priority if priority else "MEDIUM",
             due_date=parsed_due_date,
             recurrence_rule=parsed_recurrence,
@@ -757,7 +760,7 @@ class AgentService:
     @staticmethod
     def _build_system_prompt(context, agent) -> str:
         return (
-            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
+            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When creating a new task, always call the create tool with both a clear title and a short, useful description. If the user gives only a title or a brief request, infer a concise description from their wording instead of leaving it blank. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
         )
 
     def _build_input_text(self, content: str, conversation_history: Optional[List[Dict[str, Any]]] = None, user_info: Optional[Dict[str, str]] = None, task_context: str = "") -> str:
