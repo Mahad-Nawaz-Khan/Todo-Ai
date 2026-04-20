@@ -34,6 +34,7 @@ export default function ProfileMenu() {
   const [imgError, setImgError] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const displayName = useMemo(() => {
@@ -91,7 +92,8 @@ export default function ProfileMenu() {
     if (!isOpen) return;
 
     const handlePointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!containerRef.current?.contains(target) && !dropdownRef.current?.contains(target)) {
         setIsOpen(false);
       }
     };
@@ -183,6 +185,7 @@ export default function ProfileMenu() {
         dropdownPos &&
         createPortal(
           <div
+            ref={dropdownRef}
             className="absolute z-9999 w-[320px] rounded-[28px] border border-white/10 bg-[rgba(8,12,20,0.98)] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
             style={{ top: dropdownPos.top, right: dropdownPos.right }}
           >
