@@ -935,11 +935,15 @@ class AgentService:
                 function_tool(agent_show_conversation_summary), function_tool(agent_get_grounded_task_context), function_tool(agent_confirm_task_exists), function_tool(agent_verify_task_answer),
                 self._verifier_agent.as_tool(tool_name="task_answer_verifier", tool_description="Check whether a draft task response is supported by grounded task evidence before the final reply."),
             ]
-            # Strip _args-suffixed schema titles that confuse non-OpenAI providers
+            # Normalize tool schemas for providers that are stricter than OpenAI.
             for tool in self._tools:
                 schema = getattr(tool, "params_json_schema", None)
                 if isinstance(schema, dict):
                     schema.pop("title", None)
+                    if schema.get("type") == "object":
+                        schema.setdefault("properties", {})
+                        if "required" in schema and not isinstance(schema.get("properties"), dict):
+                            schema["properties"] = {}
             self._agent = Agent(name="TaskManagerOrchestrator", instructions=self._build_system_prompt, tools=self._tools)
             self._initialized = True
         except ImportError as error:
