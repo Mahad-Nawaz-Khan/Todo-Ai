@@ -291,8 +291,8 @@ def agent_list_tags(input: str = "") -> str:
         return f"Sorry, I couldn't retrieve tags. Error: {str(e)}"
 
 
-def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", completed: bool = None, tags: str = "") -> str:
-    """Update an existing task by its ID. Only the fields you provide will be changed. Verifies the task exists before updating. priority must be HIGH, MEDIUM, or LOW. tags is comma-separated tag names."""
+def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", completed: str = "", due_date: str = "", tags: str = "") -> str:
+    """Update an existing task by its ID. Only the fields you provide will be changed. Verifies the task exists before updating. priority must be HIGH, MEDIUM, or LOW. completed should be 'true' or 'false' when provided. due_date accepts relative phrases like 'tomorrow', 'next monday', or ISO dates. tags is comma-separated tag names."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't update the task due to a server error."
@@ -305,14 +305,23 @@ def agent_update_task(task_id: str, title: str = "", description: str = "", prio
 
         task_service = _get_task_service()
         update_data = {}
+        normalized_completed = completed.strip().lower() if isinstance(completed, str) else ""
+        parsed_due_date = _parse_relative_date(due_date) if due_date else None
         if title:
             update_data["title"] = title
         if description:
             update_data["description"] = description
         if priority:
             update_data["priority"] = priority
-        if completed is not None:
-            update_data["completed"] = completed
+        if normalized_completed:
+            if normalized_completed in {"true", "yes", "1", "completed", "done", "finish", "finished"}:
+                update_data["completed"] = True
+            elif normalized_completed in {"false", "no", "0", "pending", "open", "incomplete", "uncomplete", "uncompleted", "not completed"}:
+                update_data["completed"] = False
+            else:
+                return "Please provide completed as true or false."
+        if parsed_due_date:
+            update_data["due_date"] = parsed_due_date
         if tags:
             tag_ids = _resolve_tags(tags)
             if tag_ids:
