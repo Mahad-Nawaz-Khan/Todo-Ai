@@ -839,19 +839,9 @@ class AgentService:
         return None
 
     async def _finalize_response_text(self, response_text: str, operation_performed: Optional[Dict[str, Any]]) -> str:
-        # When a tool already performed an action (create, update, delete, toggle,
-        # delete_all, delete_completed, complete_by_search, etc.), the tool verified
-        # the task exists before acting. Post-validation would re-fetch the task list
-        # — but the task state has already changed (deleted, completed, etc.),
-        # causing false "unverified" hits. Trust the tool result directly.
         if operation_performed:
             return response_text
-        # For informational responses (no action taken), run validation.
-        verified_text = self._post_validate_response(response_text, None)
-        verifier_feedback = await self._run_verifier_with_fallback(verified_text)
-        if verifier_feedback and verifier_feedback.upper().startswith("UNVERIFIED"):
-            return "I need to double-check the task details before I confirm that. Please ask me to search for the task or give me a bit more detail."
-        return verified_text
+        return self._post_validate_response(response_text, None)
 
     async def _build_final_response(self, result, provider_label: str) -> Dict[str, Any]:
         operation_performed = self._extract_operations(result)
@@ -860,7 +850,7 @@ class AgentService:
 
     async def _build_stream_final(self, result, provider_label: str) -> Dict[str, Any]:
         operation_performed = self._extract_operations(result)
-        final_content = await self._finalize_response_text(self._provider_result_output_text(result), operation_performed)
+        final_content = self._provider_result_output_text(result)
         return {"type": "final", "content": final_content, "operation_performed": operation_performed, "model_used": self._get_model_used_label(provider_label)}
 
     async def _run_provider(self, provider: Dict[str, Any], input_text: str):
