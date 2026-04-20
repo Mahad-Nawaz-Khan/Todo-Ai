@@ -431,8 +431,8 @@ def agent_delete_by_search(search_term: str, completed: bool = None) -> str:
         return f"Sorry, I couldn't delete that task. Error: {str(e)}"
 
 
-def agent_delete_completed_tasks() -> str:
-    """Delete all completed tasks for the user in one call. Returns the count deleted."""
+def agent_delete_completed_tasks(input: str = "") -> str:
+    """Delete all completed tasks for the user in one call. The input can be left empty. Returns the count deleted."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete tasks due to a server error."
