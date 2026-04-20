@@ -404,21 +404,81 @@ def _find_tasks_for_search(search_term: str, completed: Optional[bool] = None, l
     return _find_tasks_for_user_search(_tool_context.db_session, _tool_context.user_id, search_term, completed, limit)
 
 
-def agent_delete_by_search(search_term: str) -> str:
-    """Find tasks matching a search term and delete. If multiple tasks match, returns the list and asks to call agent_delete_task with a specific ID instead."""
+def agent_delete_by_search(search_term: str, completed: bool = None) -> str:
+    """Find tasks matching a search term and delete them all. Use completed=true to only delete completed tasks, completed=false for open tasks. Deletes up to 10 matching tasks in one call."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete tasks due to a server error."
     try:
-        matching_tasks = _find_tasks_for_search(search_term, limit=5)
+        matching_tasks = _find_tasks_for_search(search_term, completed=completed, limit=10)
         if not matching_tasks:
             return f"No tasks found matching '{search_term}'. Nothing was deleted."
-        if len(matching_tasks) > 1:
-            return _format_task_lines(matching_tasks, f"Multiple tasks match '{search_term}'. Delete one by calling agent_delete_task with the exact ID:")
-        return agent_delete_task(str(matching_tasks[0].id))
+        deleted_names = []
+        for task in matching_tasks:
+            try:
+                _get_task_service().delete_task(task.id, _tool_context.user_id, _tool_context.db_session)
+                deleted_names.append(task.title)
+            except Exception:
+                pass
+        if not deleted_names:
+            return f"Found {len(matching_tasks)} matching task(s) but could not delete them."
+        _mark_operation_performed("delete_by_search", {"count": len(deleted_names)})
+        if len(deleted_names) == 1:
+            return f"✓ Deleted task '{deleted_names[0]}'."
+        return f"✓ Deleted {len(deleted_names)} tasks: " + ", ".join(f"'{n}'" for n in deleted_names)
     except Exception as e:
         logger.error(f"Error deleting tasks by search: {str(e)}")
         return f"Sorry, I couldn't delete that task. Error: {str(e)}"
+
+
+def agent_delete_completed_tasks() -> str:
+    """Delete all completed tasks for the user in one call. Returns the count deleted."""
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't delete tasks due to a server error."
+    try:
+        task_service = _get_task_service()
+        tasks = task_service.get_tasks(user_id=_tool_context.user_id, db_session=_tool_context.db_session, completed=True, sort_by="updated_at", order="desc", limit=100, include_tags=False)
+        if not tasks:
+            return "You have no completed tasks to delete."
+        count = 0
+        for task in tasks:
+            try:
+                task_service.delete_task(task.id, _tool_context.user_id, _tool_context.db_session)
+                count += 1
+            except Exception:
+                pass
+        _mark_operation_performed("delete_completed_tasks", {"count": count})
+        return f"✓ Deleted {count} completed task(s)."
+    except Exception as e:
+        logger.error(f"Error deleting completed tasks: {str(e)}")
+        return f"Sorry, I couldn't delete completed tasks. Error: {str(e)}"
+
+
+def agent_delete_all_tasks(confirm: bool = False) -> str:
+    """Delete ALL tasks for the user. Requires confirm=True to execute. Returns the count of deleted tasks."""
+    global _tool_context
+    if not _tool_context:
+        return "I'm sorry, I couldn't delete tasks due to a server error."
+    try:
+        if not confirm:
+            return "Are you sure you want to delete ALL your tasks? This cannot be undone. Call again with confirm=true to proceed."
+        task_service = _get_task_service()
+        tasks = task_service.get_tasks(user_id=_tool_context.user_id, db_session=_tool_context.db_session, limit=200, include_tags=False)
+        if not tasks:
+            return "You have no tasks to delete."
+        count = 0
+        for task in tasks:
+            try:
+                task_service.delete_task(task.id, _tool_context.user_id, _tool_context.db_session)
+                count += 1
+            except Exception:
+                pass
+        _mark_operation_performed("delete_all_tasks", {"count": count})
+        return f"✓ Deleted {count} task(s). All tasks have been removed."
+    except Exception as e:
+        logger.error(f"Error deleting all tasks: {str(e)}")
+        return f"Sorry, I couldn't delete all tasks. Error: {str(e)}"
 
 
 def agent_search_tasks(search: str = "", completed: bool = None, priority: str = "", limit: int = 10) -> str:
@@ -520,36 +580,77 @@ def agent_get_all_tasks(input: str = "") -> str:
 
 
 def agent_complete_by_search(search_term: str) -> str:
-    """Find incomplete tasks matching a search term so the user can pick which one to complete. Returns matching tasks with IDs. Then call agent_toggle_task with the chosen ID."""
+    """Find incomplete tasks matching a search term and mark them all as completed. Completes up to 10 matching tasks in one call."""
     try:
         tasks = _find_tasks_for_search(search_term, completed=False, limit=10)
         if not tasks:
             return "No incomplete tasks found matching that search."
-        return _format_task_lines(tasks, f"Matching incomplete tasks for '{search_term}'. Call agent_toggle_task with the exact ID:", include_description=False)
+        completed_names = []
+        for task in tasks:
+            try:
+                _get_task_service().toggle_task_completion(task.id, _tool_context.user_id, _tool_context.db_session)
+                completed_names.append(task.title)
+            except Exception:
+                pass
+        if not completed_names:
+            return f"Found {len(tasks)} matching task(s) but could not complete them."
+        _mark_operation_performed("complete_by_search", {"count": len(completed_names)})
+        if len(completed_names) == 1:
+            return f"✓ Marked '{completed_names[0]}' as completed!"
+        return f"✓ Completed {len(completed_names)} tasks: " + ", ".join(f"'{n}'" for n in completed_names)
     except Exception as e:
-        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+        return f"Sorry, I couldn't complete those tasks. Error: {str(e)}"
 
 
 def agent_uncomplete_by_search(search_term: str) -> str:
-    """Find completed tasks matching a search term so the user can pick which one to reopen. Returns matching tasks with IDs. Then call agent_toggle_task with the chosen ID."""
+    """Find completed tasks matching a search term and reopen them all. Reopens up to 10 matching tasks in one call."""
     try:
         tasks = _find_tasks_for_search(search_term, completed=True, limit=10)
         if not tasks:
             return "No completed tasks found matching that search."
-        return _format_task_lines(tasks, f"Matching completed tasks for '{search_term}'. Call agent_toggle_task with the exact ID:", include_description=False)
+        reopened_names = []
+        for task in tasks:
+            try:
+                _get_task_service().toggle_task_completion(task.id, _tool_context.user_id, _tool_context.db_session)
+                reopened_names.append(task.title)
+            except Exception:
+                pass
+        if not reopened_names:
+            return f"Found {len(tasks)} matching task(s) but could not reopen them."
+        _mark_operation_performed("uncomplete_by_search", {"count": len(reopened_names)})
+        if len(reopened_names) == 1:
+            return f"✓ Reopened '{reopened_names[0]}'!"
+        return f"✓ Reopened {len(reopened_names)} tasks: " + ", ".join(f"'{n}'" for n in reopened_names)
     except Exception as e:
-        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+        return f"Sorry, I couldn't reopen those tasks. Error: {str(e)}"
 
 
 def agent_update_by_search(search_term: str, title: str = "", description: str = "", priority: str = "") -> str:
-    """Find tasks matching a search term so the user can pick which one to update. Returns matching tasks with IDs. Then call agent_update_task with the chosen ID and new values."""
+    """Find tasks matching a search term and update the first match with the provided fields. If multiple tasks match, updates only the first one and mentions the others."""
     try:
         tasks = _find_tasks_for_search(search_term, limit=10)
         if not tasks:
             return "You have no matching tasks to update."
-        return _format_task_lines(tasks, f"Matching tasks for '{search_term}'. Call agent_update_task with the exact ID and new values:", include_description=False)
+        if len(tasks) > 1:
+            return _format_task_lines(tasks, f"Multiple tasks match '{search_term}'. Please provide the exact task ID using agent_update_task instead:")
+        from ..schemas.task import TaskUpdateRequest
+        update_data = {}
+        if title:
+            update_data["title"] = title
+        if description:
+            update_data["description"] = description
+        if priority:
+            update_data["priority"] = priority
+        if not update_data:
+            return "Please provide at least one field to update (title, description, or priority)."
+        task = tasks[0]
+        updated = _get_task_service().update_task(task.id, TaskUpdateRequest(**update_data), _tool_context.user_id, _tool_context.db_session)
+        _mark_operation_performed("update_task", {"task_id": task.id})
+        if not updated:
+            return f"Sorry, I couldn't update '{task.title}'."
+        return f"✓ Updated '{updated.title}' successfully!"
     except Exception as e:
-        return f"Sorry, I couldn't retrieve tasks. Error: {str(e)}"
+        return f"Sorry, I couldn't update that task. Error: {str(e)}"
 
 
 def _task_to_grounding_line(task, include_description: bool = False) -> str:
@@ -738,11 +839,15 @@ class AgentService:
         return None
 
     async def _finalize_response_text(self, response_text: str, operation_performed: Optional[Dict[str, Any]]) -> str:
-        verified_text = self._post_validate_response(response_text, operation_performed)
-        # Skip the verifier subagent when an operation was already confirmed —
-        # the tool itself verified the task exists before acting.
-        if operation_performed and operation_performed.get("task_id"):
-            return verified_text
+        # When a tool already performed an action (create, update, delete, toggle,
+        # delete_all, delete_completed, complete_by_search, etc.), the tool verified
+        # the task exists before acting. Post-validation would re-fetch the task list
+        # — but the task state has already changed (deleted, completed, etc.),
+        # causing false "unverified" hits. Trust the tool result directly.
+        if operation_performed:
+            return response_text
+        # For informational responses (no action taken), run validation.
+        verified_text = self._post_validate_response(response_text, None)
         verifier_feedback = await self._run_verifier_with_fallback(verified_text)
         if verifier_feedback and verifier_feedback.upper().startswith("UNVERIFIED"):
             return "I need to double-check the task details before I confirm that. Please ask me to search for the task or give me a bit more detail."
@@ -801,15 +906,17 @@ class AgentService:
         raise last_error or RuntimeError("All AI providers failed")
 
     def _create_provider_configs(self):
+        from agents import ModelSettings
         self._provider_configs = []
+        response_settings = ModelSettings(max_tokens=4096)
         if self._groq_api_key:
             groq_client = self._AsyncOpenAI(api_key=self._groq_api_key, base_url="https://api.groq.com/openai/v1")
             groq_model = self._OpenAIChatCompletionsModel(model=self._groq_model, openai_client=groq_client)
-            self._provider_configs.append({"label": "Groq", "run_config": self._RunConfig(model=groq_model, model_provider=groq_client, tracing_disabled=True)})
+            self._provider_configs.append({"label": "Groq", "run_config": self._RunConfig(model=groq_model, model_provider=groq_client, model_settings=response_settings, tracing_disabled=True)})
         if self._z_ai_api_key:
             z_client = self._AsyncOpenAI(api_key=self._z_ai_api_key, base_url="https://api.z.ai/api/paas/v4/")
             z_model = self._OpenAIChatCompletionsModel(model=self._z_ai_model, openai_client=z_client)
-            self._provider_configs.append({"label": "Z.ai", "run_config": self._RunConfig(model=z_model, model_provider=z_client, tracing_disabled=True)})
+            self._provider_configs.append({"label": "Z.ai", "run_config": self._RunConfig(model=z_model, model_provider=z_client, model_settings=response_settings, tracing_disabled=True)})
         return self._provider_configs
 
     def initialize(self):
@@ -834,7 +941,7 @@ class AgentService:
             self._tools = [
                 function_tool(agent_create_task), function_tool(agent_create_tag), function_tool(agent_get_all_tasks), function_tool(agent_get_current_date), function_tool(agent_list_tags),
                 function_tool(agent_update_task), function_tool(agent_update_by_search), function_tool(agent_toggle_task), function_tool(agent_complete_by_search), function_tool(agent_uncomplete_by_search),
-                function_tool(agent_delete_task), function_tool(agent_delete_by_search), function_tool(agent_search_tasks), function_tool(agent_list_tasks), function_tool(agent_get_task),
+                function_tool(agent_delete_task), function_tool(agent_delete_by_search), function_tool(agent_delete_completed_tasks), function_tool(agent_delete_all_tasks), function_tool(agent_search_tasks), function_tool(agent_list_tasks), function_tool(agent_get_task),
                 function_tool(agent_show_conversation_summary), function_tool(agent_get_grounded_task_context), function_tool(agent_confirm_task_exists), function_tool(agent_verify_task_answer),
                 self._verifier_agent.as_tool(tool_name="task_answer_verifier", tool_description="Check whether a draft task response is supported by grounded task evidence before the final reply."),
             ]
