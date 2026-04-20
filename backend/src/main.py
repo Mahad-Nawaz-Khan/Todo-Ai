@@ -96,18 +96,46 @@ async def value_error_handler(request: Request, exc: ValueError):
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Get allowed origins from environment or use defaults
-frontend_url = os.getenv("FRONTEND_URL", "")
-allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "https://todo-ai-iota.vercel.app",
-]
+def _normalize_origin(origin: str) -> str:
+    origin = origin.strip().rstrip("/")
+    if not origin:
+        return ""
+    if not origin.startswith(("http://", "https://")):
+        origin = f"http://{origin}"
+    return origin
 
-# Add custom frontend URL if provided
-if frontend_url and frontend_url not in allowed_origins:
-    allowed_origins.append(frontend_url)
+
+def _parse_allowed_origins() -> list[str]:
+    allowed = {
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+        "https://todo-ai-iota.vercel.app",
+    }
+
+    env_values = [
+        os.getenv("FRONTEND_URL", ""),
+        os.getenv("ALLOWED_ORIGINS", ""),
+        os.getenv("CORS_ALLOWED_ORIGINS", ""),
+    ]
+
+    for raw_value in env_values:
+        if not raw_value:
+            continue
+        for candidate in re.split(r"[;,\s]+", raw_value):
+            normalized = _normalize_origin(candidate)
+            if normalized:
+                allowed.add(normalized)
+
+    return sorted(allowed)
+
+
+# Get allowed origins from environment or use defaults
+allowed_origins = _parse_allowed_origins()
+
+logger.info("Configured CORS allowed origins: %s", allowed_origins)
 
 # Add CORS middleware
 app.add_middleware(
