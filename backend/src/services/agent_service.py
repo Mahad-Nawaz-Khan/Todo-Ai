@@ -77,7 +77,7 @@ def agent_create_task(
     recurrence: str = "",
     tags: str = "",
 ) -> str:
-    """Create a new task. Always provide a short, concrete description when calling this tool, even if the user did not explicitly ask for one. If a task with the same title already exists, updates it instead. priority must be HIGH, MEDIUM, or LOW. due_date accepts relative phrases like 'tomorrow', 'next monday', or ISO dates. recurrence can be daily, weekly, or monthly. tags is a comma-separated list of tag names."""
+    """Create a new task. Always send every schema field when calling this tool. Send title as the task title string. Send description as a short, concrete description and never leave it blank; infer one from the user's wording if needed. Send priority as HIGH, MEDIUM, or LOW, and send MEDIUM when the user does not specify a priority. Send due_date as a string, using an empty string when unused; this tool accepts relative phrases like 'tomorrow', 'in 2 days', 'next monday', or an ISO date. Send recurrence as a string, using an empty string when unused; supported values include daily, weekly, and monthly. Send tags as a comma-separated string like 'Coding,Work', or an empty string when unused. If a task with the same title already exists, this tool updates it instead of creating a duplicate."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't create the task due to a server error."
@@ -244,7 +244,7 @@ def _resolve_tags(tags_str: str) -> List[int]:
 
 
 def agent_get_current_date(input: str = "") -> str:
-    """Returns the current UTC date and day of week. Use this before interpreting relative dates like 'tomorrow' or 'next week'."""
+    """Return the current UTC date and day of week. Always send input as an empty string. Use this before interpreting relative dates like 'tomorrow', 'next week', or '2 days later'."""
     try:
         today = datetime.utcnow()
         return f"Today is {today.strftime('%Y-%m-%d (%A)')}. "
@@ -253,7 +253,7 @@ def agent_get_current_date(input: str = "") -> str:
 
 
 def agent_create_tag(name: str, color: str = "#94A3B8") -> str:
-    """Create a new tag with a name and optional hex color. Returns error if tag already exists."""
+    """Create a new tag. Always send every schema field when calling this tool. Send name as the tag name string. Send color as a hex color string like '#94A3B8'; use the default-style color when the user does not specify one. Returns an error if the tag already exists."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't create the tag due to a server error."
@@ -276,7 +276,7 @@ def agent_create_tag(name: str, color: str = "#94A3B8") -> str:
 
 
 def agent_list_tags(input: str = "") -> str:
-    """List all tags belonging to the current user with their IDs and names."""
+    """List all tags belonging to the current user with their IDs and names. Always send input as an empty string."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve tags due to a server error."
@@ -333,7 +333,7 @@ def agent_update_task(task_id: str, title: str = "", description: str = "", prio
 
 
 def agent_toggle_task(task_id: str) -> str:
-    """Toggle a task between completed and not completed by its ID. Verifies the task exists first."""
+    """Toggle a task between completed and not completed by its ID. Send task_id as a string containing digits like '12'. Use this only when the task ID is already known or verified."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't update the task due to a server error."
@@ -354,7 +354,7 @@ def agent_toggle_task(task_id: str) -> str:
 
 
 def agent_delete_task(task_id: str) -> str:
-    """Delete a task by its ID. Permanently removes the task. Verifies the task exists and belongs to the user before deleting."""
+    """Delete a task by its ID. Send task_id as a string containing digits like '12'. Use this only when the task ID is already known or verified. Permanently removes the task after verifying it belongs to the user."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete the task due to a server error."
@@ -410,8 +410,8 @@ def _find_tasks_for_search(search_term: str, completed: Optional[bool] = None, l
     return _find_tasks_for_user_search(_tool_context.db_session, _tool_context.user_id, search_term, completed, limit)
 
 
-def agent_delete_by_search(search_term: str, completed: bool = None) -> str:
-    """Find tasks matching a search term and delete them all. Use completed=true to only delete completed tasks, completed=false for open tasks. Deletes up to 10 matching tasks in one call."""
+def agent_delete_by_search(search_term: str, completed: Optional[bool] = None) -> str:
+    """Find tasks matching a search term and delete them all. Always send every schema field when calling this tool. Send search_term as the task title or name fragment, not a task ID. Send completed=true to delete only completed matches, completed=false to delete only open matches, and completed=null when no completion filter is needed. Never send booleans as strings. Deletes up to 10 matching tasks in one call and should not be used if multiple ambiguous matches would be unsafe."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete tasks due to a server error."
@@ -438,7 +438,7 @@ def agent_delete_by_search(search_term: str, completed: bool = None) -> str:
 
 
 def agent_delete_completed_tasks(input: str = "") -> str:
-    """Delete all completed tasks for the user in one call. The input can be left empty. Returns the count deleted."""
+    """Delete all completed tasks for the user in one call. Always send input as an empty string. Returns the count deleted."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete tasks due to a server error."
@@ -462,7 +462,7 @@ def agent_delete_completed_tasks(input: str = "") -> str:
 
 
 def agent_delete_all_tasks(confirm: bool = False) -> str:
-    """Delete ALL tasks for the user. Requires confirm=True to execute. Returns the count of deleted tasks."""
+    """Delete ALL tasks for the user. Always send every schema field when calling this tool. Send confirm as a real boolean. Send confirm=true only when the user clearly wants every task deleted; otherwise send confirm=false. Never send booleans as strings. Returns the count of deleted tasks."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't delete tasks due to a server error."
@@ -487,8 +487,8 @@ def agent_delete_all_tasks(confirm: bool = False) -> str:
         return f"Sorry, I couldn't delete all tasks. Error: {str(e)}"
 
 
-def agent_search_tasks(search: str = "", completed: bool = None, priority: str = "", limit: int = 10) -> str:
-    """Search the user's tasks by text, completion status, or priority. Returns matching tasks with their titles, statuses, and due dates."""
+def agent_search_tasks(search: str = "", completed: Optional[bool] = None, priority: str = "", limit: int = 10) -> str:
+    """Search the user's tasks by text, completion status, or priority. Always send every schema field when calling this tool. Send search as a task title, keyword, or name fragment, and send an empty string when the user wants a broad search. Send completed=true for completed-only results, completed=false for open-only results, and completed=null when no completion filter is needed. Send priority as HIGH, MEDIUM, or LOW, or an empty string when unused. Send limit as an integer. Never send booleans as strings. Returns matching tasks with their titles, statuses, and due dates."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't search tasks due to a server error."
@@ -511,7 +511,7 @@ def agent_search_tasks(search: str = "", completed: bool = None, priority: str =
 
 
 def agent_list_tasks(limit: int = 10) -> str:
-    """List the user's pending (not completed) tasks. Returns titles and priorities."""
+    """List the user's pending tasks. Always send limit as an integer. Use this for open tasks only; this tool does not list completed tasks."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve tasks due to a server error."
@@ -527,7 +527,7 @@ def agent_list_tasks(limit: int = 10) -> str:
 
 
 def agent_get_task(task_id: str) -> str:
-    """Get full details of a single task by its ID: title, status, description, due date, and priority."""
+    """Get full details of a single task by its ID. Send task_id as a string containing digits like '12'. Use this only when the task ID is already known or verified."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve the task due to a server error."
@@ -549,7 +549,7 @@ def agent_get_task(task_id: str) -> str:
 
 
 def agent_show_conversation_summary(input: str = "") -> str:
-    """Show a summary of recent conversation messages between the user and assistant."""
+    """Show a summary of recent conversation messages between the user and assistant. Always send input as an empty string."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve conversation history."
@@ -571,7 +571,7 @@ def agent_show_conversation_summary(input: str = "") -> str:
 
 
 def agent_get_all_tasks(input: str = "") -> str:
-    """Get all tasks for the user (both completed and pending), up to 50. Use this only when the user explicitly asks for everything."""
+    """Get all tasks for the user, both completed and pending, up to 50. Always send input as an empty string. Use this only when the user explicitly asks for everything."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't retrieve tasks due to a server error."
@@ -586,7 +586,7 @@ def agent_get_all_tasks(input: str = "") -> str:
 
 
 def agent_complete_by_search(search_term: str) -> str:
-    """Find incomplete tasks matching a search term and mark them all as completed. Completes up to 10 matching tasks in one call."""
+    """Find incomplete tasks matching a search term and mark them all as completed. Send search_term as the task title or name fragment, not a task ID. Prefer this when the user names a task instead of giving an exact ID. Completes up to 10 matching tasks in one call."""
     try:
         tasks = _find_tasks_for_search(search_term, completed=False, limit=10)
         if not tasks:
@@ -609,7 +609,7 @@ def agent_complete_by_search(search_term: str) -> str:
 
 
 def agent_uncomplete_by_search(search_term: str) -> str:
-    """Find completed tasks matching a search term and reopen them all. Reopens up to 10 matching tasks in one call."""
+    """Find completed tasks matching a search term and reopen them all. Send search_term as the task title or name fragment, not a task ID. Prefer this when the user names a task instead of giving an exact ID. Reopens up to 10 matching tasks in one call."""
     try:
         tasks = _find_tasks_for_search(search_term, completed=True, limit=10)
         if not tasks:
@@ -632,7 +632,7 @@ def agent_uncomplete_by_search(search_term: str) -> str:
 
 
 def agent_update_by_search(search_term: str, title: str = "", description: str = "", priority: str = "", due_date: str = "", tags: str = "") -> str:
-    """Find tasks matching a search term and update the first match with the provided fields. Use this when the user refers to a task by name instead of ID. due_date should be passed as an exact ISO date like YYYY-MM-DD after reasoning from the user's request. tags is comma-separated tag names. If multiple tasks match, do not guess."""
+    """Find tasks matching a search term and update the first match with the provided fields. Always send every schema field when calling this tool. Send search_term as the task title or name fragment, not a task ID. Send title, description, priority, due_date, and tags as strings, using an empty string for fields you are not changing. Send priority only as HIGH, MEDIUM, or LOW when provided. Send due_date as a string; this tool accepts relative phrases like 'tomorrow', 'in 2 days', 'next monday', or an ISO date. Send tags as a comma-separated string like 'Coding,Work', or an empty string when unused. Use this when the user refers to a task by name instead of ID. If multiple tasks match, do not guess."""
     try:
         tasks = _find_tasks_for_search(search_term, limit=10)
         if not tasks:
@@ -685,7 +685,7 @@ def _response_mentions_unverified_task(response_text: str, grounded_tasks: List[
 
 
 def agent_verify_task_answer(draft_response: str, grounded_task_snapshot: str = "") -> str:
-    """Verify that a draft response does not reference task titles or details that do not exist in the user's actual tasks. Returns VERIFIED or UNVERIFIED."""
+    """Verify that a draft response does not reference task titles or details that do not exist in the user's actual tasks. Always send every schema field when calling this tool. Send draft_response as the candidate final reply. Send grounded_task_snapshot as a grounding summary string when available, or an empty string when unavailable. Returns VERIFIED or UNVERIFIED."""
     if not _tool_context:
         return "Verification unavailable."
     grounded_tasks = _find_tasks_for_user_search(_tool_context.db_session, _tool_context.user_id, "", None, 15)
@@ -697,7 +697,7 @@ def agent_verify_task_answer(draft_response: str, grounded_task_snapshot: str = 
 
 
 def agent_confirm_task_exists(task_id: str) -> str:
-    """Check whether a task with the given ID exists for this user. Returns verified task title or a not-found message. Always call this before update, delete, or toggle operations."""
+    """Check whether a task with the given ID exists for this user. Send task_id as a string containing digits like '12'. Use this before update, delete, or toggle operations when the task ID must be verified."""
     if not _tool_context:
         return "Task verification unavailable."
     try:
@@ -710,7 +710,7 @@ def agent_confirm_task_exists(task_id: str) -> str:
 
 
 def agent_get_grounded_task_context(search_term: str = "") -> str:
-    """Fetch verified task data for the current user. Returns compact lines with ID, status, priority, due date, and title. Use to ground your answer in real data."""
+    """Fetch verified task data for the current user. Always send search_term as a string, using an empty string for broad grounding or a task title/name fragment to narrow the result. Returns compact lines with ID, status, priority, due date, and title. Use this to ground your answer in real data before responding."""
     if not _tool_context:
         return "Grounding unavailable."
     tasks = _find_tasks_for_user_search(_tool_context.db_session, _tool_context.user_id, search_term, None, 8)
@@ -770,7 +770,7 @@ class AgentService:
     @staticmethod
     def _build_system_prompt(context, agent) -> str:
         return (
-            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When calling any tool, always provide every field defined in that tool's schema. For unused text fields, send an empty string. For boolean-like fields, send a real boolean only when the user wants that value changed. For agent_update_task specifically, send completed=true to mark complete, completed=false to mark incomplete, and completed=null when completion state should stay unchanged. Never send booleans as strings. When creating a new task, always call the create tool with both a clear title and a short, useful description. If the user gives only a title or a brief request, infer a concise description from their wording instead of leaving it blank. For updates, reason about the user's request before calling a tool: if the user refers to a task by name or phrase rather than an exact ID, prefer the search-based update tool instead of the ID-based update tool. Convert relative due-date requests such as 'tomorrow' or '2 days later' into an exact date string before calling an update tool. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
+            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When calling any tool, always provide every field defined in that tool's schema. For unused string fields, send an empty string. For nullable boolean fields, send null when the user is not changing or filtering by that boolean. For required booleans like confirmation flags, send a real boolean. Never send booleans as strings. For task IDs, send digit strings like '12'. For named task operations, prefer search-based tools and send task title fragments rather than IDs. For dummy-input tools, send input as an empty string. For tags fields, send a comma-separated string like 'Coding,Work' or an empty string. For priorities, use only HIGH, MEDIUM, or LOW. For create and update tools, reason about dates before calling tools, but send due_date as a string in the format that tool accepts; these tools can handle relative phrases like 'tomorrow', 'in 2 days', and 'next monday'. When creating a new task, always include a short useful description even if you must infer it from the user's request. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
         )
 
     def _build_input_text(self, content: str, conversation_history: Optional[List[Dict[str, Any]]] = None, user_info: Optional[Dict[str, str]] = None, task_context: str = "") -> str:
