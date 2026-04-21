@@ -1,10 +1,11 @@
 "use client";
 
 import { Check, Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
+import { useTags } from "@/hooks/useTags";
 import type { TagsChangedDetail } from "@/types/events";
 import type { Tag } from "@/types/tag";
 
@@ -14,61 +15,20 @@ type TagSelectorProps = {
 };
 
 const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
-  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [newTag, setNewTag] = useState("");
   const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { getToken } = useAuth();
-
-  const fetchTags = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const token = await getToken();
-      const params = new URLSearchParams({ limit: "100", offset: "0" });
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tags: ${response.status}`);
-      }
-
-      const tagsData = (await response.json()) as Tag[];
-      setAllTags(tagsData || []);
-    } catch {
-      setAllTags([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    void fetchTags();
-  }, [fetchTags]);
+  const { tags: allTags, isLoading } = useTags();
 
   useEffect(() => {
     const handleTagsChanged = (event: Event) => {
       const detail = (event as CustomEvent<TagsChangedDetail>).detail;
       if (!detail) return;
 
-      if (detail.type === "created") {
-        const createdTag = detail.tag;
-        setAllTags((prev) => (prev.some((tag) => tag.id === createdTag.id) ? prev : [...prev, createdTag]));
-      }
-
-      if (detail.type === "updated") {
-        const updatedTag = detail.tag;
-        setAllTags((prev) => prev.map((tag) => (tag.id === updatedTag.id ? { ...tag, ...updatedTag } : tag)));
-      }
-
       if (detail.type === "deleted") {
         const deletedTagId = detail.tagId;
-        setAllTags((prev) => prev.filter((tag) => tag.id !== deletedTagId));
         if (selectedTags.includes(deletedTagId)) {
           onTagsChange(selectedTags.filter((id) => id !== deletedTagId));
         }
@@ -89,7 +49,7 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
     if (!newTag.trim()) return;
 
     try {
-      setIsLoading(true);
+      setIsSubmitting(true);
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags`, {
@@ -110,7 +70,6 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
       }
 
       const createdTag = (await response.json()) as Tag;
-      setAllTags((prev) => [...prev, createdTag]);
       setNewTag("");
 
       if (!selectedTags.includes(createdTag.id)) {
@@ -128,7 +87,7 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
       setError(message);
       toast.error(message);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -190,7 +149,7 @@ const TagSelector = ({ selectedTags = [], onTagsChange }: TagSelectorProps) => {
             placeholder="New tag"
             className="input-shell min-w-0 w-full rounded-2xl px-4 py-3 text-sm"
           />
-          <button type="button" onClick={() => void createTag()} disabled={isLoading} className="action-button-secondary rounded-2xl px-4 py-3 shrink-0">
+          <button type="button" onClick={() => void createTag()} disabled={isLoading || isSubmitting} className="action-button-secondary rounded-2xl px-4 py-3 shrink-0">
             <Plus className="size-4" />
           </button>
         </div>

@@ -1,71 +1,31 @@
 "use client";
 
 import { Pencil, Tags, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
+import { useTags } from "@/hooks/useTags";
 import type { TagsChangedDetail } from "@/types/events";
 import type { Tag } from "@/types/tag";
 
 const TagList = () => {
-  const [tags, setTags] = useState<Tag[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [editingTagId, setEditingTagId] = useState<number | null>(null);
   const [editingTagName, setEditingTagName] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { getToken } = useAuth();
-
-  const fetchTags = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const token = await getToken();
-      const params = new URLSearchParams({ limit: "100", offset: "0" });
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch tags: ${response.status}`);
-      }
-
-      const tagsData = (await response.json()) as Tag[];
-      setTags(tagsData || []);
-    } catch {
-      setTags([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    void fetchTags();
-  }, [fetchTags]);
+  const { tags, isLoading: loading } = useTags();
 
   useEffect(() => {
     const handleTagsChanged = (event: Event) => {
       const detail = (event as CustomEvent<TagsChangedDetail>).detail;
       if (!detail) return;
 
-      if (detail.type === "created") {
-        const createdTag = detail.tag;
-        setTags((prev) => (prev.some((tag) => tag.id === createdTag.id) ? prev : [...prev, createdTag]));
-      }
-
-      if (detail.type === "updated") {
-        const updatedTag = detail.tag;
-        setTags((prev) => prev.map((tag) => (tag.id === updatedTag.id ? { ...tag, ...updatedTag } : tag)));
-      }
-
       if (detail.type === "deleted") {
         const deletedTagId = detail.tagId;
-        setTags((prev) => prev.filter((tag) => tag.id !== deletedTagId));
         if (editingTagId === deletedTagId) {
           setEditingTagId(null);
           setEditingTagName("");
@@ -82,7 +42,7 @@ const TagList = () => {
     if (!newTagName.trim()) return;
 
     try {
-      setLoading(true);
+      setIsSubmitting(true);
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags`, {
@@ -100,7 +60,6 @@ const TagList = () => {
       }
 
       const createdTag = (await response.json()) as Tag;
-      setTags((prev) => [...prev, createdTag]);
       setNewTagName("");
       window.dispatchEvent(new CustomEvent<TagsChangedDetail>("tags:changed", { detail: { type: "created", tag: createdTag } }));
       toast.success("Tag created");
@@ -109,13 +68,13 @@ const TagList = () => {
       setError(message);
       toast.error(message);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const updateTag = async (tagId: number) => {
     try {
-      setLoading(true);
+      setIsSubmitting(true);
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags/${tagId}`, {
@@ -133,7 +92,6 @@ const TagList = () => {
       }
 
       const updatedTag = (await response.json()) as Tag;
-      setTags((prev) => prev.map((tag) => (tag.id === tagId ? updatedTag : tag)));
       setEditingTagId(null);
       setEditingTagName("");
       window.dispatchEvent(new CustomEvent<TagsChangedDetail>("tags:changed", { detail: { type: "updated", tag: updatedTag } }));
@@ -143,7 +101,7 @@ const TagList = () => {
       setError(message);
       toast.error(message);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -153,7 +111,7 @@ const TagList = () => {
     }
 
     try {
-      setLoading(true);
+      setIsSubmitting(true);
       setError(null);
       const token = await getToken();
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tags/${tagId}`, {
@@ -166,7 +124,6 @@ const TagList = () => {
         throw new Error(errorData.detail || `Failed to delete tag: ${response.status}`);
       }
 
-      setTags((prev) => prev.filter((tag) => tag.id !== tagId));
       window.dispatchEvent(new CustomEvent<TagsChangedDetail>("tags:changed", { detail: { type: "deleted", tagId } }));
       toast.success("Tag deleted");
     } catch (err) {
@@ -174,7 +131,7 @@ const TagList = () => {
       setError(message);
       toast.error(message);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -207,7 +164,7 @@ const TagList = () => {
               placeholder="Add a reusable label"
               className="input-shell flex-1 rounded-2xl px-4 py-3 text-sm"
             />
-            <button type="submit" disabled={loading} className="btn-press action-button-primary rounded-2xl px-4 py-3 text-sm">
+            <button type="submit" disabled={loading || isSubmitting} className="btn-press action-button-primary rounded-2xl px-4 py-3 text-sm">
               Add
             </button>
           </form>
