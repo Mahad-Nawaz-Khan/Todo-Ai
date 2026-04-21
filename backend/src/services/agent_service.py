@@ -291,8 +291,8 @@ def agent_list_tags(input: str = "") -> str:
         return f"Sorry, I couldn't retrieve tags. Error: {str(e)}"
 
 
-def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", completed: Optional[bool] = None, due_date: str = "", tags: str = "") -> str:
-    """Update an existing task by its ID. Only the fields you provide will be changed. Verifies the task exists before updating. Always send every schema field when calling this tool. Send task_id as a string. Send title, description, priority, due_date, and tags as strings, using an empty string for fields you are not changing. Send completed as a real boolean only when the user wants to change completion state; otherwise send null. priority must be HIGH, MEDIUM, or LOW when provided. due_date should be passed as an exact ISO date like YYYY-MM-DD after reasoning from the user's request. tags is comma-separated tag names."""
+def agent_update_task(task_id: str, title: str = "", description: str = "", priority: str = "", due_date: str = "", tags: str = "") -> str:
+    """Update an existing task by its ID without changing completion state. Always send every schema field when calling this tool. Send task_id as a string containing digits like '12'. Send title, description, priority, due_date, and tags as strings, using an empty string for fields you are not changing. Never use this tool to mark a task complete or incomplete; use agent_toggle_task, agent_complete_by_search, or agent_uncomplete_by_search instead. Send priority only as HIGH, MEDIUM, or LOW when provided. Send due_date as a string; this tool accepts relative phrases like 'tomorrow', 'in 2 days', 'next monday', or an ISO date. Send tags as a comma-separated string like 'Coding,Work', or an empty string when unused."""
     global _tool_context
     if not _tool_context:
         return "I'm sorry, I couldn't update the task due to a server error."
@@ -312,8 +312,6 @@ def agent_update_task(task_id: str, title: str = "", description: str = "", prio
             update_data["description"] = description
         if priority:
             update_data["priority"] = priority
-        if completed is not None:
-            update_data["completed"] = completed
         if parsed_due_date:
             update_data["due_date"] = parsed_due_date
         if tags:
@@ -770,7 +768,7 @@ class AgentService:
     @staticmethod
     def _build_system_prompt(context, agent) -> str:
         return (
-            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When calling any tool, always provide every field defined in that tool's schema. For unused string fields, send an empty string. For nullable boolean fields, send null when the user is not changing or filtering by that boolean. For required booleans like confirmation flags, send a real boolean. Never send booleans as strings. For task IDs, send digit strings like '12'. For named task operations, prefer search-based tools and send task title fragments rather than IDs. For dummy-input tools, send input as an empty string. For tags fields, send a comma-separated string like 'Coding,Work' or an empty string. For priorities, use only HIGH, MEDIUM, or LOW. For create and update tools, reason about dates before calling tools, but send due_date as a string in the format that tool accepts; these tools can handle relative phrases like 'tomorrow', 'in 2 days', and 'next monday'. When creating a new task, always include a short useful description even if you must infer it from the user's request. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
+            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When calling any tool, always provide every field defined in that tool's schema. For unused string fields, send an empty string. For nullable boolean filter fields, send null when the user is not filtering by that boolean. For required booleans like confirmation flags, send a real boolean. Never send booleans as strings. For task IDs, send digit strings like '12'. For named task operations, prefer search-based tools and send task title fragments rather than IDs. For dummy-input tools, send input as an empty string. For tags fields, send a comma-separated string like 'Coding,Work' or an empty string. For priorities, use only HIGH, MEDIUM, or LOW. For create and update tools, reason about dates before calling tools, but send due_date as a string in the format that tool accepts; these tools can handle relative phrases like 'tomorrow', 'in 2 days', and 'next monday'. Do not use agent_update_task to change completion state. If the user wants to mark tasks complete or incomplete, use agent_toggle_task when you have a verified task ID, agent_complete_by_search when the user names an open task to complete, or agent_uncomplete_by_search when the user names a completed task to reopen. When creating a new task, always include a short useful description even if you must infer it from the user's request. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
         )
 
     def _build_input_text(self, content: str, conversation_history: Optional[List[Dict[str, Any]]] = None, user_info: Optional[Dict[str, str]] = None, task_context: str = "") -> str:
