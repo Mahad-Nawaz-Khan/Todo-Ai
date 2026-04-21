@@ -954,9 +954,20 @@ class AgentService:
                 if isinstance(schema, dict):
                     schema.pop("title", None)
                     if schema.get("type") == "object":
-                        schema.setdefault("properties", {})
-                        if "required" in schema and not isinstance(schema.get("properties"), dict):
-                            schema["properties"] = {}
+                        properties = schema.setdefault("properties", {})
+                        if not isinstance(properties, dict):
+                            properties = {}
+                            schema["properties"] = properties
+                        required = schema.get("required")
+                        if isinstance(required, list):
+                            schema["required"] = [
+                                name for name in required
+                                if name in properties and "default" not in (properties.get(name) or {})
+                            ]
+                            if not schema["required"]:
+                                schema.pop("required", None)
+                        elif "required" in schema and required is None:
+                            schema.pop("required", None)
             self._agent = Agent(name="TaskManagerOrchestrator", instructions=self._build_system_prompt, tools=self._tools)
             self._initialized = True
         except ImportError as error:
