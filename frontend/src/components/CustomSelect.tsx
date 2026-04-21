@@ -35,6 +35,7 @@ export const CustomSelect = ({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (autoFocus && buttonRef.current) {
@@ -46,7 +47,12 @@ export const CustomSelect = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        buttonRef.current &&
+        !buttonRef.current.contains(target) &&
+        (!dropdownRef.current || !dropdownRef.current.contains(target))
+      ) {
         setIsOpen(false);
       }
     };
@@ -161,6 +167,7 @@ export const CustomSelect = ({
         dropdownPosition &&
         createPortal(
           <div
+            ref={dropdownRef}
             className="absolute z-9999 overflow-hidden rounded-[20px] border border-white/10 bg-[rgba(12,16,24,0.98)] py-2 shadow-[0_24px_60px_rgba(0,0,0,0.5)] backdrop-blur-xl"
             style={{
               top: dropdownPosition.top,
