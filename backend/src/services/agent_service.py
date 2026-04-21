@@ -770,7 +770,7 @@ class AgentService:
     @staticmethod
     def _build_system_prompt(context, agent) -> str:
         return (
-            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When creating a new task, always call the create tool with both a clear title and a short, useful description. If the user gives only a title or a brief request, infer a concise description from their wording instead of leaving it blank. For updates, reason about the user's request before calling a tool: if the user refers to a task by name or phrase rather than an exact ID, prefer the search-based update tool instead of the ID-based update tool. Convert relative due-date requests such as 'tomorrow' or '2 days later' into an exact date string before calling an update tool. Only pass completed as a real boolean, never as text. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
+            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When calling any tool, always provide every field defined in that tool's schema, using empty strings for unused text fields, false only when the user explicitly wants an incomplete state, and the correct default-style values when a field is not being changed. When creating a new task, always call the create tool with both a clear title and a short, useful description. If the user gives only a title or a brief request, infer a concise description from their wording instead of leaving it blank. For updates, reason about the user's request before calling a tool: if the user refers to a task by name or phrase rather than an exact ID, prefer the search-based update tool instead of the ID-based update tool. Convert relative due-date requests such as 'tomorrow' or '2 days later' into an exact date string before calling an update tool. Only pass completed as a real boolean, never as text. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
         )
 
     def _build_input_text(self, content: str, conversation_history: Optional[List[Dict[str, Any]]] = None, user_info: Optional[Dict[str, str]] = None, task_context: str = "") -> str:
@@ -948,7 +948,7 @@ class AgentService:
                 function_tool(agent_show_conversation_summary), function_tool(agent_get_grounded_task_context), function_tool(agent_confirm_task_exists), function_tool(agent_verify_task_answer),
                 self._verifier_agent.as_tool(tool_name="task_answer_verifier", tool_description="Check whether a draft task response is supported by grounded task evidence before the final reply."),
             ]
-            # Normalize tool schemas for providers that are stricter than OpenAI.
+            # Normalize tool schemas for providers that require strict object schemas.
             for tool in self._tools:
                 schema = getattr(tool, "params_json_schema", None)
                 if isinstance(schema, dict):
@@ -958,16 +958,10 @@ class AgentService:
                         if not isinstance(properties, dict):
                             properties = {}
                             schema["properties"] = properties
-                        required = schema.get("required")
-                        if isinstance(required, list):
-                            schema["required"] = [
-                                name for name in required
-                                if name in properties and "default" not in (properties.get(name) or {})
-                            ]
-                            if not schema["required"]:
-                                schema.pop("required", None)
-                        elif "required" in schema and required is None:
-                            schema.pop("required", None)
+                        schema["required"] = list(properties.keys())
+                        schema["additionalProperties"] = False
+                    elif "required" in schema and schema["required"] is None:
+                        schema.pop("required", None)
             self._agent = Agent(name="TaskManagerOrchestrator", instructions=self._build_system_prompt, tools=self._tools)
             self._initialized = True
         except ImportError as error:
