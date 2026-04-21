@@ -33,7 +33,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
   const [filters, setFilters] = useState<TaskFilters>({ completed: null, priority: "", search: "" });
   const [searchInput, setSearchInput] = useState("");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ sortBy: "created_at", order: "desc" });
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(() => (typeof window !== "undefined" ? window.innerWidth >= 768 : true));
   const { getToken } = useAuth();
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
