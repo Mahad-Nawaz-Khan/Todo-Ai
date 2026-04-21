@@ -199,9 +199,64 @@ class ChatService {
             const decoder = new TextDecoder();
             let buffer = '';
 
+            const processEventBlock = (eventBlock: string): boolean => {
+              const dataLine = eventBlock
+                .split('\n')
+                .find((line) => line.startsWith('data: '));
+
+              if (!dataLine) {
+                return false;
+              }
+
+              const data = dataLine.slice(6);
+              if (data === '[DONE]') {
+                return false;
+              }
+
+              try {
+                const parsed = JSON.parse(data) as StreamEvent & {
+                  message?: ChatResponse['message'];
+                };
+
+                if (parsed.type === 'content_delta') {
+                  callbacks.onContent(parsed.content || '');
+                } else if (parsed.type === 'tool_call') {
+                  callbacks.onToolCall?.(parsed.tool || '', parsed.args);
+                } else if (parsed.type === 'tool_output') {
+                  callbacks.onToolOutput?.(parsed.output);
+                } else if (parsed.type === 'final') {
+                  callbacks.onDone({
+                    message:
+                      parsed.message || {
+                        id: Date.now().toString(),
+                        content: parsed.content || '',
+                        sender_type: 'AI',
+                        created_at: new Date().toISOString(),
+                      },
+                    operation_performed: parsed.operation_performed,
+                    model_used: parsed.model_used,
+                  });
+                  controller.abort();
+                  return true;
+                } else if (parsed.type === 'error') {
+                  callbacks.onError(parsed.content || 'Unknown error');
+                  controller.abort();
+                  return true;
+                }
+              } catch {
+                // Ignore malformed SSE chunks.
+              }
+
+              return false;
+            };
+
             const readStream = (): Promise<void> => {
               return reader.read().then(({ done, value }) => {
                 if (done) {
+                  const finalChunk = buffer.trim();
+                  if (finalChunk) {
+                    processEventBlock(finalChunk);
+                  }
                   return Promise.resolve();
                 }
 
@@ -210,51 +265,8 @@ class ChatService {
                 buffer = events.pop() || '';
 
                 for (const eventBlock of events) {
-                  const dataLine = eventBlock
-                    .split('\n')
-                    .find((line) => line.startsWith('data: '));
-
-                  if (!dataLine) {
-                    continue;
-                  }
-
-                  const data = dataLine.slice(6);
-                  if (data === '[DONE]') {
-                    continue;
-                  }
-
-                  try {
-                    const parsed = JSON.parse(data) as StreamEvent & {
-                      message?: ChatResponse['message'];
-                    };
-
-                    if (parsed.type === 'content_delta') {
-                      callbacks.onContent(parsed.content || '');
-                    } else if (parsed.type === 'tool_call') {
-                      callbacks.onToolCall?.(parsed.tool || '', parsed.args);
-                    } else if (parsed.type === 'tool_output') {
-                      callbacks.onToolOutput?.(parsed.output);
-                    } else if (parsed.type === 'final') {
-                      callbacks.onDone({
-                        message:
-                          parsed.message || {
-                            id: Date.now().toString(),
-                            content: parsed.content || '',
-                            sender_type: 'AI',
-                            created_at: new Date().toISOString(),
-                          },
-                        operation_performed: parsed.operation_performed,
-                        model_used: parsed.model_used,
-                      });
-                      controller.abort();
-                      return Promise.resolve();
-                    } else if (parsed.type === 'error') {
-                      callbacks.onError(parsed.content || 'Unknown error');
-                      controller.abort();
-                      return Promise.resolve();
-                    }
-                  } catch {
-                    // Ignore malformed SSE chunks.
+                  if (processEventBlock(eventBlock)) {
+                    return Promise.resolve();
                   }
                 }
 
