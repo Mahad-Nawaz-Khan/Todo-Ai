@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
 
-from openai.types.responses import ResponseTextDeltaEvent
 from sqlmodel import Session, select
 
 from ..models.chat_models import IntentDetectionResult, IntentTypeEnum
@@ -996,8 +995,16 @@ class AgentService:
             input_text = self._build_input_text(content, conversation_history, user_info, self._last_task_context)
             streamed_result, provider_label = await self._run_streamed_with_provider_fallback(input_text)
             async for event in streamed_result.stream_events():
-                if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent) and event.data.delta:
-                    yield {"type": "content_delta", "content": event.data.delta}
+                if event.type == "run_item_stream_event":
+                    item = getattr(event, "item", None)
+                    item_type = getattr(item, "type", "")
+                    if item_type == "tool_call_item":
+                        raw_item = getattr(item, "raw_item", None)
+                        tool_name = getattr(raw_item, "name", "tool") or "tool"
+                        tool_args = getattr(raw_item, "arguments", None)
+                        yield {"type": "tool_call", "tool": tool_name, "args": tool_args}
+                    elif item_type == "tool_call_output_item":
+                        yield {"type": "tool_output", "output": getattr(item, "output", None)}
             yield await self._build_stream_final(streamed_result, provider_label)
         except Exception as error:
             logger.error(f"Error processing message with OpenAI Agents SDK (streamed): {error}")

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
-import chatService from '@/services/chatService';
+import chatService, { type ChatProgressEvent } from '@/services/chatService';
 
 interface Message {
   id: string;
@@ -21,6 +21,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(chatService.getSessionId());
   const [operationPerformed, setOperationPerformed] = useState<unknown>(null);
+  const [progressEvents, setProgressEvents] = useState<ChatProgressEvent[]>([]);
   const operationTimerRef = useRef(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   const typingAnimationRef = useRef(0);
@@ -108,6 +109,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
+    setProgressEvents([]);
 
     const aiMessageId = (Date.now() + 1).toString();
     const aiPlaceholder: Message = {
@@ -121,35 +123,18 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
     try {
       if (enableStreaming) {
-        let pendingDelta = '';
-
-        const flushStreamDelta = () => {
-          if (!pendingDelta) return;
-          const deltaToFlush = pendingDelta;
-          pendingDelta = '';
-          streamRafRef.current = 0;
-          setMessages((prev) =>
-            prev.map((msg) => (msg.id === aiMessageId ? { ...msg, text: msg.text + deltaToFlush } : msg))
-          );
-        };
-
         abortControllerRef.current = chatService.sendMessageStream(text, {
-          onContent: (delta: string) => {
-            pendingDelta += delta;
-            if (!streamRafRef.current) {
-              streamRafRef.current = requestAnimationFrame(flushStreamDelta);
-            }
+          onToolCall: (tool, args) => {
+            setProgressEvents((prev) => [...prev, { kind: 'tool_call', tool, args }]);
+          },
+          onToolOutput: (output) => {
+            setProgressEvents((prev) => [...prev, { kind: 'tool_output', output }]);
           },
           onDone: (response) => {
             if (operationTimerRef.current) {
               window.clearTimeout(operationTimerRef.current);
               operationTimerRef.current = 0;
             }
-            if (streamRafRef.current) {
-              cancelAnimationFrame(streamRafRef.current);
-              streamRafRef.current = 0;
-            }
-            pendingDelta = '';
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === aiMessageId
@@ -176,11 +161,6 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
             abortControllerRef.current = null;
           },
           onError: () => {
-            if (streamRafRef.current) {
-              cancelAnimationFrame(streamRafRef.current);
-              streamRafRef.current = 0;
-            }
-            pendingDelta = '';
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === aiMessageId
@@ -259,6 +239,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
     } finally {
       setMessages([]);
       setOperationPerformed(null);
+      setProgressEvents([]);
       setSessionId(chatService.getSessionId());
     }
   }, []);
@@ -268,6 +249,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
       await chatService.clearHistory();
       setMessages([]);
       setOperationPerformed(null);
+      setProgressEvents([]);
       setSessionId(chatService.getSessionId());
     } catch {}
   }, []);
@@ -289,6 +271,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
     loadHistory,
     sessionId,
     operationPerformed,
+    progressEvents,
     formatMessage,
   };
 };

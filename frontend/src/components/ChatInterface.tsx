@@ -11,6 +11,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  Wrench,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -149,6 +150,38 @@ const OperationCard = memo(function OperationCard({
   );
 });
 
+const ProgressCard = memo(function ProgressCard({
+  progressEvents,
+}: {
+  progressEvents: { kind: "tool_call" | "tool_output"; tool?: string; args?: unknown; output?: unknown }[];
+}) {
+  if (!progressEvents.length) return null;
+
+  const recentEvents = progressEvents.slice(-4);
+
+  return (
+    <div className="animate-fade-in-up-tiny overflow-hidden rounded-[20px] border border-white/8 bg-white/4 p-3.5">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-(--accent-ice)">
+          <Wrench className="size-4" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-white">Working on it</div>
+          <div className="mt-2 space-y-1.5 text-sm text-(--text-secondary)">
+            {recentEvents.map((event, index) => (
+              <div key={`${event.kind}-${event.tool || "output"}-${index}`} className="truncate">
+                {event.kind === "tool_call"
+                  ? `Using ${event.tool || "tool"}`
+                  : "Processed tool result"}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const ChatBubble = memo(function ChatBubble({
   message,
   formatMessage,
@@ -272,6 +305,7 @@ const ChatInterface = ({
     formatMessage,
     sessionId,
     operationPerformed,
+    progressEvents,
   } = useChat(initialMessages, {
     autoLoadHistory: !initialMessages.length,
     enableStreaming: true,
@@ -435,10 +469,11 @@ const ChatInterface = ({
                 </div>
               </div>
 
-              {/* Operation status (auto-dismiss) */}
-              {operationMeta && (
-                <div className="border-b border-white/8 px-4 py-3">
-                  <OperationCard operation={operationPerformed} />
+              {/* Progress / operation status */}
+              {(progressEvents.length > 0 || operationMeta) && (
+                <div className="space-y-3 border-b border-white/8 px-4 py-3">
+                  {progressEvents.length > 0 ? <ProgressCard progressEvents={progressEvents} /> : null}
+                  {operationMeta ? <OperationCard operation={operationPerformed} /> : null}
                 </div>
               )}
 
@@ -482,13 +517,12 @@ const ChatInterface = ({
                           isWidget
                         />
                       ))}
-                    {isLoading &&
-                      !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
-                        <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 border-(--bg-strong) px-3 py-2 text-xs text-(--text-dim)">
-                          <LoaderCircle className="thinking-spinner size-3.5 text-(--accent-ice)" />
-                          <span>Thinking<span className="thinking-dot">.</span><span className="thinking-dot">.</span><span className="thinking-dot">.</span></span>
-                        </div>
-                      )}
+                    {isLoading && progressEvents.length === 0 && (
+                      <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 border-(--bg-strong) px-3 py-2 text-xs text-(--text-dim)">
+                        <LoaderCircle className="thinking-spinner size-3.5 text-(--accent-ice)" />
+                        <span>Preparing response</span>
+                      </div>
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
                 )}
@@ -605,15 +639,14 @@ const ChatInterface = ({
               </>
             )}
 
-            {isLoading &&
-              !messages.some((m) => m.sender === "ai" && m.isStreaming && m.text) && (
-                <div className="flex justify-start">
-                  <div className="inline-flex items-center gap-3 rounded-[22px] border border-white/8 border-(--bg-strong) px-4 py-3 text-sm text-(--text-dim)">
-                    <LoaderCircle className="thinking-spinner size-4 text-(--accent-ice)" />
-                    <span>Thinking<span className="thinking-dot">.</span><span className="thinking-dot">.</span><span className="thinking-dot">.</span></span>
-                  </div>
+            {isLoading && progressEvents.length === 0 && (
+              <div className="flex justify-start">
+                <div className="inline-flex items-center gap-3 rounded-[22px] border border-white/8 border-(--bg-strong) px-4 py-3 text-sm text-(--text-dim)">
+                  <LoaderCircle className="thinking-spinner size-4 text-(--accent-ice)" />
+                  <span>Preparing response</span>
                 </div>
-              )}
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -653,10 +686,10 @@ const ChatInterface = ({
         {/* Context panel (desktop only) */}
         <aside className="hidden border-l border-white/8 lg:flex lg:w-[300px] lg:flex-col">
           <div className="flex-1 overflow-y-auto p-4">
-            {/* Last action */}
-            {operationMeta && (
-              <div className="mb-4">
-                <OperationCard operation={operationPerformed} />
+            {(progressEvents.length > 0 || operationMeta) && (
+              <div className="mb-4 space-y-4">
+                {progressEvents.length > 0 ? <ProgressCard progressEvents={progressEvents} /> : null}
+                {operationMeta ? <OperationCard operation={operationPerformed} /> : null}
               </div>
             )}
 

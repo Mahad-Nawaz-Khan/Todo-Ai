@@ -63,10 +63,16 @@ interface StreamEvent {
   model_used?: string;
 }
 
+export interface ChatProgressEvent {
+  kind: 'tool_call' | 'tool_output';
+  tool?: string;
+  args?: unknown;
+  output?: unknown;
+}
+
 type TokenGetter = () => Promise<string | null>;
 
 type StreamCallbacks = {
-  onContent: (delta: string) => void;
   onToolCall?: (tool: string, args: unknown) => void;
   onToolOutput?: (output: unknown) => void;
   onDone: (response: ChatResponse) => void;
@@ -218,9 +224,7 @@ class ChatService {
                   message?: ChatResponse['message'];
                 };
 
-                if (parsed.type === 'content_delta') {
-                  callbacks.onContent(parsed.content || '');
-                } else if (parsed.type === 'tool_call') {
+                if (parsed.type === 'tool_call') {
                   callbacks.onToolCall?.(parsed.tool || '', parsed.args);
                 } else if (parsed.type === 'tool_output') {
                   callbacks.onToolOutput?.(parsed.output);
