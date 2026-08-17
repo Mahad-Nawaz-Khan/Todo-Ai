@@ -4,7 +4,7 @@ import { ListFilter, Search, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useDeferredValue, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
-import type { TagsChangedDetail } from "@/types/events";
+import type { ApplyTaskViewDetail, TagsChangedDetail } from "@/types/events";
 import type { Priority, Task } from "@/types/task";
 
 import { CustomSelect } from "./CustomSelect";
@@ -123,6 +123,38 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
     window.addEventListener("tasksUpdated", handleTasksUpdated);
     return () => window.removeEventListener("tasksUpdated", handleTasksUpdated);
   }, [fetchTasksFromAPI]);
+
+  // AI assistant: apply requested filter/sort changes to the visible list
+  useEffect(() => {
+    const handleApplyTaskView = (event: Event) => {
+      const detail = (event as CustomEvent<ApplyTaskViewDetail>).detail;
+      if (!detail || typeof detail !== "object") return;
+
+      const validPriorities = ["", "HIGH", "MEDIUM", "LOW"];
+      const validSorts: SortConfig["sortBy"][] = ["created_at", "updated_at", "due_date", "priority"];
+
+      setFilters((prev) => ({
+        ...prev,
+        completed:
+          detail.completed === null || detail.completed === true || detail.completed === false
+            ? detail.completed
+            : prev.completed,
+        priority:
+          detail.priority !== undefined && validPriorities.includes(detail.priority)
+            ? (detail.priority as TaskFilters["priority"])
+            : prev.priority,
+      }));
+      setSortConfig((prev) => ({
+        sortBy: validSorts.includes(detail.sortBy as SortConfig["sortBy"])
+          ? (detail.sortBy as SortConfig["sortBy"])
+          : prev.sortBy,
+        order: detail.order === "asc" || detail.order === "desc" ? detail.order : prev.order,
+      }));
+    };
+
+    window.addEventListener("todo:apply-task-view", handleApplyTaskView);
+    return () => window.removeEventListener("todo:apply-task-view", handleApplyTaskView);
+  }, []);
 
   useEffect(() => {
     return () => abortControllerRef.current?.abort();

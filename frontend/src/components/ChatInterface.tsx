@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Bot,
   CheckCircle2,
+  ListFilter,
   LoaderCircle,
   MessageSquareText,
   PencilLine,
@@ -60,6 +61,16 @@ function getOperationMeta(operation: unknown) {
   const op = operation as { type?: string; count?: number; task_id?: number };
   const type = op.type?.toUpperCase() || "ACTION";
 
+  if (type.includes("SET_TASK_VIEW")) {
+    return {
+      label: "View updated",
+      detail: "The task list filters and sorting now match your request.",
+      icon: ListFilter,
+      accent: "var(--accent-amber)",
+      bg: "rgba(248,197,108,0.08)",
+      border: "rgba(248,197,108,0.18)",
+    };
+  }
   if (type.includes("CREATE")) {
     return {
       label: "Created",

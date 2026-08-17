@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useAuth } from '@/context/AuthContext';
-import chatService, { type ChatProgressEvent } from '@/services/chatService';
+import chatService, { type ChatProgressEvent, type ChatResponse } from '@/services/chatService';
 
 interface Message {
   id: string;
@@ -9,6 +9,14 @@ interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   isStreaming?: boolean;
+}
+
+type OperationPerformed = NonNullable<ChatResponse['operation_performed']>;
+
+function applyOperationSideEffects(operation: OperationPerformed) {
+  if (operation.type === 'set_task_view' && operation.view) {
+    window.dispatchEvent(new CustomEvent('todo:apply-task-view', { detail: operation.view }));
+  }
 }
 
 interface UseChatOptions {
@@ -157,6 +165,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
             if (response.operation_performed) {
               setOperationPerformed(response.operation_performed);
+              applyOperationSideEffects(response.operation_performed);
               operationTimerRef.current = window.setTimeout(() => {
                 setOperationPerformed(null);
                 operationTimerRef.current = 0;
@@ -216,6 +225,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
 
           if (response.operation_performed) {
             setOperationPerformed(response.operation_performed);
+            applyOperationSideEffects(response.operation_performed);
             operationTimerRef.current = window.setTimeout(() => {
               setOperationPerformed(null);
               operationTimerRef.current = 0;

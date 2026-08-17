@@ -9,6 +9,13 @@ export interface ChatMessage {
   timestamp: Date;
 }
 
+export interface TaskViewAction {
+  completed?: boolean | null;
+  priority?: string;
+  sortBy?: 'created_at' | 'updated_at' | 'due_date' | 'priority';
+  order?: 'asc' | 'desc';
+}
+
 export interface ChatResponse {
   message: {
     id: string;
@@ -22,6 +29,7 @@ export interface ChatResponse {
     result?: unknown;
     count?: number;
     task_id?: number;
+    view?: TaskViewAction;
   };
   model_used?: string;
 }

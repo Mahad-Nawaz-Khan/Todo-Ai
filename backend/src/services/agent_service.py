@@ -646,6 +646,44 @@ def _response_mentions_unverified_task(response_text: str, grounded_tasks: List[
     return False
 
 
+def agent_set_task_view(ctx: RunContextWrapper, status: str = "", priority: str = "", sort_by: str = "", order: str = "") -> str:
+    """Change how the task list is displayed in the app UI instead of listing tasks in chat. Use whenever the user asks to show, hide, focus, or sort the visible task list (e.g. 'show me only high priority', 'hide completed', 'just my overdue stuff', 'sort by due date'). status is ALL, PENDING (open only), or COMPLETED (done only). priority is HIGH, MEDIUM, LOW, or ALL. sort_by is due_date, priority, created_at, or updated_at. order is asc or desc. Send an empty string for anything to leave unchanged."""
+    context = ctx.context
+    try:
+        view: Dict[str, Any] = {}
+        status_norm = status.strip().upper()
+        if status_norm in ("ALL", "PENDING", "OPEN", "ACTIVE", "COMPLETED", "DONE"):
+            view["completed"] = None if status_norm == "ALL" else status_norm in ("COMPLETED", "DONE")
+        priority_norm = priority.strip().upper()
+        if priority_norm == "ALL":
+            view["priority"] = ""
+        elif priority_norm in ("HIGH", "MEDIUM", "LOW"):
+            view["priority"] = priority_norm
+        sort_aliases = {"due_date": "due_date", "duedate": "due_date", "due": "due_date", "date": "due_date",
+                        "priority": "priority", "created_at": "created_at", "created": "created_at",
+                        "updated_at": "updated_at", "updated": "updated_at"}
+        sort_norm = sort_aliases.get(sort_by.strip().lower())
+        if sort_norm:
+            view["sortBy"] = sort_norm
+        order_norm = order.strip().lower()
+        if order_norm in ("asc", "desc"):
+            view["order"] = order_norm
+        if not view:
+            return "No view changes requested; nothing was updated."
+        _mark_operation_performed(context, "set_task_view", {"view": view})
+        summary = ", ".join(
+            [
+                "all tasks" if view.get("completed") is None else ("completed only" if view["completed"] else "open tasks only"),
+                f"priority {view['priority'] or 'any'}" if "priority" in view else "",
+                f"sorted by {view['sortBy']} {view.get('order', '')}".strip() if "sortBy" in view else "",
+            ]
+        )
+        return f"✓ Task view updated: {', '.join(s for s in summary.split(', ') if s)}."
+    except Exception:
+        logger.exception("Error setting task view")
+        return "Sorry, I couldn't update the task view. Please try again."
+
+
 def agent_verify_task_answer(ctx: RunContextWrapper, draft_response: str, grounded_task_snapshot: str = "") -> str:
     """Verify a draft reply only references tasks that really exist. Returns VERIFIED or UNVERIFIED."""
     context = ctx.context
@@ -778,6 +816,7 @@ class AgentService:
             "Only agent_toggle_task, agent_complete_by_search, and agent_uncomplete_by_search may change completion state. "
             "Call agent_get_current_date before resolving relative dates like 'tomorrow' or 'next monday', then pass the phrase itself to the tool. "
             "When creating a task, always include a short description, inferring one from the request if needed. "
+            "When the user wants the task list itself to show only certain tasks or in a certain order (e.g. 'show me only high priority', 'hide completed', 'sort by due date'), call agent_set_task_view and confirm in one line instead of listing the tasks in chat. "
             "Reply in Markdown (the chat renders it). Format by response type — "
             "multiple tasks: a `- [x]`/`- [ ]` task list, one per task, like `- [ ] **Buy groceries** · HIGH · due Fri Aug 21`; "
             "single task details: short bold-labeled lines like `**Due:** Fri Aug 21`; "
@@ -984,7 +1023,7 @@ class AgentService:
             self._tools = [
                 function_tool(agent_create_task), function_tool(agent_create_tag), function_tool(agent_get_all_tasks), function_tool(agent_get_current_date), function_tool(agent_list_tags),
                 function_tool(agent_update_task), function_tool(agent_update_by_search), function_tool(agent_toggle_task), function_tool(agent_complete_by_search), function_tool(agent_uncomplete_by_search),
-                function_tool(agent_delete_task), function_tool(agent_delete_by_search), function_tool(agent_delete_completed_tasks), function_tool(agent_delete_all_tasks), function_tool(agent_search_tasks), function_tool(agent_list_tasks), function_tool(agent_get_task),
+                function_tool(agent_delete_task), function_tool(agent_delete_by_search), function_tool(agent_delete_completed_tasks), function_tool(agent_delete_all_tasks), function_tool(agent_search_tasks), function_tool(agent_list_tasks), function_tool(agent_get_task), function_tool(agent_set_task_view),
                 function_tool(agent_show_conversation_summary), function_tool(agent_get_grounded_task_context), function_tool(agent_confirm_task_exists), function_tool(agent_verify_task_answer),
                 self._verifier_agent.as_tool(tool_name="task_answer_verifier", tool_description="Check whether a draft task response is supported by grounded task evidence before the final reply."),
             ]
