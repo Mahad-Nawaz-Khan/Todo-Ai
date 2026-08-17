@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -67,14 +68,14 @@ async def lifespan(app: FastAPI):
 
         if agent_service.is_available():
             app.state.agent_service = agent_service
-            print("✓ OpenAI Agents SDK initialized successfully")
+            logger.info("OpenAI Agents SDK initialized successfully")
         else:
-            print("⚠ OpenAI Agents SDK not available - falling back to rule-based processing")
-            print("  To enable: Set GROQ_API_KEY environment variable")
+            logger.warning("OpenAI Agents SDK not available - falling back to rule-based processing")
+            logger.warning("To enable: Set GROQ_API_KEY environment variable")
             app.state.agent_service = None
     except Exception as e:
-        print(f"⚠ Warning: Could not initialize OpenAI Agents SDK: {e}")
-        print("  Falling back to rule-based processing")
+        logger.warning(f"Could not initialize OpenAI Agents SDK: {e}")
+        logger.warning("Falling back to rule-based processing")
         app.state.agent_service = None
 
     yield

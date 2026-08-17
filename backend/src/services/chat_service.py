@@ -5,7 +5,7 @@ Chat Service - Core chatbot business logic with intent classification
 import logging
 import re
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from sqlmodel import Session, select
 from ..models.chat_models import (
@@ -23,6 +23,10 @@ from ..models.user import User
 
 
 logger = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class ChatService:
@@ -64,8 +68,7 @@ class ChatService:
             # Update task patterns
             IntentTypeEnum.UPDATE_TASK: [
                 r'\b(update|change|edit|modify)\s+(the\s+)?task\s*(.+)',
-                r'\b(mark|set|change)\s+(the\s+)?task\s*\d*\s+as\s+(completed|done|finished)',
-                r'\b(mark|set|change)\s+task\s*\d+\s+as\s+(completed|done|finished)',
+                r'\b(mark|set|change)\s+(the\s+)?task\s*\d*\s+(as\s+)?(complete|completed|done|finished)\b',
                 r'\b(complete|finish|done)\s+(the\s+)?task\s*\d*',
             ],
             # Delete task patterns
@@ -147,9 +150,9 @@ class ChatService:
         due_date_patterns = [
             (r'\btoday', lambda: datetime.now().strftime('%Y-%m-%d')),
             (r'\btomorrow', lambda: (datetime.now().replace(hour=23, minute=59) +
-                                     __import__('datetime').timedelta(days=1)).strftime('%Y-%m-%d')),
+                                     timedelta(days=1)).strftime('%Y-%m-%d')),
             (r'\bthis\s+week', lambda: (datetime.now().replace(hour=23, minute=59) +
-                                       __import__('datetime').timedelta(days=7)).strftime('%Y-%m-%d')),
+                                       timedelta(days=7)).strftime('%Y-%m-%d')),
             (r'\bby\s+friday', lambda: self._get_next_friday()),
             (r'\bby\s+monday', lambda: self._get_next_monday()),
         ]
@@ -223,7 +226,7 @@ class ChatService:
         days_ahead = 4 - today.weekday()
         if days_ahead <= 0:  # Target day already happened this week
             days_ahead += 7
-        return (today + __import__('datetime').timedelta(days=days_ahead)).strftime('%Y-%m-%d')
+        return (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
 
     def _get_next_monday(self):
         """Get the date of next Monday"""
@@ -231,7 +234,7 @@ class ChatService:
         days_ahead = 0 - today.weekday()
         if days_ahead <= 0:
             days_ahead += 7
-        return (today + __import__('datetime').timedelta(days=days_ahead)).strftime('%Y-%m-%d')
+        return (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
 
     # ============================================================================
     # Chat Message Management
@@ -294,7 +297,7 @@ class ChatService:
         return interaction
 
     def touch_interaction(self, interaction: ChatInteraction, db_session: Session) -> None:
-        interaction.updated_at = datetime.utcnow()
+        interaction.updated_at = _utc_now()
         db_session.add(interaction)
         db_session.commit()
 
@@ -331,7 +334,7 @@ class ChatService:
             processed=False
         )
 
-        interaction.updated_at = datetime.utcnow()
+        interaction.updated_at = _utc_now()
         db_session.add(interaction)
         db_session.add(message)
         db_session.commit()
@@ -354,7 +357,7 @@ class ChatService:
             processed=True
         )
 
-        interaction.updated_at = datetime.utcnow()
+        interaction.updated_at = _utc_now()
         db_session.add(interaction)
         db_session.add(message)
         db_session.commit()
@@ -379,7 +382,7 @@ class ChatService:
             processed=True,
         )
 
-        interaction.updated_at = datetime.utcnow()
+        interaction.updated_at = _utc_now()
         db_session.add(interaction)
         db_session.add(user_message)
         db_session.add(ai_message)
@@ -469,6 +472,45 @@ class ChatService:
         interaction = self.get_or_create_interaction(user_id, session_id, db_session)
         return self.get_messages_for_interaction(interaction.id, db_session, limit)
 
+    def clear_chat_history(
+        self,
+        user_id: int,
+        session_id: str,
+        db_session: Session
+    ) -> int:
+        """
+        Delete all messages and the interaction for a user session.
+
+        Args:
+            user_id: The internal user ID
+            session_id: Session identifier
+            db_session: Database session
+
+        Returns:
+            Number of deleted messages
+        """
+        interaction = db_session.exec(
+            select(ChatInteraction).where(
+                ChatInteraction.user_id == user_id,
+                ChatInteraction.session_id == session_id
+            )
+        ).first()
+
+        if not interaction:
+            return 0
+
+        messages = db_session.exec(
+            select(ChatMessage).where(ChatMessage.chat_interaction_id == interaction.id)
+        ).all()
+
+        for message in messages:
+            db_session.delete(message)
+        db_session.delete(interaction)
+        db_session.commit()
+
+        logger.info(f"Cleared {len(messages)} messages for session {session_id}")
+        return len(messages)
+
     # ============================================================================
     # Operation Request Management
     # ============================================================================
@@ -540,7 +582,7 @@ class ChatService:
         if error_message:
             operation_request.error_message = error_message
         if status == OperationStatusEnum.COMPLETED:
-            operation_request.completed_at = datetime.utcnow()
+            operation_request.completed_at = _utc_now()
 
         db_session.add(operation_request)
         db_session.commit()

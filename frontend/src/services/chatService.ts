@@ -73,6 +73,7 @@ export interface ChatProgressEvent {
 type TokenGetter = () => Promise<string | null>;
 
 type StreamCallbacks = {
+  onContent?: (delta: string) => void;
   onToolCall?: (tool: string, args: unknown) => void;
   onToolOutput?: (output: unknown) => void;
   onDone: (response: ChatResponse) => void;
@@ -224,7 +225,11 @@ class ChatService {
                   message?: ChatResponse['message'];
                 };
 
-                if (parsed.type === 'tool_call') {
+                if (parsed.type === 'content_delta') {
+                  if (parsed.content) {
+                    callbacks.onContent?.(parsed.content);
+                  }
+                } else if (parsed.type === 'tool_call') {
                   callbacks.onToolCall?.(parsed.tool || '', parsed.args);
                 } else if (parsed.type === 'tool_output') {
                   callbacks.onToolOutput?.(parsed.output);

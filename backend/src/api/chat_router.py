@@ -7,6 +7,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlmodel import Session
 from typing import Optional, Dict, Any
+import hashlib
+import logging
 from ..middleware.auth import get_current_user
 from ..database import get_session
 from ..services.chat_service import chat_service
@@ -28,6 +30,14 @@ logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
+
+
+def _default_session_id(user_id: int, current_user: Dict[str, Any]) -> str:
+    # Stable digest (built-in hash() is randomized per process, which would
+    # fragment a user's history across restarts and workers).
+    subject = current_user.get("sub", "")
+    digest = int(hashlib.sha256(subject.encode("utf-8")).hexdigest()[:12], 16)
+    return f"session_{user_id}_{digest % 1000000}"
 
 
 def _chat_message_to_response(message) -> ChatMessageResponse:
@@ -60,7 +70,7 @@ async def send_chat_message(
         user_id = user.id
 
         # Generate session ID if not provided
-        session_id = message_data.session_id or f"session_{user_id}_{int(hash(current_user.get('sub', '')) % 1000000)}"
+        session_id = message_data.session_id or _default_session_id(user_id, current_user)
         interaction = chat_service.get_or_create_interaction(user_id, session_id, db_session)
 
         # Create user message with intent detection
@@ -136,7 +146,7 @@ async def get_chat_history(
 
         # Use provided session_id or generate default
         if not session_id:
-            session_id = f"session_{user_id}_{int(hash(current_user.get('sub', '')) % 1000000)}"
+            session_id = _default_session_id(user_id, current_user)
 
         # Get chat history
         messages = chat_service.get_chat_history(user_id, session_id, db_session, limit)
@@ -172,11 +182,11 @@ async def clear_chat_history(
 
         # Use provided session_id or generate default
         if not session_id:
-            session_id = f"session_{user_id}_{int(hash(current_user.get('sub', '')) % 1000000)}"
+            session_id = _default_session_id(user_id, current_user)
 
-        # This would need to be implemented in the chat service
-        # For now, return success
-        return {"message": "Chat history cleared", "session_id": session_id}
+        deleted = chat_service.clear_chat_history(user_id, session_id, db_session)
+
+        return {"message": "Chat history cleared", "session_id": session_id, "messages_deleted": deleted}
 
     except Exception as e:
         logger.exception(f"Error clearing chat history: {str(e)}")

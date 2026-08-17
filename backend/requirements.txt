@@ -46,8 +46,11 @@ slowapi==0.1.8
 # AI & Agents
 # ============================================================================
 # OpenAI Agents SDK (requires pydantic>=2.12.3)
-openai-agents>=0.7.0
-# OpenAI Python client for Gemini API compatibility
+openai-agents==0.7.0
+# Pinned: newer openai releases make `cache_write_tokens` a required field on
+# InputTokensDetails, which breaks agents SDK 0.7.0 usage parsing for Groq
+# ("Field required" pydantic error). Do not bump these two together casually.
+openai==2.32.0
 
 
 # ============================================================================

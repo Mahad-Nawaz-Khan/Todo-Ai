@@ -124,6 +124,13 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
     try {
       if (enableStreaming) {
         abortControllerRef.current = chatService.sendMessageStream(text, {
+          onContent: (delta) => {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId ? { ...msg, text: msg.text + delta } : msg
+              )
+            );
+          },
           onToolCall: (tool, args) => {
             setProgressEvents((prev) => [...prev, { kind: 'tool_call', tool, args }]);
           },

@@ -8,6 +8,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlmodel import Session
 from typing import Optional, Dict, Any, AsyncIterator
+import hashlib
 import json
 import logging
 
@@ -55,7 +56,11 @@ def _build_conversation_history(messages: list[ChatMessage]) -> list[Dict[str, s
 
 
 def _default_session_id(user_id: int, current_user: Dict[str, Any]) -> str:
-    return f"session_{user_id}_{int(hash(current_user.get('sub', '')) % 1000000)}"
+    # Stable digest (built-in hash() is randomized per process, which would
+    # fragment a user's history across restarts and workers).
+    subject = current_user.get("sub", "")
+    digest = int(hashlib.sha256(subject.encode("utf-8")).hexdigest()[:12], 16)
+    return f"session_{user_id}_{digest % 1000000}"
 
 
 def _stream_headers() -> Dict[str, str]:
@@ -98,9 +103,9 @@ async def _stream_response_generator(
                         yield _sse_payload({"type": "content_delta", "content": delta})
 
                 elif event["type"] == "final":
-                    final_content = event.get("content") or full_response_content
-                    if len(final_content) >= len(full_response_content):
-                        full_response_content = final_content
+                    # The final event carries the authoritative full text; fall
+                    # back to whatever we accumulated from deltas if it's empty.
+                    full_response_content = event.get("content") or full_response_content
 
                     interaction = db.get(ChatInteraction, interaction_id)
                     user_message = db.get(ChatMessage, user_message_id)
@@ -131,9 +136,9 @@ async def _stream_response_generator(
                     yield _sse_done()
                     return
 
-    except Exception as e:
-        logger.exception(f"Error in stream generator: {str(e)}")
-        yield _sse_payload({"type": "error", "content": str(e)})
+    except Exception:
+        logger.exception("Error in stream generator")
+        yield _sse_payload({"type": "error", "content": "Something went wrong while generating the response. Please try again."})
         yield _sse_done()
 
 

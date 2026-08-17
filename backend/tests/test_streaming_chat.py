@@ -94,31 +94,30 @@ class TestStreamGenerator:
     """Test the stream response generator function."""
 
     @pytest.mark.asyncio
-    async def test_stream_generator_success(self, test_user, db_session):
-        """Test successful stream generation."""
+    async def test_stream_generator_without_ai_provider(self):
+        """Without an initialized AI provider, the generator emits an error event and [DONE]."""
         from src.api.chat_streaming_router import _stream_response_generator
 
-        # Since we're not using OpenAI Agents SDK in tests,
-        # this will fall back to rule-based processing
         events = []
         async for event in _stream_response_generator(
             content="Show me my tasks",
-            user_id=test_user.id,
-            session_id="test_session",
-            db_session=db_session,
-            conversation_history=None
+            interaction_id=1,
+            user_id=1,
+            user_message_id=1,
+            conversation_history=None,
         ):
             events.append(event)
 
-        # Should have at least a content event and a done event
         assert len(events) > 0
 
-        # Check for done event
-        done_events = [e for e in events if "event: done" in e]
-        assert len(done_events) > 0
+        # The final event must always be the SSE [DONE] sentinel
+        assert events[-1].strip() == "data: [DONE]"
+
+        # An error payload is emitted since no AI provider is initialized in tests
+        assert any('"type": "error"' in e for e in events[:-1])
 
     @pytest.mark.asyncio
-    async def test_stream_generator_with_history(self, test_user, db_session):
+    async def test_stream_generator_with_history(self):
         """Test stream generation with conversation history."""
         from src.api.chat_streaming_router import _stream_response_generator
 
@@ -130,14 +129,15 @@ class TestStreamGenerator:
         events = []
         async for event in _stream_response_generator(
             content="Show me my tasks",
-            user_id=test_user.id,
-            session_id="test_session",
-            db_session=db_session,
-            conversation_history=history
+            interaction_id=1,
+            user_id=1,
+            user_message_id=1,
+            conversation_history=history,
         ):
             events.append(event)
 
         assert len(events) > 0
+        assert events[-1].strip() == "data: [DONE]"
 
 
 # ============================================================================

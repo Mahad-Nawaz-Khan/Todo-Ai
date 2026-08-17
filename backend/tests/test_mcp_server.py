@@ -308,7 +308,7 @@ class TestDeleteTaskTool:
         result = delete_task(task_id=99999)
 
         assert result["success"] is False
-        assert "not found" in result["message"].lower()
+        assert "could not find" in result["message"].lower()
 
         clear_task_context()
 
@@ -376,7 +376,7 @@ class TestGetTaskTool:
         result = get_task(task_id=99999)
 
         assert result["success"] is False
-        assert "not found" in result["message"].lower()
+        assert "could not find" in result["message"].lower()
 
         clear_task_context()
 

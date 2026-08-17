@@ -186,10 +186,18 @@ class TestTagService:
             created_at=datetime.utcnow()
         )
 
-        # Mock the session execution for getting the tag
-        mock_exec_result = Mock()
-        mock_exec_result.first.return_value = mock_tag
-        self.mock_session.exec.return_value = mock_exec_result
+        # Mock the session executions: first for getting the tag, then for
+        # the task-tag links that must be removed alongside it
+        mock_get_tag_exec_result = Mock()
+        mock_get_tag_exec_result.first.return_value = mock_tag
+
+        mock_links_exec_result = Mock()
+        mock_links_exec_result.all.return_value = []
+
+        self.mock_session.exec.side_effect = [
+            mock_get_tag_exec_result,
+            mock_links_exec_result,
+        ]
 
         # Mock the session for delete operations
         self.mock_session.delete = Mock()
