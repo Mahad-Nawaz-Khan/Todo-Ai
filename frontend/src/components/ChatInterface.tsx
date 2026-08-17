@@ -19,6 +19,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
 import { useUser } from "@/context/AuthContext";
@@ -212,7 +213,7 @@ const ChatBubble = memo(function ChatBubble({
             isWidget && "line-clamp-5"
           )}
         >
-          {isUser ? formatMessage(message.text) : <ReactMarkdown>{message.text}</ReactMarkdown>}
+          {isUser ? formatMessage(message.text) : <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.text}</ReactMarkdown>}
         </div>
         <div
           className={cn(

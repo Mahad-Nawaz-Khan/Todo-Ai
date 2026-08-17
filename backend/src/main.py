@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI):
             logger.info("OpenAI Agents SDK initialized successfully")
         else:
             logger.warning("OpenAI Agents SDK not available - falling back to rule-based processing")
-            logger.warning("To enable: Set GROQ_API_KEY environment variable")
+            logger.warning("To enable: set GROQ_API_KEY, OPENROUTER_API_KEY, or Z_AI_API_KEY")
             app.state.agent_service = None
     except Exception as e:
         logger.warning(f"Could not initialize OpenAI Agents SDK: {e}")

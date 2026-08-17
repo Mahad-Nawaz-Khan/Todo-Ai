@@ -17,7 +17,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from sqlmodel import Session, select
 
@@ -71,7 +71,7 @@ def agent_create_task(
     recurrence: str = "",
     tags: str = "",
 ) -> str:
-    """Create a new task. Always send every schema field when calling this tool. Send title as the task title string. Send description as a short, concrete description and never leave it blank; infer one from the user's wording if needed. Send priority as HIGH, MEDIUM, or LOW, and send MEDIUM when the user does not specify a priority. Send due_date as a string, using an empty string when unused; this tool accepts relative phrases like 'tomorrow', 'in 2 days', 'next monday', or an ISO date. Send recurrence as a string, using an empty string when unused; supported values include daily, weekly, and monthly. Send tags as a comma-separated string like 'Coding,Work', or an empty string when unused. If a task with the same title already exists, this tool updates it instead of creating a duplicate."""
+    """Create a task; if a task with the same title already exists, update it instead. due_date accepts relative phrases like 'tomorrow', 'in 2 days', 'next monday', or an ISO date; recurrence accepts daily, weekly, or monthly."""
     context = ctx.context
     try:
         from ..models.task import Task as TaskModel
@@ -245,7 +245,7 @@ def agent_get_current_date(ctx: RunContextWrapper) -> str:
 
 
 def agent_create_tag(ctx: RunContextWrapper, name: str, color: str = "#94A3B8") -> str:
-    """Create a new tag. Always send every schema field when calling this tool. Send name as the tag name string. Send color as a hex color string like '#94A3B8'; use the default-style color when the user does not specify one. Returns an error if the tag already exists."""
+    """Create a tag with the given name and hex color like '#94A3B8'. Errors if the tag already exists."""
     context = ctx.context
     try:
         from ..models.tag import Tag
@@ -280,7 +280,7 @@ def agent_list_tags(ctx: RunContextWrapper) -> str:
 
 
 def agent_update_task(ctx: RunContextWrapper, task_id: str, title: str = "", description: str = "", priority: str = "", due_date: str = "", tags: str = "") -> str:
-    """Update an existing task by its ID without changing completion state. Always send every schema field when calling this tool. Send task_id as a string containing digits like '12'. Send title, description, priority, due_date, and tags as strings, using an empty string for fields you are not changing. Never use this tool to mark a task complete or incomplete; use agent_toggle_task, agent_complete_by_search, or agent_uncomplete_by_search instead. Send priority only as HIGH, MEDIUM, or LOW when provided. Send due_date as a string; this tool accepts relative phrases like 'tomorrow', 'in 2 days', 'next monday', or an ISO date. Send tags as a comma-separated string like 'Coding,Work', or an empty string when unused."""
+    """Update a task by ID without changing completion state. Empty-string fields stay unchanged. due_date accepts relative phrases; tags is comma-separated."""
     context = ctx.context
     try:
         from ..schemas.task import TaskUpdateRequest
@@ -317,7 +317,7 @@ def agent_update_task(ctx: RunContextWrapper, task_id: str, title: str = "", des
 
 
 def agent_toggle_task(ctx: RunContextWrapper, task_id: str) -> str:
-    """Toggle a task between completed and not completed by its ID. Send task_id as a string containing digits like '12'. Use this only when the task ID is already known or verified."""
+    """Toggle a task between completed and not completed by its ID."""
     context = ctx.context
     try:
         task_id_int = int(task_id)
@@ -335,7 +335,7 @@ def agent_toggle_task(ctx: RunContextWrapper, task_id: str) -> str:
 
 
 def agent_delete_task(ctx: RunContextWrapper, task_id: str) -> str:
-    """Delete a task by its ID. Send task_id as a string containing digits like '12'. Use this only when the task ID is already known or verified. Permanently removes the task after verifying it belongs to the user."""
+    """Delete a task by its ID after verifying it belongs to the user."""
     context = ctx.context
     try:
         task_id_int = int(task_id)
@@ -382,7 +382,7 @@ def _find_tasks_for_search(context: ToolContext, search_term: str, completed: Op
 
 
 def agent_delete_by_search(ctx: RunContextWrapper, search_term: str, completed: Optional[bool] = None) -> str:
-    """Find tasks matching a search term and delete them all. Always send every schema field when calling this tool. Send search_term as the task title or name fragment, not a task ID. Send completed=true to delete only completed matches, completed=false to delete only open matches, and completed=null when no completion filter is needed. Never send booleans as strings. Deletes up to 10 matching tasks in one call and should not be used if multiple ambiguous matches would be unsafe."""
+    """Delete all tasks matching a name fragment (up to 10). completed is an optional boolean filter; send null when unused. Unsafe with ambiguous matches."""
     context = ctx.context
     try:
         matching_tasks = _find_tasks_for_search(context, search_term, completed=completed, limit=10)
@@ -429,7 +429,7 @@ def agent_delete_completed_tasks(ctx: RunContextWrapper) -> str:
 
 
 def agent_delete_all_tasks(ctx: RunContextWrapper, confirm: bool = False) -> str:
-    """Delete ALL tasks for the user. Always send every schema field when calling this tool. Send confirm as a real boolean. Send confirm=true only when the user clearly wants every task deleted; otherwise send confirm=false. Never send booleans as strings. Returns the count of deleted tasks."""
+    """Delete ALL the user's tasks. Requires confirm=true as a real boolean; anything else asks for confirmation."""
     context = ctx.context
     try:
         if not confirm:
@@ -453,7 +453,7 @@ def agent_delete_all_tasks(ctx: RunContextWrapper, confirm: bool = False) -> str
 
 
 def agent_search_tasks(ctx: RunContextWrapper, search: str = "", completed: Optional[bool] = None, priority: str = "", limit: int = 10) -> str:
-    """Search the user's tasks by text, completion status, or priority. Always send every schema field when calling this tool. Send search as a task title, keyword, or name fragment, and send an empty string when the user wants a broad search. Send completed=true for completed-only results, completed=false for open-only results, and completed=null when no completion filter is needed. Send priority as HIGH, MEDIUM, or LOW, or an empty string when unused. Send limit as an integer. Never send booleans as strings. Returns matching tasks with their titles, statuses, and due dates."""
+    """Search tasks by text, completion, or priority; an empty search is a broad listing. Returns titles, statuses, and due dates."""
     context = ctx.context
     try:
         task_service = _get_task_service()
@@ -542,7 +542,7 @@ def agent_get_all_tasks(ctx: RunContextWrapper) -> str:
 
 
 def agent_complete_by_search(ctx: RunContextWrapper, search_term: str) -> str:
-    """Find incomplete tasks matching a search term and mark them all as completed. Send search_term as the task title or name fragment, not a task ID. Prefer this when the user names a task instead of giving an exact ID. Completes up to 10 matching tasks in one call."""
+    """Mark all incomplete tasks matching a name fragment as completed (up to 10)."""
     context = ctx.context
     try:
         tasks = _find_tasks_for_search(context, search_term, completed=False, limit=10)
@@ -567,7 +567,7 @@ def agent_complete_by_search(ctx: RunContextWrapper, search_term: str) -> str:
 
 
 def agent_uncomplete_by_search(ctx: RunContextWrapper, search_term: str) -> str:
-    """Find completed tasks matching a search term and reopen them all. Send search_term as the task title or name fragment, not a task ID. Prefer this when the user names a task instead of giving an exact ID. Reopens up to 10 matching tasks in one call."""
+    """Reopen all completed tasks matching a name fragment (up to 10)."""
     context = ctx.context
     try:
         tasks = _find_tasks_for_search(context, search_term, completed=True, limit=10)
@@ -592,7 +592,7 @@ def agent_uncomplete_by_search(ctx: RunContextWrapper, search_term: str) -> str:
 
 
 def agent_update_by_search(ctx: RunContextWrapper, search_term: str, title: str = "", description: str = "", priority: str = "", due_date: str = "", tags: str = "") -> str:
-    """Find tasks matching a search term and update the first match with the provided fields. Always send every schema field when calling this tool. Send search_term as the task title or name fragment, not a task ID. Send title, description, priority, due_date, and tags as strings, using an empty string for fields you are not changing. Send priority only as HIGH, MEDIUM, or LOW when provided. Send due_date as a string; this tool accepts relative phrases like 'tomorrow', 'in 2 days', 'next monday', or an ISO date. Send tags as a comma-separated string like 'Coding,Work', or an empty string when unused. Use this when the user refers to a task by name instead of ID. If multiple tasks match, do not guess."""
+    """Update the single task matching a name fragment; if several match, it lists them instead of guessing. Field rules match agent_update_task."""
     context = ctx.context
     try:
         tasks = _find_tasks_for_search(context, search_term, limit=10)
@@ -630,11 +630,11 @@ def agent_update_by_search(ctx: RunContextWrapper, search_term: str, title: str 
 
 def _task_to_grounding_line(task, include_description: bool = False) -> str:
     status = "Completed" if task.completed else "Open"
-    priority = task.priority or "Not available"
-    due = task.due_date.strftime('%Y-%m-%d') if task.due_date else "No due date"
-    line = f"ID {task.id} | {status} | Priority {priority} | Due {due} | {task.title}"
+    priority = task.priority or "None"
+    due = task.due_date.strftime('%Y-%m-%d') if task.due_date else "-"
+    line = f"ID {task.id} | {status} | {priority} | {due} | {task.title}"
     if include_description and task.description:
-        return f"{line} | Description: {task.description[:160]}"
+        return f"{line} | {task.description[:80]}"
     return line
 
 
@@ -647,18 +647,19 @@ def _response_mentions_unverified_task(response_text: str, grounded_tasks: List[
 
 
 def agent_verify_task_answer(ctx: RunContextWrapper, draft_response: str, grounded_task_snapshot: str = "") -> str:
-    """Verify that a draft response does not reference task titles or details that do not exist in the user's actual tasks. Always send every schema field when calling this tool. Send draft_response as the candidate final reply. Send grounded_task_snapshot as a grounding summary string when available, or an empty string when unavailable. Returns VERIFIED or UNVERIFIED."""
+    """Verify a draft reply only references tasks that really exist. Returns VERIFIED or UNVERIFIED."""
     context = ctx.context
     grounded_tasks = _find_tasks_for_user_search(context.db_session, context.user_id, "", None, 15)
     if _response_mentions_unverified_task(draft_response, grounded_tasks):
         return "UNVERIFIED: The draft references a task title that is not present in verified task data."
-    if "not available" not in draft_response.lower() and grounded_task_snapshot and "not available" in grounded_task_snapshot.lower():
+    snapshot_missing_data = grounded_task_snapshot and ("| None |" in grounded_task_snapshot or "| - |" in grounded_task_snapshot)
+    if snapshot_missing_data:
         return "REVIEW: Ensure every field in the response is supported by grounded task data or tool output."
     return "VERIFIED: The draft does not mention any obviously unverified task title."
 
 
 def agent_confirm_task_exists(ctx: RunContextWrapper, task_id: str) -> str:
-    """Check whether a task with the given ID exists for this user. Send task_id as a string containing digits like '12'. Use this before update, delete, or toggle operations when the task ID must be verified."""
+    """Check a task ID exists for this user before acting on it."""
     context = ctx.context
     try:
         task = _get_task_by_id(context, int(task_id))
@@ -671,7 +672,7 @@ def agent_confirm_task_exists(ctx: RunContextWrapper, task_id: str) -> str:
 
 
 def agent_get_grounded_task_context(ctx: RunContextWrapper, search_term: str = "") -> str:
-    """Fetch verified task data for the current user. Always send search_term as a string, using an empty string for broad grounding or a task title/name fragment to narrow the result. Returns compact lines with ID, status, priority, due date, and title. Use this to ground your answer in real data before responding."""
+    """Fetch verified task lines (ID, status, priority, due date, title) to ground answers; an empty search_term returns recent tasks."""
     context = ctx.context
     tasks = _find_tasks_for_user_search(context.db_session, context.user_id, search_term, None, 8)
     if not tasks:
@@ -700,8 +701,18 @@ def _normalize_strict_tool_schema(schema: Any) -> Any:
             else:
                 schema.pop("required", None)
             schema["additionalProperties"] = False
-        for value in schema.values():
-            _normalize_strict_tool_schema(value)
+        for key, value in list(schema.items()):
+            if key == "properties" and isinstance(value, dict):
+                # A tool can have a parameter literally named "title"; that
+                # key inside the properties mapping must never be touched.
+                # Cosmetic pydantic labels on each property's sub-schema are
+                # safe to drop.
+                for sub_value in value.values():
+                    if isinstance(sub_value, dict):
+                        sub_value.pop("title", None)
+                    _normalize_strict_tool_schema(sub_value)
+            else:
+                _normalize_strict_tool_schema(value)
     elif isinstance(schema, list):
         for item in schema:
             _normalize_strict_tool_schema(item)
@@ -725,6 +736,8 @@ class AgentService:
         self._z_ai_model = os.getenv("Z_AI_MODEL", "glm-4.7-flash")
         self._groq_api_key = os.getenv("GROQ_API_KEY")
         self._groq_model = os.getenv("GROQ_MODEL", "qwen/qwen3.6-27b")
+        self._openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        self._openrouter_model = os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
         self._provider_timeout_seconds = float(os.getenv("AI_PROVIDER_TIMEOUT_SECONDS", "30"))
         self._last_provider_used = None
 
@@ -741,16 +754,16 @@ class AgentService:
             return ""
         task_service = _get_task_service()
         sections: List[str] = []
-        recent_open = task_service.get_tasks(user_id=user_id, db_session=db_session, completed=False, sort_by="updated_at", order="desc", limit=6, include_tags=False)
+        recent_open = task_service.get_tasks(user_id=user_id, db_session=db_session, completed=False, sort_by="updated_at", order="desc", limit=4, include_tags=False)
         if recent_open:
             sections.append("[Recent open tasks]")
             sections.extend(_task_to_grounding_line(task) for task in recent_open)
-        likely_matches = _find_tasks_for_user_search(db_session, user_id, content, None, 5)
+        likely_matches = _find_tasks_for_user_search(db_session, user_id, content, None, 3)
         if likely_matches:
             sections.append("[Likely relevant tasks]")
             sections.extend(_task_to_grounding_line(task, include_description=True) for task in likely_matches)
         if self._needs_completed_context(content):
-            recent_completed = task_service.get_tasks(user_id=user_id, db_session=db_session, completed=True, sort_by="updated_at", order="desc", limit=4, include_tags=False)
+            recent_completed = task_service.get_tasks(user_id=user_id, db_session=db_session, completed=True, sort_by="updated_at", order="desc", limit=2, include_tags=False)
             if recent_completed:
                 sections.append("[Recent completed tasks]")
                 sections.extend(_task_to_grounding_line(task) for task in recent_completed)
@@ -759,7 +772,19 @@ class AgentService:
     @staticmethod
     def _build_system_prompt(context, agent) -> str:
         return (
-            "You are the single customer-facing orchestrator for a task app. Use grounded task context first, use tool output as the source of truth, never invent task fields, and never confirm update/delete/complete/uncomplete actions until the task has been verified to exist. When calling any tool, always provide every field defined in that tool's schema. For unused string fields, send an empty string. For nullable boolean filter fields, send null when the user is not filtering by that boolean. For required booleans like confirmation flags, send a real boolean. Never send booleans as strings. For task IDs, send digit strings like '12'. For named task operations, prefer search-based tools and send task title fragments rather than IDs. For tags fields, send a comma-separated string like 'Coding,Work' or an empty string. For priorities, use only HIGH, MEDIUM, or LOW. For create and update tools, reason about dates before calling tools, but send due_date as a string in the format that tool accepts; these tools can handle relative phrases like 'tomorrow', 'in 2 days', and 'next monday'. Do not use agent_update_task to change completion state. If the user wants to mark tasks complete or incomplete, use agent_toggle_task when you have a verified task ID, agent_complete_by_search when the user names an open task to complete, or agent_uncomplete_by_search when the user names a completed task to reopen. When creating a new task, always include a short useful description even if you must infer it from the user's request. Keep replies polished and concise. Use the verifier tool if you are unsure your final wording is fully supported."
+            "You are the customer-facing orchestrator of a task app. Ground every answer in tool output or the provided task context; never invent task fields and never confirm an action on an unverified task. "
+            "Tool-call rules: include every schema field on every call; send an empty string for unused string fields; send real booleans, never strings; task IDs are digit strings like '12'; priorities are HIGH, MEDIUM, or LOW; tags are comma-separated like 'Coding,Work'. "
+            "When the user names a task, prefer the *_by_search tools with a title fragment instead of an ID. "
+            "Only agent_toggle_task, agent_complete_by_search, and agent_uncomplete_by_search may change completion state. "
+            "Call agent_get_current_date before resolving relative dates like 'tomorrow' or 'next monday', then pass the phrase itself to the tool. "
+            "When creating a task, always include a short description, inferring one from the request if needed. "
+            "Reply in Markdown (the chat renders it). Format by response type — "
+            "multiple tasks: a `- [x]`/`- [ ]` task list, one per task, like `- [ ] **Buy groceries** · HIGH · due Fri Aug 21`; "
+            "single task details: short bold-labeled lines like `**Due:** Fri Aug 21`; "
+            "confirmations: one crisp sentence stating exactly what changed, e.g. `Created **Book dentist** · MEDIUM · due tomorrow`; "
+            "ambiguous matches: a numbered list of candidates and ask which one; "
+            "greetings or small talk: one short friendly sentence. "
+            "Never use # headings, never dump raw tool output, keep lists under 10 items, and stay concise."
         )
 
     def _build_input_text(self, content: str, conversation_history: Optional[List[Dict[str, Any]]] = None, user_info: Optional[Dict[str, str]] = None, task_context: str = "") -> str:
@@ -770,9 +795,9 @@ class AgentService:
                 context_parts.append(f"[User context: Name is {name}]")
         if conversation_history:
             history_parts = []
-            for msg in conversation_history[-5:]:
+            for msg in conversation_history[-3:]:
                 sender = "User" if msg.get("sender_type") == "USER" else "Assistant"
-                history_parts.append(f"{sender}: {msg.get('content', '')}")
+                history_parts.append(f"{sender}: {str(msg.get('content', ''))[:160]}")
             if history_parts:
                 context_parts.append("[Conversation so far]")
                 context_parts.extend(history_parts)
@@ -783,12 +808,8 @@ class AgentService:
             return "\n".join(context_parts) + f"\n[New message]\n{content}"
         return content
 
-    def _is_retryable_provider_error(self, error: Exception) -> bool:
-        message = str(error).lower()
-        return any(token in message for token in ["429", "404", "500", "502", "503", "rate limit", "quota", "too many requests", "timeout", "temporarily unavailable", "service unavailable", "connection", "no endpoints found", "not found", "model not found", "internal server error"])
-
     def _has_any_provider_key(self) -> bool:
-        return bool(self._z_ai_api_key or self._groq_api_key)
+        return bool(self._z_ai_api_key or self._groq_api_key or self._openrouter_api_key)
 
     def _has_configured_providers(self) -> bool:
         return len(self._provider_configs) > 0
@@ -857,10 +878,13 @@ class AgentService:
     async def _run_provider(self, provider: Dict[str, Any], input_text: str, context: ToolContext):
         return await asyncio.wait_for(self._Runner.run(self._agent, input=input_text, context=context, run_config=provider["run_config"]), timeout=self._provider_timeout_seconds)
 
-    async def _run_provider_streamed(self, provider: Dict[str, Any], input_text: str, context: ToolContext):
+    def _run_provider_streamed(self, provider: Dict[str, Any], input_text: str, context: ToolContext):
         return self._Runner.run_streamed(self._agent, input=input_text, context=context, run_config=provider["run_config"])
 
     async def _run_with_provider_fallback(self, input_text: str, context: ToolContext):
+        # Any provider failure falls through to the next provider: keys,
+        # validators, and quotas are independent per provider, so an error on
+        # one says nothing about whether the next one will accept the request.
         if not self._has_configured_providers():
             raise RuntimeError("No AI providers are configured")
         last_error = None
@@ -872,34 +896,62 @@ class AgentService:
                 return result, provider_label
             except Exception as error:
                 last_error = error
-                if index < len(self._provider_configs) - 1 and self._is_retryable_provider_error(error):
+                if index < len(self._provider_configs) - 1:
                     logger.warning(f"Provider {provider_label} failed, trying next provider: {error}")
                     continue
                 raise
         raise last_error or RuntimeError("All AI providers failed")
 
-    async def _run_streamed_with_provider_fallback(self, input_text: str, context: ToolContext) -> Tuple[Any, str]:
-        if not self._has_configured_providers():
-            raise RuntimeError("No AI providers are configured")
-        last_error = None
-        for index, provider in enumerate(self._provider_configs):
-            provider_label = provider["label"]
-            try:
-                streamed_result = await self._run_provider_streamed(provider, input_text, context)
-                self._last_provider_used = provider_label
-                return streamed_result, provider_label
-            except Exception as error:
-                last_error = error
-                if index < len(self._provider_configs) - 1 and self._is_retryable_provider_error(error):
-                    logger.warning(f"Streaming provider {provider_label} failed, trying next provider: {error}")
-                    continue
-                raise
-        raise last_error or RuntimeError("All AI providers failed")
+    async def _stream_provider_events(self, provider: Dict[str, Any], input_text: str, context: ToolContext) -> AsyncIterator[Dict[str, Any]]:
+        """Consume one provider's streamed run, yielding our event dicts.
+
+        The provider's API call happens lazily inside stream_events(), so
+        API errors (including 400s) surface during iteration here — this
+        generator must be fully consumed inside the caller's try block for
+        fallback to work.
+        """
+        streamed_result = self._run_provider_streamed(provider, input_text, context)
+        self._last_provider_used = provider["label"]
+        async for event in streamed_result.stream_events():
+            if event.type == "raw_response_event":
+                data = getattr(event, "data", None)
+                # The SDK surfaces Responses-API style events; text deltas
+                # arrive as response.output_text.delta. Older paths expose
+                # raw chat completion chunks instead.
+                if getattr(data, "type", "") == "response.output_text.delta":
+                    delta_text = getattr(data, "delta", None)
+                    if delta_text:
+                        yield {"type": "content_delta", "content": delta_text}
+                else:
+                    choices = getattr(data, "choices", None)
+                    if choices:
+                        delta_text = getattr(getattr(choices[0], "delta", None), "content", None)
+                        if delta_text:
+                            yield {"type": "content_delta", "content": delta_text}
+            elif event.type == "run_item_stream_event":
+                item = getattr(event, "item", None)
+                item_type = getattr(item, "type", "")
+                if item_type == "tool_call_item":
+                    raw_item = getattr(item, "raw_item", None)
+                    tool_name = getattr(raw_item, "name", "tool") or "tool"
+                    tool_args = getattr(raw_item, "arguments", None)
+                    yield {"type": "tool_call", "tool": tool_name, "args": tool_args}
+                elif item_type == "tool_call_output_item":
+                    yield {"type": "tool_output", "output": getattr(item, "output", None)}
+        yield await self._build_stream_final(streamed_result, provider["label"], context)
 
     def _create_provider_configs(self):
         from agents import ModelSettings
         self._provider_configs = []
-        response_settings = ModelSettings(max_tokens=4096)
+        response_settings = ModelSettings(max_tokens=2048)
+        if self._openrouter_api_key:
+            or_client = self._AsyncOpenAI(
+                api_key=self._openrouter_api_key,
+                base_url="https://openrouter.ai/api/v1",
+                default_headers={"X-Title": "Todo-AI"},
+            )
+            or_model = self._OpenAIChatCompletionsModel(model=self._openrouter_model, openai_client=or_client)
+            self._provider_configs.append({"label": "OpenRouter", "run_config": self._RunConfig(model=or_model, model_provider=or_client, model_settings=response_settings, tracing_disabled=True)})
         if self._groq_api_key:
             groq_client = self._AsyncOpenAI(api_key=self._groq_api_key, base_url="https://api.groq.com/openai/v1")
             groq_model = self._OpenAIChatCompletionsModel(model=self._groq_model, openai_client=groq_client)
@@ -975,36 +1027,27 @@ class AgentService:
         try:
             self._last_task_context = self._build_task_grounding_context(content, user_id, db_session)
             input_text = self._build_input_text(content, conversation_history, user_info, self._last_task_context)
-            streamed_result, provider_label = await self._run_streamed_with_provider_fallback(input_text, tool_context)
-            async for event in streamed_result.stream_events():
-                if event.type == "raw_response_event":
-                    data = getattr(event, "data", None)
-                    # The SDK surfaces Responses-API style events; text deltas
-                    # arrive as response.output_text.delta. Older paths expose
-                    # raw chat completion chunks instead.
-                    if getattr(data, "type", "") == "response.output_text.delta":
-                        delta_text = getattr(data, "delta", None)
-                        if delta_text:
-                            yield {"type": "content_delta", "content": delta_text}
-                    else:
-                        choices = getattr(data, "choices", None)
-                        if choices:
-                            delta_text = getattr(getattr(choices[0], "delta", None), "content", None)
-                            if delta_text:
-                                yield {"type": "content_delta", "content": delta_text}
-                elif event.type == "run_item_stream_event":
-                    item = getattr(event, "item", None)
-                    item_type = getattr(item, "type", "")
-                    if item_type == "tool_call_item":
-                        raw_item = getattr(item, "raw_item", None)
-                        tool_name = getattr(raw_item, "name", "tool") or "tool"
-                        tool_args = getattr(raw_item, "arguments", None)
-                        yield {"type": "tool_call", "tool": tool_name, "args": tool_args}
-                    elif item_type == "tool_call_output_item":
-                        yield {"type": "tool_output", "output": getattr(item, "output", None)}
-            yield await self._build_stream_final(streamed_result, provider_label, tool_context)
-        except Exception as error:
-            logger.exception(f"Error processing message with OpenAI Agents SDK (streamed): {error}")
+            if not self._has_configured_providers():
+                raise RuntimeError("No AI providers are configured")
+            last_error = None
+            emitted_any = False
+            for index, provider in enumerate(self._provider_configs):
+                try:
+                    async for event in self._stream_provider_events(provider, input_text, tool_context):
+                        emitted_any = True
+                        yield event
+                    return
+                except Exception as error:
+                    last_error = error
+                    # Fall back only while nothing has reached the client;
+                    # once events are out, retrying would duplicate them.
+                    if not emitted_any and index < len(self._provider_configs) - 1:
+                        logger.warning(f"Streaming provider {provider['label']} failed, trying next provider: {error}")
+                        continue
+                    raise
+            raise last_error or RuntimeError("All AI providers failed")
+        except Exception:
+            logger.exception("Error processing message with OpenAI Agents SDK (streamed)")
             yield self._provider_stream_error_event()
         finally:
             self._last_task_context = ""
