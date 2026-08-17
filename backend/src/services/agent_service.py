@@ -679,6 +679,35 @@ def agent_get_grounded_task_context(ctx: RunContextWrapper, search_term: str = "
     return "\n".join(_task_to_grounding_line(task, include_description=True) for task in tasks)
 
 
+def _normalize_strict_tool_schema(schema: Any) -> Any:
+    """Apply Groq's strict-mode JSON schema rules throughout a tool schema.
+
+    Groq (strict mode) requires:
+    - every object, including the root and nested ones, to set
+      ``additionalProperties: false``
+    - every property to be listed in ``required``
+
+    Additionally, Groq's parser drops an empty ``properties`` map, so a
+    zero-parameter tool that also sends ``required`` fails with
+    "'required' present but 'properties' is missing". Zero-property
+    objects therefore must omit ``required`` entirely.
+    """
+    if isinstance(schema, dict):
+        if schema.get("type") == "object":
+            properties = schema.get("properties")
+            if isinstance(properties, dict) and properties:
+                schema["required"] = list(properties.keys())
+            else:
+                schema.pop("required", None)
+            schema["additionalProperties"] = False
+        for value in schema.values():
+            _normalize_strict_tool_schema(value)
+    elif isinstance(schema, list):
+        for item in schema:
+            _normalize_strict_tool_schema(item)
+    return schema
+
+
 class AgentService:
     def __init__(self):
         self._initialized = False
@@ -912,24 +941,7 @@ class AgentService:
                 schema = getattr(tool, "params_json_schema", None)
                 if isinstance(schema, dict):
                     schema.pop("title", None)
-                    if schema.get("type") == "object":
-                        properties = schema.setdefault("properties", {})
-                        if not isinstance(properties, dict):
-                            properties = {}
-                            schema["properties"] = properties
-                        if properties:
-                            schema["required"] = list(properties.keys())
-                            schema["additionalProperties"] = False
-                        else:
-                            # Zero-parameter tools: Groq drops the empty
-                            # `properties` map while parsing and then rejects
-                            # a leftover `required` key ("'required' present
-                            # but 'properties' is missing"), so emit the bare
-                            # no-argument object form.
-                            schema.pop("required", None)
-                            schema.pop("additionalProperties", None)
-                    elif "required" in schema and schema["required"] is None:
-                        schema.pop("required", None)
+                    _normalize_strict_tool_schema(schema)
             self._agent = Agent(name="TaskManagerOrchestrator", instructions=self._build_system_prompt, tools=self._tools)
             self._initialized = True
         except ImportError as error:
