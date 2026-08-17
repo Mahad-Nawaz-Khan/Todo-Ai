@@ -917,8 +917,17 @@ class AgentService:
                         if not isinstance(properties, dict):
                             properties = {}
                             schema["properties"] = properties
-                        schema["required"] = list(properties.keys())
-                        schema["additionalProperties"] = False
+                        if properties:
+                            schema["required"] = list(properties.keys())
+                            schema["additionalProperties"] = False
+                        else:
+                            # Zero-parameter tools: Groq drops the empty
+                            # `properties` map while parsing and then rejects
+                            # a leftover `required` key ("'required' present
+                            # but 'properties' is missing"), so emit the bare
+                            # no-argument object form.
+                            schema.pop("required", None)
+                            schema.pop("additionalProperties", None)
                     elif "required" in schema and schema["required"] is None:
                         schema.pop("required", None)
             self._agent = Agent(name="TaskManagerOrchestrator", instructions=self._build_system_prompt, tools=self._tools)
