@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     });
 
     const token = signSession({ user });
-    const redirectTarget = parsedState.redirectTarget && parsedState.redirectTarget.startsWith("/")
+    const redirectTarget = parsedState.redirectTarget?.startsWith("/")
       ? parsedState.redirectTarget
       : "/";
     const response = NextResponse.redirect(new URL(redirectTarget, req.url));

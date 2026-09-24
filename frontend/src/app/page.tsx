@@ -12,6 +12,16 @@ import { TaskList } from "@/components/TaskList";
 import { useAuth } from "@/context/AuthContext";
 import type { Task } from "@/types/task";
 
+function getPriorityClass(priority: string): string {
+  if (priority === "HIGH") {
+    return "priority-high";
+  }
+  if (priority === "MEDIUM") {
+    return "priority-medium";
+  }
+  return "priority-low";
+}
+
 const showcaseCards = [
   {
     title: "Command-first workflow",
@@ -133,7 +143,7 @@ export default function Dashboard() {
                           <div className="text-base font-medium text-white">{task.title}</div>
                           <div className="mt-2 text-sm text-(--text-dim)">{task.detail}</div>
                         </div>
-                        <span className={`status-pill rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em] ${task.priority === "HIGH" ? "priority-high" : task.priority === "MEDIUM" ? "priority-medium" : "priority-low"}`}>
+                        <span className={`status-pill rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.22em] ${getPriorityClass(task.priority)}`}>
                           {task.priority}
                         </span>
                       </div>

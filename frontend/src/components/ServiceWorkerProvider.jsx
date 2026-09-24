@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
+import PropTypes from 'prop-types';
 
 const ServiceWorkerProvider = ({ children }) => {
   useEffect(() => {
@@ -25,6 +26,10 @@ const ServiceWorkerProvider = ({ children }) => {
   }, []);
 
   return <>{children}</>;
+};
+
+ServiceWorkerProvider.propTypes = {
+  children: PropTypes.node,
 };
 
 export default ServiceWorkerProvider;

@@ -261,7 +261,7 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
         <span className="status-pill rounded-full px-3 py-1.5">Created {formatDate(task.created_at)}</span>
       </div>
 
-      {task.tags && task.tags.length ? (
+      {task.tags?.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {task.tags.map((tag) => (
             <span key={tag.id} className="tag-pill rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-(--text-secondary)">
@@ -278,13 +278,13 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
         >
           <div className="grid gap-4 min-w-0">
             <div>
-              <label className="mb-2 block text-sm font-medium text-(--text-secondary)">Title</label>
-              <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" required />
+              <label htmlFor={`edit-title-${task.id}`} className="mb-2 block text-sm font-medium text-(--text-secondary)">Title</label>
+              <input id={`edit-title-${task.id}`} value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" required />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-(--text-secondary)">Description</label>
-              <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-w-0 w-full min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
+              <label htmlFor={`edit-desc-${task.id}`} className="mb-2 block text-sm font-medium text-(--text-secondary)">Description</label>
+              <textarea id={`edit-desc-${task.id}`} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="input-shell min-w-0 w-full min-h-[120px] rounded-2xl px-4 py-3" rows={4} />
             </div>
 
             <div className="grid gap-4 min-w-0 grid-cols-1 md:grid-cols-2">
@@ -303,10 +303,10 @@ export const TaskItem = memo(function TaskItem({ task, onUpdate, onDelete }: Tas
                 />
               </div>
               <div>
-                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
+                <label htmlFor={`edit-due-${task.id}`} className="mb-2 flex items-center gap-2 text-sm font-medium text-(--text-secondary)">
                   <CalendarDays className="size-4 text-(--accent-amber)" /> Due date
                 </label>
-                <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" />
+                <input id={`edit-due-${task.id}`} type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="input-shell min-w-0 w-full rounded-2xl px-4 py-3" />
               </div>
             </div>
 

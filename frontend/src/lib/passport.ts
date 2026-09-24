@@ -41,7 +41,7 @@ function configurePassport() {
             name: profile.displayName ?? null,
             imageUrl: profile.photos?.[0]?.value ?? null,
           });
-          done(null, user as OAuthUser);
+          done(null, user);
         }
       )
     );
@@ -69,7 +69,7 @@ function configurePassport() {
             name: profile.displayName ?? profile.username ?? null,
             imageUrl: profile.photos?.[0]?.value ?? null,
           });
-          done(null, user as OAuthUser);
+          done(null, user);
         }
       )
     );

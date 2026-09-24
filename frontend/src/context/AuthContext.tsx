@@ -93,7 +93,7 @@ function mergeSessionWithBackendUser(sessionUser: AuthUser, backendUser: Backend
   });
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 

@@ -54,23 +54,14 @@ self.addEventListener('fetch', (event) => {
           // Otherwise, fetch from network
           return fetch(event.request)
             .then((response) => {
-              // Check if we received a valid response
-              if (!response || response.status !== 200 || response.type !== 'basic') {
-                return response;
+              // Cache valid GET responses
+              if (response && response.status === 200 && response.type === 'basic' && event.request.method === 'GET') {
+                const responseToCache = response.clone();
+                caches.open(CACHE_NAME)
+                  .then((cache) => {
+                    cache.put(event.request, responseToCache);
+                  });
               }
-
-              // Only cache GET requests (Cache API does not support POST/PUT/PATCH/DELETE)
-              if (event.request.method !== 'GET') {
-                return response;
-              }
-
-              // Clone the response for caching
-              const responseToCache = response.clone();
-
-              caches.open(CACHE_NAME)
-                .then((cache) => {
-                  cache.put(event.request, responseToCache);
-                });
 
               return response;
             });

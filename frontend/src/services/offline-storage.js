@@ -1,6 +1,13 @@
 // offline-storage.js
 // Service to handle offline storage using IndexedDB
 
+function toError(error, defaultMsg = 'IndexedDB operation failed') {
+  if (error instanceof Error) {
+    return error;
+  }
+  return new Error(error?.message || String(error || defaultMsg));
+}
+
 class OfflineStorage {
   constructor() {
     this.dbName = 'TodoAppDB';
@@ -14,7 +21,7 @@ class OfflineStorage {
 
       request.onerror = () => {
         console.error('Database error:', request.error);
-        reject(request.error);
+        reject(toError(request.error, 'Database initialization failed'));
       };
 
       request.onsuccess = () => {
@@ -61,7 +68,7 @@ class OfflineStorage {
       const request = store.put(taskToStore);
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 
@@ -77,7 +84,7 @@ class OfflineStorage {
       const request = store.get(taskId);
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 
@@ -93,7 +100,7 @@ class OfflineStorage {
       const request = store.getAll();
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 
@@ -114,7 +121,7 @@ class OfflineStorage {
       const request = store.delete(taskId);
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 
@@ -136,7 +143,7 @@ class OfflineStorage {
       const request = store.add(syncOperation);
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 
@@ -152,7 +159,7 @@ class OfflineStorage {
       const request = store.getAll();
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 
@@ -168,7 +175,7 @@ class OfflineStorage {
       const request = store.delete(operationId);
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 
@@ -184,7 +191,7 @@ class OfflineStorage {
       const request = store.clear();
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = () => reject(toError(request.error));
     });
   }
 }

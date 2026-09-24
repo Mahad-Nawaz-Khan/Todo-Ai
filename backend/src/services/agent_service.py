@@ -30,6 +30,8 @@ except ImportError:  # SDK is optional at import time; initialize() degrades gra
 
 logger = logging.getLogger(__name__)
 
+ERR_UPDATE_TASK_FAILED = "Sorry, I couldn't update that task. Please try again."
+
 
 @dataclass
 class ToolContext:
@@ -62,6 +64,43 @@ def _get_task_by_id(context: ToolContext, task_id: int):
     return _get_task_service().get_task_by_id(task_id, context.user_id, context.db_session)
 
 
+def _update_existing_task(
+    task, task_service, context, title, normalized_description, priority, parsed_due_date, parsed_recurrence, tag_ids
+) -> str:
+    from ..schemas.task import TaskUpdateRequest
+    update_data = {}
+    if normalized_description and normalized_description != (task.description or ""):
+        update_data["description"] = normalized_description
+    if priority and priority != (task.priority or "MEDIUM"):
+        update_data["priority"] = priority
+    if parsed_due_date and parsed_due_date != task.due_date:
+        update_data["due_date"] = parsed_due_date
+    if parsed_recurrence and parsed_recurrence != task.recurrence_rule:
+        update_data["recurrence_rule"] = parsed_recurrence
+    if tag_ids:
+        update_data["tag_ids"] = tag_ids
+
+    if update_data:
+        task_update = TaskUpdateRequest(**update_data)
+        updated_task = task_service.update_task(
+            task.id, task_update, context.user_id, context.db_session
+        )
+        _mark_operation_performed(context, "update_task", {"task_id": task.id})
+        return f"✓ Updated existing task '{updated_task.title}' instead of creating duplicate!"
+    return f"Task '{title}' already exists with the same details."
+
+
+def _format_create_task_result(task, parsed_due_date, parsed_recurrence, tag_ids) -> str:
+    result = f"✓ Task '{task.title}' created!"
+    if parsed_due_date:
+        result += f" Due: {parsed_due_date.strftime('%Y-%m-%d')}"
+    if parsed_recurrence:
+        result += f" Recurs: {parsed_recurrence}"
+    if tag_ids:
+        result += " Tags added."
+    return result
+
+
 def agent_create_task(
     ctx: RunContextWrapper,
     title: str,
@@ -75,7 +114,7 @@ def agent_create_task(
     context = ctx.context
     try:
         from ..models.task import Task as TaskModel
-        from ..schemas.task import TaskCreateRequest, TaskUpdateRequest
+        from ..schemas.task import TaskCreateRequest
 
         task_service = _get_task_service()
         existing_tasks = context.db_session.exec(
@@ -92,27 +131,10 @@ def agent_create_task(
             normalized_description = f"Task: {title.strip()}"
 
         if existing_tasks:
-            task = existing_tasks[0]
-            update_data = {}
-            if normalized_description and normalized_description != (task.description or ""):
-                update_data["description"] = normalized_description
-            if priority and priority != (task.priority or "MEDIUM"):
-                update_data["priority"] = priority
-            if parsed_due_date and parsed_due_date != task.due_date:
-                update_data["due_date"] = parsed_due_date
-            if parsed_recurrence and parsed_recurrence != task.recurrence_rule:
-                update_data["recurrence_rule"] = parsed_recurrence
-            if tag_ids:
-                update_data["tag_ids"] = tag_ids
-
-            if update_data:
-                task_update = TaskUpdateRequest(**update_data)
-                updated_task = task_service.update_task(
-                    task.id, task_update, context.user_id, context.db_session
-                )
-                _mark_operation_performed(context, "update_task", {"task_id": task.id})
-                return f"✓ Updated existing task '{updated_task.title}' instead of creating duplicate!"
-            return f"Task '{title}' already exists with the same details."
+            return _update_existing_task(
+                existing_tasks[0], task_service, context, title,
+                normalized_description, priority, parsed_due_date, parsed_recurrence, tag_ids
+            )
 
         task_data = TaskCreateRequest(
             title=title,
@@ -124,14 +146,7 @@ def agent_create_task(
         )
         task = task_service.create_task(task_data, context.user_id, context.db_session)
         _mark_operation_performed(context, "create_task", {"task_id": task.id})
-        result = f"✓ Task '{task.title}' created!"
-        if parsed_due_date:
-            result += f" Due: {parsed_due_date.strftime('%Y-%m-%d')}"
-        if parsed_recurrence:
-            result += f" Recurs: {parsed_recurrence}"
-        if tag_ids:
-            result += " Tags added."
-        return result
+        return _format_create_task_result(task, parsed_due_date, parsed_recurrence, tag_ids)
     except Exception:
         logger.exception("Error creating task")
         return "Sorry, I couldn't create that task. Please try again."
@@ -313,7 +328,7 @@ def agent_update_task(ctx: RunContextWrapper, task_id: str, title: str = "", des
         return f"✓ Updated task '{updated_task.title}' successfully!"
     except Exception:
         logger.exception("Error updating task")
-        return "Sorry, I couldn't update that task. Please try again."
+        return ERR_UPDATE_TASK_FAILED
 
 
 def agent_toggle_task(ctx: RunContextWrapper, task_id: str) -> str:
@@ -331,7 +346,7 @@ def agent_toggle_task(ctx: RunContextWrapper, task_id: str) -> str:
         return f"✓ Task '{task.title}' is now {status}!"
     except Exception:
         logger.exception("Error toggling task completion")
-        return "Sorry, I couldn't update that task. Please try again."
+        return ERR_UPDATE_TASK_FAILED
 
 
 def agent_delete_task(ctx: RunContextWrapper, task_id: str) -> str:
@@ -625,7 +640,7 @@ def agent_update_by_search(ctx: RunContextWrapper, search_term: str, title: str 
         return f"✓ Updated '{updated.title}' successfully!"
     except Exception:
         logger.exception("Error updating task by search")
-        return "Sorry, I couldn't update that task. Please try again."
+        return ERR_UPDATE_TASK_FAILED
 
 
 def _task_to_grounding_line(task, include_description: bool = False) -> str:
@@ -671,9 +686,16 @@ def agent_set_task_view(ctx: RunContextWrapper, status: str = "", priority: str 
         if not view:
             return "No view changes requested; nothing was updated."
         _mark_operation_performed(context, "set_task_view", {"view": view})
+        if view.get("completed") is None:
+            completed_str = "all tasks"
+        elif view["completed"]:
+            completed_str = "completed only"
+        else:
+            completed_str = "open tasks only"
+
         summary = ", ".join(
             [
-                "all tasks" if view.get("completed") is None else ("completed only" if view["completed"] else "open tasks only"),
+                completed_str,
                 f"priority {view['priority'] or 'any'}" if "priority" in view else "",
                 f"sorted by {view['sortBy']} {view.get('order', '')}".strip() if "sortBy" in view else "",
             ]
@@ -718,19 +740,15 @@ def agent_get_grounded_task_context(ctx: RunContextWrapper, search_term: str = "
     return "\n".join(_task_to_grounding_line(task, include_description=True) for task in tasks)
 
 
+def _clean_properties_subschemas(properties: dict):
+    for sub_value in properties.values():
+        if isinstance(sub_value, dict):
+            sub_value.pop("title", None)
+        _normalize_strict_tool_schema(sub_value)
+
+
 def _normalize_strict_tool_schema(schema: Any) -> Any:
-    """Apply Groq's strict-mode JSON schema rules throughout a tool schema.
-
-    Groq (strict mode) requires:
-    - every object, including the root and nested ones, to set
-      ``additionalProperties: false``
-    - every property to be listed in ``required``
-
-    Additionally, Groq's parser drops an empty ``properties`` map, so a
-    zero-parameter tool that also sends ``required`` fails with
-    "'required' present but 'properties' is missing". Zero-property
-    objects therefore must omit ``required`` entirely.
-    """
+    """Apply Groq's strict-mode JSON schema rules throughout a tool schema."""
     if isinstance(schema, dict):
         if schema.get("type") == "object":
             properties = schema.get("properties")
@@ -739,16 +757,9 @@ def _normalize_strict_tool_schema(schema: Any) -> Any:
             else:
                 schema.pop("required", None)
             schema["additionalProperties"] = False
-        for key, value in list(schema.items()):
+        for key, value in schema.items():
             if key == "properties" and isinstance(value, dict):
-                # A tool can have a parameter literally named "title"; that
-                # key inside the properties mapping must never be touched.
-                # Cosmetic pydantic labels on each property's sub-schema are
-                # safe to drop.
-                for sub_value in value.values():
-                    if isinstance(sub_value, dict):
-                        sub_value.pop("title", None)
-                    _normalize_strict_tool_schema(sub_value)
+                _clean_properties_subschemas(value)
             else:
                 _normalize_strict_tool_schema(value)
     elif isinstance(schema, list):
@@ -762,11 +773,11 @@ class AgentService:
         self._initialized = False
         self._agent = None
         self._verifier_agent = None
-        self._Runner = None
-        self._Agent = None
-        self._RunConfig = None
-        self._OpenAIChatCompletionsModel = None
-        self._AsyncOpenAI = None
+        self._runner_cls = None
+        self._agent_cls = None
+        self._run_config_cls = None
+        self._openai_model_cls = None
+        self._async_openai_cls = None
         self._provider_configs = []
         self._tools = []
         self._last_task_context = ""
@@ -886,7 +897,7 @@ class AgentService:
         if not self._verifier_agent:
             return None
         verifier_input = f"[Grounded task context]\n{self._last_task_context or 'No grounded task context provided.'}\n\n[Draft response]\n{draft_response}"
-        result = await asyncio.wait_for(self._Runner.run(self._verifier_agent, input=verifier_input, run_config=provider["run_config"]), timeout=min(self._provider_timeout_seconds, 12))
+        result = await asyncio.wait_for(self._runner_cls.run(self._verifier_agent, input=verifier_input, run_config=provider["run_config"]), timeout=min(self._provider_timeout_seconds, 12))
         return result.final_output if getattr(result, "final_output", None) else None
 
     async def _run_verifier_with_fallback(self, draft_response: str) -> Optional[str]:
@@ -899,26 +910,26 @@ class AgentService:
                 logger.warning(f"Verifier agent failed on provider {provider['label']}: {error}")
         return None
 
-    async def _finalize_response_text(self, response_text: str, operation_performed: Optional[Dict[str, Any]], context: ToolContext) -> str:
+    def _finalize_response_text(self, response_text: str, operation_performed: Optional[Dict[str, Any]], context: ToolContext) -> str:
         if operation_performed:
             return response_text
         return self._post_validate_response(response_text, None, context)
 
     async def _build_final_response(self, result, provider_label: str, context: ToolContext) -> Dict[str, Any]:
         operation_performed = self._extract_operations(result, context)
-        final_content = await self._finalize_response_text(self._provider_result_output_text(result), operation_performed, context)
+        final_content = self._finalize_response_text(self._provider_result_output_text(result), operation_performed, context)
         return {"success": True, "content": final_content, "operation_performed": operation_performed, "model_used": self._get_model_used_label(provider_label)}
 
-    async def _build_stream_final(self, result, provider_label: str, context: ToolContext) -> Dict[str, Any]:
+    def _build_stream_final(self, result, provider_label: str, context: ToolContext) -> Dict[str, Any]:
         operation_performed = self._extract_operations(result, context)
         final_content = self._provider_result_output_text(result)
         return {"type": "final", "content": final_content, "operation_performed": operation_performed, "model_used": self._get_model_used_label(provider_label)}
 
     async def _run_provider(self, provider: Dict[str, Any], input_text: str, context: ToolContext):
-        return await asyncio.wait_for(self._Runner.run(self._agent, input=input_text, context=context, run_config=provider["run_config"]), timeout=self._provider_timeout_seconds)
+        return await asyncio.wait_for(self._runner_cls.run(self._agent, input=input_text, context=context, run_config=provider["run_config"]), timeout=self._provider_timeout_seconds)
 
     def _run_provider_streamed(self, provider: Dict[str, Any], input_text: str, context: ToolContext):
-        return self._Runner.run_streamed(self._agent, input=input_text, context=context, run_config=provider["run_config"])
+        return self._runner_cls.run_streamed(self._agent, input=input_text, context=context, run_config=provider["run_config"])
 
     async def _run_with_provider_fallback(self, input_text: str, context: ToolContext):
         # Any provider failure falls through to the next provider: keys,
@@ -941,64 +952,64 @@ class AgentService:
                 raise
         raise last_error or RuntimeError("All AI providers failed")
 
-    async def _stream_provider_events(self, provider: Dict[str, Any], input_text: str, context: ToolContext) -> AsyncIterator[Dict[str, Any]]:
-        """Consume one provider's streamed run, yielding our event dicts.
+    @staticmethod
+    def _extract_raw_response_delta(event: Any) -> Optional[str]:
+        data = getattr(event, "data", None)
+        if getattr(data, "type", "") == "response.output_text.delta":
+            return getattr(data, "delta", None)
+        choices = getattr(data, "choices", None)
+        if choices:
+            return getattr(getattr(choices[0], "delta", None), "content", None)
+        return None
 
-        The provider's API call happens lazily inside stream_events(), so
-        API errors (including 400s) surface during iteration here — this
-        generator must be fully consumed inside the caller's try block for
-        fallback to work.
-        """
+    @staticmethod
+    def _extract_run_item_event(event: Any) -> Optional[Dict[str, Any]]:
+        item = getattr(event, "item", None)
+        item_type = getattr(item, "type", "")
+        if item_type == "tool_call_item":
+            raw_item = getattr(item, "raw_item", None)
+            tool_name = getattr(raw_item, "name", "tool") or "tool"
+            tool_args = getattr(raw_item, "arguments", None)
+            return {"type": "tool_call", "tool": tool_name, "args": tool_args}
+        if item_type == "tool_call_output_item":
+            return {"type": "tool_output", "output": getattr(item, "output", None)}
+        return None
+
+    async def _stream_provider_events(self, provider: Dict[str, Any], input_text: str, context: ToolContext) -> AsyncIterator[Dict[str, Any]]:
+        """Consume one provider's streamed run, yielding our event dicts."""
         streamed_result = self._run_provider_streamed(provider, input_text, context)
         self._last_provider_used = provider["label"]
         async for event in streamed_result.stream_events():
             if event.type == "raw_response_event":
-                data = getattr(event, "data", None)
-                # The SDK surfaces Responses-API style events; text deltas
-                # arrive as response.output_text.delta. Older paths expose
-                # raw chat completion chunks instead.
-                if getattr(data, "type", "") == "response.output_text.delta":
-                    delta_text = getattr(data, "delta", None)
-                    if delta_text:
-                        yield {"type": "content_delta", "content": delta_text}
-                else:
-                    choices = getattr(data, "choices", None)
-                    if choices:
-                        delta_text = getattr(getattr(choices[0], "delta", None), "content", None)
-                        if delta_text:
-                            yield {"type": "content_delta", "content": delta_text}
+                delta_text = self._extract_raw_response_delta(event)
+                if delta_text:
+                    yield {"type": "content_delta", "content": delta_text}
             elif event.type == "run_item_stream_event":
-                item = getattr(event, "item", None)
-                item_type = getattr(item, "type", "")
-                if item_type == "tool_call_item":
-                    raw_item = getattr(item, "raw_item", None)
-                    tool_name = getattr(raw_item, "name", "tool") or "tool"
-                    tool_args = getattr(raw_item, "arguments", None)
-                    yield {"type": "tool_call", "tool": tool_name, "args": tool_args}
-                elif item_type == "tool_call_output_item":
-                    yield {"type": "tool_output", "output": getattr(item, "output", None)}
-        yield await self._build_stream_final(streamed_result, provider["label"], context)
+                run_item = self._extract_run_item_event(event)
+                if run_item:
+                    yield run_item
+        yield self._build_stream_final(streamed_result, provider["label"], context)
 
     def _create_provider_configs(self):
         from agents import ModelSettings
         self._provider_configs = []
         response_settings = ModelSettings(max_tokens=2048)
         if self._openrouter_api_key:
-            or_client = self._AsyncOpenAI(
+            or_client = self._async_openai_cls(
                 api_key=self._openrouter_api_key,
                 base_url="https://openrouter.ai/api/v1",
                 default_headers={"X-Title": "Todo-AI"},
             )
-            or_model = self._OpenAIChatCompletionsModel(model=self._openrouter_model, openai_client=or_client)
-            self._provider_configs.append({"label": "OpenRouter", "run_config": self._RunConfig(model=or_model, model_provider=or_client, model_settings=response_settings, tracing_disabled=True)})
+            or_model = self._openai_model_cls(model=self._openrouter_model, openai_client=or_client)
+            self._provider_configs.append({"label": "OpenRouter", "run_config": self._run_config_cls(model=or_model, model_provider=or_client, model_settings=response_settings, tracing_disabled=True)})
         if self._groq_api_key:
-            groq_client = self._AsyncOpenAI(api_key=self._groq_api_key, base_url="https://api.groq.com/openai/v1")
-            groq_model = self._OpenAIChatCompletionsModel(model=self._groq_model, openai_client=groq_client)
-            self._provider_configs.append({"label": "Groq", "run_config": self._RunConfig(model=groq_model, model_provider=groq_client, model_settings=response_settings, tracing_disabled=True)})
+            groq_client = self._async_openai_cls(api_key=self._groq_api_key, base_url="https://api.groq.com/openai/v1")
+            groq_model = self._openai_model_cls(model=self._groq_model, openai_client=groq_client)
+            self._provider_configs.append({"label": "Groq", "run_config": self._run_config_cls(model=groq_model, model_provider=groq_client, model_settings=response_settings, tracing_disabled=True)})
         if self._z_ai_api_key:
-            z_client = self._AsyncOpenAI(api_key=self._z_ai_api_key, base_url="https://api.z.ai/api/paas/v4/")
-            z_model = self._OpenAIChatCompletionsModel(model=self._z_ai_model, openai_client=z_client)
-            self._provider_configs.append({"label": "Z.ai", "run_config": self._RunConfig(model=z_model, model_provider=z_client, model_settings=response_settings, tracing_disabled=True)})
+            z_client = self._async_openai_cls(api_key=self._z_ai_api_key, base_url="https://api.z.ai/api/paas/v4/")
+            z_model = self._openai_model_cls(model=self._z_ai_model, openai_client=z_client)
+            self._provider_configs.append({"label": "Z.ai", "run_config": self._run_config_cls(model=z_model, model_provider=z_client, model_settings=response_settings, tracing_disabled=True)})
         return self._provider_configs
 
     def initialize(self):
@@ -1007,11 +1018,11 @@ class AgentService:
         try:
             from agents import Agent, OpenAIChatCompletionsModel, RunConfig, Runner, function_tool
             from openai import AsyncOpenAI
-            self._Agent = Agent
-            self._Runner = Runner
-            self._RunConfig = RunConfig
-            self._OpenAIChatCompletionsModel = OpenAIChatCompletionsModel
-            self._AsyncOpenAI = AsyncOpenAI
+            self._agent_cls = Agent
+            self._runner_cls = Runner
+            self._run_config_cls = RunConfig
+            self._openai_model_cls = OpenAIChatCompletionsModel
+            self._async_openai_cls = AsyncOpenAI
             if not self._has_any_provider_key():
                 logger.warning("No AI provider keys found, OpenAI Agents SDK will not be available")
                 return
@@ -1041,7 +1052,7 @@ class AgentService:
             logger.error(f"Failed to initialize OpenAI Agents SDK: {error}")
 
     def is_available(self) -> bool:
-        return self._initialized and self._agent is not None and self._Runner is not None and self._has_configured_providers()
+        return self._initialized and self._agent is not None and self._runner_cls is not None and self._has_configured_providers()
 
     async def process_message(self, content: str, user_id: int, db_session: Session, conversation_history: Optional[List[Dict[str, Any]]] = None, user_info: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         if not self.is_available():
@@ -1091,22 +1102,40 @@ class AgentService:
         finally:
             self._last_task_context = ""
 
+    @staticmethod
+    def _extract_op_from_items(result: Any) -> Optional[Dict[str, Any]]:
+        items = getattr(result, 'new_items', None)
+        if items:
+            for item in items:
+                if 'tool_call' in str(getattr(item, 'type', '')):
+                    return {"type": "tool_call", "tool_used": getattr(item, 'name', 'unknown')}
+        return None
+
+    @staticmethod
+    def _extract_op_from_output(result: Any) -> Optional[Dict[str, Any]]:
+        output = getattr(result, 'final_output', None)
+        if output:
+            keywords = ['✓ Task', 'created successfully!', 'updated successfully!', 'deleted successfully!', 'is now', 'Deleted']
+            if any(k in output for k in keywords):
+                return {"type": "task_operation", "indicated_by": "response_content"}
+        return None
+
     def _extract_operations(self, result, context: ToolContext) -> Optional[Dict[str, Any]]:
         if context.operation_performed:
             return context.operation_performed
         try:
-            if hasattr(result, 'new_items') and result.new_items:
-                for item in result.new_items:
-                    if hasattr(item, 'type') and 'tool_call' in str(item.type):
-                        return {"type": "tool_call", "tool_used": getattr(item, 'name', 'unknown')}
-            if hasattr(result, 'raw_responses') and result.raw_responses:
-                return {"type": "tool_call", "count": len(result.raw_responses)}
-            if hasattr(result, 'final_output') and result.final_output:
-                output = result.final_output
-                if any(keyword in output for keyword in ['✓ Task', 'created successfully!', 'updated successfully!', 'deleted successfully!', 'is now', 'Deleted']):
-                    return {"type": "task_operation", "indicated_by": "response_content"}
-            if hasattr(result, 'context') and result.context and hasattr(result.context, 'tool_calls') and result.context.tool_calls:
-                return {"type": "tool_call", "count": len(result.context.tool_calls)}
+            op = self._extract_op_from_items(result)
+            if op:
+                return op
+            raw_responses = getattr(result, 'raw_responses', None)
+            if raw_responses:
+                return {"type": "tool_call", "count": len(raw_responses)}
+            op = self._extract_op_from_output(result)
+            if op:
+                return op
+            ctx_tool_calls = getattr(getattr(result, 'context', None), 'tool_calls', None)
+            if ctx_tool_calls:
+                return {"type": "tool_call", "count": len(ctx_tool_calls)}
         except Exception:
             pass
         return None

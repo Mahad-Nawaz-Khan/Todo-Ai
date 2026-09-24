@@ -15,6 +15,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1", tags=["tasks"])
 
+TASK_NOT_FOUND_MSG = "Task not found or access denied"
+
 
 def _task_to_response(task) -> TaskResponse:
     return TaskResponse(
@@ -140,7 +142,7 @@ async def get_task_by_id(
     if not task:
         raise HTTPException(
             status_code=404,
-            detail="Task not found or access denied"
+            detail=TASK_NOT_FOUND_MSG
         )
 
     # Convert to response model
@@ -177,7 +179,7 @@ async def update_task(
     if not updated_task:
         raise HTTPException(
             status_code=404,
-            detail="Task not found or access denied"
+            detail=TASK_NOT_FOUND_MSG
         )
 
     # Convert to response model
@@ -209,11 +211,8 @@ async def delete_task(
     if not success:
         raise HTTPException(
             status_code=404,
-            detail="Task not found or access denied"
+            detail=TASK_NOT_FOUND_MSG
         )
-
-    # Return 204 No Content
-    return
 
 
 @router.patch("/tasks/{task_id}/toggle-completion", response_model=TaskResponse)
@@ -241,7 +240,7 @@ async def toggle_task_completion(
     if not task:
         raise HTTPException(
             status_code=404,
-            detail="Task not found or access denied"
+            detail=TASK_NOT_FOUND_MSG
         )
 
     # Convert to response model

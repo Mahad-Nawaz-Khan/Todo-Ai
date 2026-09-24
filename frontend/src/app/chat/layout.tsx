@@ -3,7 +3,7 @@
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/context/AuthContext";
 
-export default function ChatLayout({ children }: { children: React.ReactNode }) {
+export default function ChatLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) {

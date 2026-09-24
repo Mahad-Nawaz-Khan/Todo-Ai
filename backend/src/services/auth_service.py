@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Optional, Dict, Any
 
@@ -17,8 +18,12 @@ if not security_logger.handlers:
     security_logger.propagate = False
 
 
+INVALID_IDENTITY_MAPPING = "Invalid identity mapping"
+
+
 class AuthService:
     def __init__(self):
+        # Service is stateless; no state initialization needed
         pass
 
     def normalize_claims(self, auth_payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -119,6 +124,7 @@ class AuthService:
         auth_payload: Dict[str, Any],
         db_session: Session,
     ) -> User:
+        await asyncio.sleep(0)
         claims = self.normalize_claims(auth_payload)
 
         identity = self._get_identity_by_subject(claims["provider"], claims["sub"], db_session)
@@ -126,7 +132,7 @@ class AuthService:
             user = self.get_user_by_id(identity.user_id, db_session)
             if not user:
                 security_logger.error(f"Identity {identity.id} points to missing user {identity.user_id}")
-                raise HTTPException(status_code=500, detail="Invalid identity mapping")
+                raise HTTPException(status_code=500, detail=INVALID_IDENTITY_MAPPING)
 
             self._update_identity_profile(identity, claims, db_session)
             return user
@@ -137,7 +143,7 @@ class AuthService:
             if matching_identity:
                 user = self.get_user_by_id(matching_identity.user_id, db_session)
                 if not user:
-                    raise HTTPException(status_code=500, detail="Invalid identity mapping")
+                    raise HTTPException(status_code=500, detail=INVALID_IDENTITY_MAPPING)
                 self._link_identity(user, claims, db_session)
                 return user
 
@@ -164,7 +170,7 @@ class AuthService:
             user = self.get_user_by_id(identity.user_id, db_session)
             if not user:
                 security_logger.error(f"Identity {identity.id} points to missing user {identity.user_id}")
-                raise HTTPException(status_code=500, detail="Invalid identity mapping")
+                raise HTTPException(status_code=500, detail=INVALID_IDENTITY_MAPPING)
             return user
 
         email = claims.get("email")
@@ -173,7 +179,7 @@ class AuthService:
             if matching_identity:
                 user = self.get_user_by_id(matching_identity.user_id, db_session)
                 if not user:
-                    raise HTTPException(status_code=500, detail="Invalid identity mapping")
+                    raise HTTPException(status_code=500, detail=INVALID_IDENTITY_MAPPING)
                 return user
 
         return await self.get_or_create_user_from_auth_payload(auth_payload, db_session)

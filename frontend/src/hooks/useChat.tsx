@@ -19,6 +19,50 @@ function applyOperationSideEffects(operation: OperationPerformed) {
   }
 }
 
+function appendMessageContent(messages: Message[], targetId: string, delta: string): Message[] {
+  return messages.map((msg) =>
+    msg.id === targetId ? { ...msg, text: msg.text + delta } : msg
+  );
+}
+
+function finalizeAiMessage(messages: Message[], targetId: string, content: string, createdAt: string): Message[] {
+  return messages.map((msg) =>
+    msg.id === targetId
+      ? {
+          ...msg,
+          text: content,
+          timestamp: new Date(createdAt),
+          isStreaming: false,
+        }
+      : msg
+  );
+}
+
+function setAiMessageError(messages: Message[], targetId: string, errorText: string): Message[] {
+  return messages.map((msg) =>
+    msg.id === targetId ? { ...msg, text: errorText, isStreaming: false } : msg
+  );
+}
+
+function updateStreamingChunk(
+  messages: Message[],
+  targetId: string,
+  chunkText: string,
+  createdAt: string,
+  isStreaming: boolean
+): Message[] {
+  return messages.map((msg) =>
+    msg.id === targetId
+      ? {
+          ...msg,
+          text: chunkText,
+          timestamp: new Date(createdAt),
+          isStreaming,
+        }
+      : msg
+  );
+}
+
 interface UseChatOptions {
   autoLoadHistory?: boolean;
   enableStreaming?: boolean;
@@ -133,11 +177,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
       if (enableStreaming) {
         abortControllerRef.current = chatService.sendMessageStream(text, {
           onContent: (delta) => {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === aiMessageId ? { ...msg, text: msg.text + delta } : msg
-              )
-            );
+            setMessages((prev) => appendMessageContent(prev, aiMessageId, delta));
           },
           onToolCall: (tool, args) => {
             setProgressEvents((prev) => [...prev, { kind: 'tool_call', tool, args }]);
@@ -151,16 +191,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
               operationTimerRef.current = 0;
             }
             setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === aiMessageId
-                  ? {
-                      ...msg,
-                      text: response.message.content,
-                      timestamp: new Date(response.message.created_at),
-                      isStreaming: false,
-                    }
-                  : msg
-              )
+              finalizeAiMessage(prev, aiMessageId, response.message.content, response.message.created_at)
             );
 
             if (response.operation_performed) {
@@ -178,11 +209,7 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
           },
           onError: () => {
             setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === aiMessageId
-                  ? { ...msg, text: 'Sorry, I encountered an error. Please try again.', isStreaming: false }
-                  : msg
-              )
+              setAiMessageError(prev, aiMessageId, 'Sorry, I encountered an error. Please try again.')
             );
             setIsLoading(false);
             abortControllerRef.current = null;
@@ -200,18 +227,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
         const typeNextChunk = () => {
           const nextIndex = Math.min(index + 8, finalText.length);
           const nextText = finalText.slice(0, nextIndex);
+          const isStillStreaming = nextIndex < finalText.length;
 
           setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === aiMessageId
-                ? {
-                    ...msg,
-                    text: nextText,
-                    timestamp: new Date(response.message.created_at),
-                    isStreaming: nextIndex < finalText.length,
-                  }
-                : msg
-            )
+            updateStreamingChunk(prev, aiMessageId, nextText, response.message.created_at, isStillStreaming)
           );
 
           index = nextIndex;
@@ -240,10 +259,10 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
       }
     } catch {
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === aiMessageId
-            ? { ...msg, text: 'Sorry, I encountered an error processing your request. Please try again.', isStreaming: false }
-            : msg
+        setAiMessageError(
+          prev,
+          aiMessageId,
+          'Sorry, I encountered an error processing your request. Please try again.'
         )
       );
       setIsLoading(false);
@@ -272,11 +291,14 @@ export const useChat = (initialMessages: Message[] = [], options: UseChatOptions
   }, []);
 
   const formatMessage = useCallback((text: string) => {
-    return text.split('\n').map((line, i) => (
-      <p key={i} className={i > 0 ? 'mt-2' : ''}>
-        {line}
-      </p>
-    ));
+    return text.split('\n').map((line, idx) => {
+      const lineKey = `msg-line-${idx}-${line.slice(0, 16)}`;
+      return (
+        <p key={lineKey} className={idx > 0 ? 'mt-2' : ''}>
+          {line}
+        </p>
+      );
+    });
   }, []);
 
   return {

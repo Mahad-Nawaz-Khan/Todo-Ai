@@ -101,8 +101,99 @@ function mapHistoryMessage(msg: HistoryApiMessage): ChatMessage {
   };
 }
 
+function parseEventBlock(eventBlock: string, callbacks: StreamCallbacks, controller: AbortController): boolean {
+  const dataLine = eventBlock.split('\n').find((line) => line.startsWith('data: '));
+
+  if (!dataLine) {
+    return false;
+  }
+
+  const data = dataLine.slice(6);
+  if (data === '[DONE]') {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(data) as StreamEvent & {
+      message?: ChatResponse['message'];
+    };
+
+    if (parsed.type === 'content_delta') {
+      if (parsed.content) {
+        callbacks.onContent?.(parsed.content);
+      }
+    } else if (parsed.type === 'tool_call') {
+      callbacks.onToolCall?.(parsed.tool || '', parsed.args);
+    } else if (parsed.type === 'tool_output') {
+      callbacks.onToolOutput?.(parsed.output);
+    } else if (parsed.type === 'final') {
+      callbacks.onDone({
+        message:
+          parsed.message || {
+            id: Date.now().toString(),
+            content: parsed.content || '',
+            sender_type: 'AI',
+            created_at: new Date().toISOString(),
+          },
+        operation_performed: parsed.operation_performed,
+        model_used: parsed.model_used,
+      });
+      controller.abort();
+      return true;
+    } else if (parsed.type === 'error') {
+      callbacks.onError(parsed.content || 'Unknown error');
+      controller.abort();
+      return true;
+    }
+  } catch {
+    // Ignore malformed SSE chunks.
+  }
+
+  return false;
+}
+
+async function handleStreamResponse(
+  response: Response,
+  callbacks: StreamCallbacks,
+  controller: AbortController
+): Promise<void> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('No response body');
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      const finalChunk = buffer.trim();
+      if (finalChunk) {
+        parseEventBlock(finalChunk, callbacks, controller);
+      }
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() || '';
+
+    let shouldStop = false;
+    for (const eventBlock of events) {
+      if (parseEventBlock(eventBlock, callbacks, controller)) {
+        shouldStop = true;
+        break;
+      }
+    }
+    if (shouldStop) {
+      break;
+    }
+  }
+}
+
 class ChatService {
-  private baseUrl: string;
+  private readonly baseUrl: string;
   private sessionId: string;
   private tokenGetter: TokenGetter | null = null;
 
@@ -188,8 +279,8 @@ class ChatService {
     const controller = new AbortController();
 
     this.getAuthToken()
-      .then((token) => {
-        fetch(`${this.baseUrl}/api/v1/chat/message/stream`, {
+      .then(async (token) => {
+        const response = await fetch(`${this.baseUrl}/api/v1/chat/message/stream`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -200,108 +291,19 @@ class ChatService {
             session_id: this.sessionId,
           }),
           signal: controller.signal,
-        })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`HTTP error! status: ${response.status}`);
-            }
+        });
 
-            const reader = response.body?.getReader();
-            if (!reader) {
-              throw new Error('No response body');
-            }
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            const processEventBlock = (eventBlock: string): boolean => {
-              const dataLine = eventBlock
-                .split('\n')
-                .find((line) => line.startsWith('data: '));
-
-              if (!dataLine) {
-                return false;
-              }
-
-              const data = dataLine.slice(6);
-              if (data === '[DONE]') {
-                return false;
-              }
-
-              try {
-                const parsed = JSON.parse(data) as StreamEvent & {
-                  message?: ChatResponse['message'];
-                };
-
-                if (parsed.type === 'content_delta') {
-                  if (parsed.content) {
-                    callbacks.onContent?.(parsed.content);
-                  }
-                } else if (parsed.type === 'tool_call') {
-                  callbacks.onToolCall?.(parsed.tool || '', parsed.args);
-                } else if (parsed.type === 'tool_output') {
-                  callbacks.onToolOutput?.(parsed.output);
-                } else if (parsed.type === 'final') {
-                  callbacks.onDone({
-                    message:
-                      parsed.message || {
-                        id: Date.now().toString(),
-                        content: parsed.content || '',
-                        sender_type: 'AI',
-                        created_at: new Date().toISOString(),
-                      },
-                    operation_performed: parsed.operation_performed,
-                    model_used: parsed.model_used,
-                  });
-                  controller.abort();
-                  return true;
-                } else if (parsed.type === 'error') {
-                  callbacks.onError(parsed.content || 'Unknown error');
-                  controller.abort();
-                  return true;
-                }
-              } catch {
-                // Ignore malformed SSE chunks.
-              }
-
-              return false;
-            };
-
-            const readStream = (): Promise<void> => {
-              return reader.read().then(({ done, value }) => {
-                if (done) {
-                  const finalChunk = buffer.trim();
-                  if (finalChunk) {
-                    processEventBlock(finalChunk);
-                  }
-                  return Promise.resolve();
-                }
-
-                buffer += decoder.decode(value, { stream: true });
-                const events = buffer.split('\n\n');
-                buffer = events.pop() || '';
-
-                for (const eventBlock of events) {
-                  if (processEventBlock(eventBlock)) {
-                    return Promise.resolve();
-                  }
-                }
-
-                return readStream();
-              });
-            };
-
-            return readStream();
-          })
-          .catch((error: unknown) => {
-            if (error instanceof Error && error.name === 'AbortError') {
-              return;
-            }
-            callbacks.onError(error instanceof Error ? error.message : 'Stream error');
-          });
+        await handleStreamResponse(response, callbacks, controller);
       })
       .catch((error: unknown) => {
-        callbacks.onError(error instanceof Error ? error.message : 'Failed to get authentication token');
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        callbacks.onError(error instanceof Error ? error.message : 'Stream error');
       });
 
     return controller;
@@ -377,7 +379,9 @@ class ChatService {
     });
   }
 
-  cancelRequest(): void {}
+  cancelRequest(): void {
+    // Individual stream requests manage cancellation via their returned AbortController instance
+  }
 }
 
 const chatService = new ChatService();

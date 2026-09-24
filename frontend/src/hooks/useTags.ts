@@ -16,6 +16,19 @@ function mergeTag(tags: Tag[], nextTag: Tag): Tag[] {
   return tags.map((tag) => (tag.id === nextTag.id ? { ...tag, ...nextTag } : tag));
 }
 
+function applyTagsChanged(prev: Tag[], detail: TagsChangedDetail): Tag[] {
+  if (detail.type === "created") {
+    return mergeTag(prev, detail.tag);
+  }
+  if (detail.type === "updated") {
+    return prev.map((tag) => (tag.id === detail.tag.id ? { ...tag, ...detail.tag } : tag));
+  }
+  if (detail.type === "deleted") {
+    return prev.filter((tag) => tag.id !== detail.tagId);
+  }
+  return prev;
+}
+
 export function useTags() {
   const [tags, setTags] = useState<Tag[]>(cachedTags ?? []);
   const [isLoading, setIsLoading] = useState(!cachedTags);
@@ -84,7 +97,7 @@ export function useTags() {
   }, [getToken]);
 
   useEffect(() => {
-    void fetchTags();
+    fetchTags().catch(() => {});
   }, [fetchTags]);
 
   useEffect(() => {
@@ -93,25 +106,9 @@ export function useTags() {
       if (!detail) return;
 
       setTags((prev) => {
-        if (detail.type === "created") {
-          const next = mergeTag(prev, detail.tag);
-          cachedTags = next;
-          return next;
-        }
-
-        if (detail.type === "updated") {
-          const next = prev.map((tag) => (tag.id === detail.tag.id ? { ...tag, ...detail.tag } : tag));
-          cachedTags = next;
-          return next;
-        }
-
-        if (detail.type === "deleted") {
-          const next = prev.filter((tag) => tag.id !== detail.tagId);
-          cachedTags = next;
-          return next;
-        }
-
-        return prev;
+        const next = applyTagsChanged(prev, detail);
+        cachedTags = next;
+        return next;
       });
     };
 

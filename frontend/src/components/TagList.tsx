@@ -170,12 +170,13 @@ const TagList = () => {
           </form>
 
           <div className="mt-5 space-y-3 stagger-children">
-            {loading && tags.length === 0 ? (
+            {loading && tags.length === 0 && (
               <div className="text-sm text-(--text-dim)">Loading tags...</div>
-            ) : tags.length === 0 ? (
+            )}
+            {!loading && tags.length === 0 && (
               <div className="rounded-[24px] border border-dashed border-white/10 bg-black/20 p-4 text-sm text-(--text-dim)">No tags yet.</div>
-            ) : (
-              tags.map((tag) => {
+            )}
+            {tags.length > 0 && tags.map((tag) => {
                 const isEditing = editingTagId === tag.id;
 
                 return (
@@ -235,8 +236,7 @@ const TagList = () => {
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
           </div>
         </div>
       ) : null}

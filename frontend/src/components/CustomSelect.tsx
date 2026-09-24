@@ -19,6 +19,16 @@ type CustomSelectProps = {
   className?: string;
 };
 
+function getOptionClassName(isSelected: boolean, isHighlighted: boolean): string {
+  if (isSelected) {
+    return "bg-[rgba(144,229,255,0.12)] text-white";
+  }
+  if (isHighlighted) {
+    return "bg-white/8 text-white";
+  }
+  return "text-(--text-secondary) hover:bg-white/5 hover:text-white";
+}
+
 export const CustomSelect = ({
   value,
   onChange,
@@ -51,7 +61,7 @@ export const CustomSelect = ({
       if (
         buttonRef.current &&
         !buttonRef.current.contains(target) &&
-        (!dropdownRef.current || !dropdownRef.current.contains(target))
+        !dropdownRef.current?.contains(target)
       ) {
         setIsOpen(false);
       }
@@ -184,13 +194,10 @@ export const CustomSelect = ({
                   setIsOpen(false);
                 }}
                 onMouseEnter={() => setHighlightedIndex(index)}
-                className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
-                  option.value === value
-                    ? "bg-[rgba(144,229,255,0.12)] text-white"
-                    : highlightedIndex === index
-                      ? "bg-white/8 text-white"
-                      : "text-(--text-secondary) hover:bg-white/5 hover:text-white"
-                }`}
+                className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${getOptionClassName(
+                  option.value === value,
+                  highlightedIndex === index
+                )}`}
               >
                 {option.label}
               </button>

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useDeferredValue, useMemo, useRef, useState } f
 
 import { useAuth } from "@/context/AuthContext";
 import type { ApplyTaskViewDetail, TagsChangedDetail } from "@/types/events";
+import type { Tag } from "@/types/tag";
 import type { Priority, Task } from "@/types/task";
 
 import { CustomSelect } from "./CustomSelect";
@@ -25,6 +26,74 @@ type SortConfig = {
   sortBy: "created_at" | "updated_at" | "due_date" | "priority";
   order: "asc" | "desc";
 };
+
+async function fetchTaskPages(token: string, signal: AbortSignal): Promise<Task[]> {
+  const pageSize = 100;
+  let offset = 0;
+  let allTasks: Task[] = [];
+
+  while (true) {
+    const params = new URLSearchParams();
+    params.append("limit", pageSize.toString());
+    params.append("offset", offset.toString());
+    params.append("sort_by", "created_at");
+    params.append("order", "desc");
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks?${params.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch tasks: ${response.status}`);
+    }
+
+    const page = (await response.json()) as Task[];
+    allTasks = allTasks.concat(page);
+    if (!Array.isArray(page) || page.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return allTasks;
+}
+
+function mergeTaskLists(existing: Task[], incoming: Task[]): Task[] {
+  const byId = new Map<number, Task>();
+  for (const task of incoming) byId.set(task.id, task);
+  for (const task of existing) {
+    if (!byId.has(task.id)) byId.set(task.id, task);
+  }
+  return Array.from(byId.values());
+}
+
+function applyTagUpdate(tasks: Task[], updatedTag: Tag): Task[] {
+  return tasks.map((task) => {
+    if (!Array.isArray(task.tags) || !task.tags.length) return task;
+    let changed = false;
+    const nextTags = task.tags.map((tag) => {
+      if (tag.id !== updatedTag.id) return tag;
+      changed = true;
+      return { ...tag, ...updatedTag };
+    });
+    return changed ? { ...task, tags: nextTags } : task;
+  });
+}
+
+function applyTagDeletion(tasks: Task[], deletedTagId: number): Task[] {
+  return tasks.map((task) => {
+    if (!Array.isArray(task.tags) || !task.tags.length) return task;
+    const nextTags = task.tags.filter((tag) => tag.id !== deletedTagId);
+    return nextTags.length === task.tags.length ? task : { ...task, tags: nextTags };
+  });
+}
+
+function getCompletedFilterValue(completed: boolean | null): string {
+  if (completed === null) return "";
+  return completed ? "done" : "open";
+}
 
 export const TaskList = ({ createdTask = null }: TaskListProps) => {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -55,48 +124,13 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
 
-        const pageSize = 100;
-        let offset = 0;
-        let allTasks: Task[] = [];
-
-        while (true) {
-          const params = new URLSearchParams();
-          params.append("limit", pageSize.toString());
-          params.append("offset", offset.toString());
-          params.append("sort_by", "created_at");
-          params.append("order", "desc");
-
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/tasks?${params.toString()}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            signal: abortController.signal,
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to fetch tasks: ${response.status}`);
-          }
-
-          const page = (await response.json()) as Task[];
-          if (requestIdRef.current !== requestId) return;
-
-          allTasks = allTasks.concat(page);
-          if (!Array.isArray(page) || page.length < pageSize) break;
-          offset += pageSize;
-        }
+        const allTasks = await fetchTaskPages(token || "", abortController.signal);
+        if (requestIdRef.current !== requestId) return;
 
         if (replace) {
           setTasks(allTasks);
         } else {
-          setTasks((prev) => {
-            const byId = new Map<number, Task>();
-            for (const task of allTasks) byId.set(task.id, task);
-            for (const task of prev) {
-              if (!byId.has(task.id)) byId.set(task.id, task);
-            }
-            return Array.from(byId.values());
-          });
+          setTasks((prev) => mergeTaskLists(prev, allTasks));
         }
       } catch (err) {
         if (requestIdRef.current !== requestId) return;
@@ -112,12 +146,12 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
   );
 
   useEffect(() => {
-    void fetchTasksFromAPI();
+    fetchTasksFromAPI().catch(() => {});
   }, [fetchTasksFromAPI]);
 
   useEffect(() => {
     const handleTasksUpdated = () => {
-      void fetchTasksFromAPI({ replace: true });
+      fetchTasksFromAPI({ replace: true }).catch(() => {});
     };
 
     window.addEventListener("tasksUpdated", handleTasksUpdated);
@@ -166,30 +200,11 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
       if (!detail) return;
 
       if (detail.type === "updated") {
-        const updatedTag = detail.tag;
-        setTasks((prev) =>
-          prev.map((task) => {
-            if (!Array.isArray(task.tags) || !task.tags.length) return task;
-            let changed = false;
-            const nextTags = task.tags.map((tag) => {
-              if (tag.id !== updatedTag.id) return tag;
-              changed = true;
-              return { ...tag, ...updatedTag };
-            });
-            return changed ? { ...task, tags: nextTags } : task;
-          })
-        );
+        setTasks((prev) => applyTagUpdate(prev, detail.tag));
       }
 
       if (detail.type === "deleted") {
-        const deletedTagId = detail.tagId;
-        setTasks((prev) =>
-          prev.map((task) => {
-            if (!Array.isArray(task.tags) || !task.tags.length) return task;
-            const nextTags = task.tags.filter((tag) => tag.id !== deletedTagId);
-            return nextTags.length === task.tags.length ? task : { ...task, tags: nextTags };
-          })
-        );
+        setTasks((prev) => applyTagDeletion(prev, detail.tagId));
       }
     };
 
@@ -321,7 +336,7 @@ export const TaskList = ({ createdTask = null }: TaskListProps) => {
                 <ListFilter className="size-3.5" /> Status
               </span>
               <CustomSelect
-                value={filters.completed === null ? "" : filters.completed ? "done" : "open"}
+                value={getCompletedFilterValue(filters.completed)}
                 onChange={(value) => handleFilterChange("completed", value === "" ? null : value === "done")}
                 options={[
                   { value: "", label: "All" },

@@ -87,8 +87,16 @@ export default function AppCommandPalette() {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label="Close command palette"
       className="fixed inset-0 z-[100] flex items-start justify-center bg-[rgba(5,8,15,0.72)] px-4 pt-[12vh] backdrop-blur-md"
       onClick={() => setOpen(false)}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
+          setOpen(false);
+        }
+      }}
     >
       <Command
         className="glass-panel w-full max-w-2xl overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(10,14,22,0.98)] shadow-[0_24px_90px_rgba(0,0,0,0.45)]"

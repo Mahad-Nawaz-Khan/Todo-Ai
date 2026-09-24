@@ -6,7 +6,7 @@ interface SyncOperation {
   id?: number;
   operation: SyncOperationType;
   resource: string;
-  data?: unknown | null;
+  data?: unknown;
   resourceId?: string | number | null;
   timestamp: number;
   createdAt?: string;

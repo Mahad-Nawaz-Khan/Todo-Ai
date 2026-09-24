@@ -302,20 +302,72 @@ const Composer = memo(function Composer({
   );
 });
 
-/* ─── Main Component ─── */
+/* ─── Composer Section Helper ─── */
 
-const ChatInterface = ({
+function ChatComposerSection({
+  userLoaded,
+  user,
+  inputText,
+  setInputText,
+  onSend,
+  isLoading,
+  inputRef,
+  compact = false,
+}: {
+  userLoaded: boolean;
+  user: unknown;
+  inputText: string;
+  setInputText: (v: string) => void;
+  onSend: () => void;
+  isLoading: boolean;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  compact?: boolean;
+}) {
+  if (!userLoaded) {
+    return (
+      <div className={compact ? "py-3 text-center text-xs text-(--text-dim)" : "py-4 text-center text-sm text-(--text-dim)"}>
+        Loading chat access...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className={compact ? "py-3 text-center text-xs text-(--text-dim)" : "py-4 text-center text-sm text-(--text-dim)"}>
+        Please{" "}
+        <Link href="/sign-in" className="text-(--accent-ice) underline">
+          sign in
+        </Link>{" "}
+        to use the assistant.
+      </div>
+    );
+  }
+
+  return (
+    <Composer
+      inputText={inputText}
+      setInputText={setInputText}
+      onSend={onSend}
+      isLoading={isLoading}
+      disabled={false}
+      inputRef={inputRef}
+      compact={compact}
+      hint={compact ? "Ask the assistant to act on your tasks..." : undefined}
+    />
+  );
+}
+
+/* ─── Widget View ─── */
+
+function ChatWidgetView({
   initialMessages = [],
   onTaskUpdated,
-  variant = "full",
-}: ChatInterfaceProps) => {
+}: ChatInterfaceProps) {
   const {
     messages,
     sendMessage,
     isLoading,
-    startNewConversation,
     formatMessage,
-    sessionId,
     operationPerformed,
     progressEvents,
   } = useChat(initialMessages, {
@@ -331,24 +383,18 @@ const ChatInterface = ({
   const { user, isLoaded: userLoaded } = useUser();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const isWidget = variant === "widget";
 
-  /* Derived */
-  const shortSessionId = sessionId.slice(-8);
   const operationMeta = getOperationMeta(operationPerformed);
-  const visibleMessages = isWidget ? messages.slice(-5) : messages;
+  const visibleMessages = messages.slice(-5);
 
-  /* Auto-scroll */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  /* Focus input on sign-in */
   useEffect(() => {
     if (userLoaded && user) inputRef.current?.focus();
   }, [userLoaded, user]);
 
-  /* Two-phase widget animation */
   const openWidget = useCallback(() => {
     setFabVisible(false);
     setWidgetOpen(true);
@@ -367,7 +413,229 @@ const ChatInterface = ({
     }, 250);
   }, []);
 
-  /* Handlers */
+  const handleSend = useCallback(() => {
+    if (!user) {
+      toast.error("Please sign in to use chat");
+      return;
+    }
+    if (!inputText.trim() || isLoading) return;
+    sendMessage(inputText);
+    setInputText("");
+  }, [user, inputText, isLoading, sendMessage]);
+
+  useEffect(() => {
+    const onTasksUpdated = () => onTaskUpdated?.();
+    window.addEventListener("tasksUpdated", onTasksUpdated);
+    return () => {
+      window.removeEventListener("tasksUpdated", onTasksUpdated);
+    };
+  }, [onTaskUpdated]);
+
+  const navigateToChat = useCallback(() => router.push("/chat"), [router]);
+
+  const widget = (
+    <>
+      {/* Floating trigger button */}
+      {fabVisible && !widgetOpen && (
+        <button
+          type="button"
+          onClick={openWidget}
+          className="animate-fab-pop fixed bottom-5 right-5 z-[999] flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-[var(--accent-blue)] shadow-[0_8px_32px_rgba(74,167,255,0.35)] transition-shadow hover:shadow-[0_12px_40px_rgba(74,167,255,0.45)] md:bottom-7 md:right-7 md:size-[60px] md:rounded-[22px]"
+          aria-label="Open AI assistant"
+        >
+          <MessageSquareText className="size-6 text-[#04121f] md:size-7" />
+          {messages.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[var(--accent-ice)] text-[10px] font-bold text-[#04121f]">
+              {messages.length}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Expanded widget panel */}
+      {widgetOpen && (
+        <>
+          {/* Backdrop (mobile) */}
+          <button
+            type="button"
+            aria-label="Close widget backdrop"
+            className={cn(
+              "fixed inset-0 z-40 bg-[rgba(6,8,14,0.5)] backdrop-blur-sm transition-opacity duration-200 sm:hidden border-0 p-0 text-left",
+              widgetVisible ? "opacity-100" : "opacity-0"
+            )}
+            onClick={closeWidget}
+          />
+
+          <div
+            className={cn(
+              "fixed z-50 flex flex-col overflow-hidden border border-white/10 bg-(--bg-elevated) shadow-[0_24px_80px_rgba(0,0,0,0.5)] transition-all duration-300",
+              /* Mobile: full width bottom sheet */
+              "inset-x-0 bottom-0 h-[85vh] rounded-t-[28px] md:rounded-[28px]",
+              /* Desktop: anchored bottom-right card */
+              "md:inset-x-auto md:bottom-7 md:right-7 md:top-auto md:h-[540px] md:w-[400px]",
+              widgetVisible
+                ? "translate-y-0 scale-100 opacity-100"
+                : "translate-y-6 scale-[0.95] opacity-0"
+            )}
+          >
+            {/* Widget header */}
+            <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-(--accent-ice)">
+                  <Bot className="size-4" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold tracking-[-0.02em] text-white">
+                    Todo Assistant
+                  </h3>
+                  <p className="text-[11px] text-(--text-dim)">
+                    {isLoading ? "Thinking..." : "Ready to assist"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={navigateToChat}
+                  className="rounded-lg p-1.5 text-(--text-dim) transition hover:bg-white/8 hover:text-white"
+                  title="Expand to full page"
+                  aria-label="Open full chat page"
+                >
+                  <Sparkles className="size-4 text-(--accent-ice)" />
+                </button>
+                <button
+                  type="button"
+                  onClick={closeWidget}
+                  className="rounded-lg p-1.5 text-(--text-dim) transition hover:bg-white/8 hover:text-white"
+                  aria-label="Close assistant"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Messages area */}
+            <div className="flex-1 space-y-3 overflow-y-auto p-3">
+              {visibleMessages.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 py-8 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-(--accent-ice)">
+                    <Bot className="size-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">How can I help?</h4>
+                    <p className="mt-1 text-xs text-(--text-dim)">
+                      Ask me to create, update, or find tasks.
+                    </p>
+                  </div>
+                  <div className="mt-2 flex w-full flex-col gap-1.5">
+                    {suggestions.slice(0, 2).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setInputText(s)}
+                        className="rounded-xl border border-white/8 bg-white/4 px-3 py-2 text-left text-xs text-(--text-secondary) transition hover:bg-white/8 hover:text-white"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {visibleMessages
+                    .filter((m) => !(m.sender === "ai" && m.isStreaming && !m.text))
+                    .map((m) => (
+                      <ChatBubble
+                        key={m.id}
+                        message={m}
+                        formatMessage={formatMessage}
+                        isWidget
+                      />
+                    ))}
+                </>
+              )}
+
+              {isLoading && progressEvents.length === 0 && (
+                <div className="flex justify-start">
+                  <div className="inline-flex items-center gap-2 rounded-2xl border border-white/8 bg-white/4 px-3 py-2 text-xs text-(--text-dim)">
+                    <LoaderCircle className="thinking-spinner size-3 text-(--accent-ice)" />
+                    <span>Preparing response</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Inline progress for widget */}
+              {progressEvents.length > 0 && (
+                <ProgressCard progressEvents={progressEvents} />
+              )}
+
+              {/* Inline operation for widget */}
+              {operationMeta && (
+                <OperationCard operation={operationPerformed} />
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer */}
+            <div className="border-t border-white/8 p-3">
+              <ChatComposerSection
+                userLoaded={userLoaded}
+                user={user}
+                inputText={inputText}
+                setInputText={setInputText}
+                onSend={handleSend}
+                isLoading={isLoading}
+                inputRef={inputRef}
+                compact
+              />
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  if (typeof document === "undefined") return widget;
+  return createPortal(widget, document.body);
+}
+
+/* ─── Full View ─── */
+
+function ChatFullView({
+  initialMessages = [],
+  onTaskUpdated,
+}: ChatInterfaceProps) {
+  const {
+    messages,
+    sendMessage,
+    isLoading,
+    startNewConversation,
+    formatMessage,
+    sessionId,
+    operationPerformed,
+    progressEvents,
+  } = useChat(initialMessages, {
+    autoLoadHistory: !initialMessages.length,
+    enableStreaming: true,
+  });
+
+  const [inputText, setInputText] = useState("");
+  const { user, isLoaded: userLoaded } = useUser();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const shortSessionId = sessionId.slice(-8);
+  const operationMeta = getOperationMeta(operationPerformed);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (userLoaded && user) inputRef.current?.focus();
+  }, [userLoaded, user]);
+
   const handleSend = useCallback(() => {
     if (!user) {
       toast.error("Please sign in to use chat");
@@ -383,7 +651,6 @@ const ChatInterface = ({
     toast.success("Started a new chat session");
   }, [startNewConversation]);
 
-  /* Global events */
   useEffect(() => {
     const onTasksUpdated = () => onTaskUpdated?.();
     const onStartNewChat = () => handleNewConversation();
@@ -395,189 +662,6 @@ const ChatInterface = ({
     };
   }, [handleNewConversation, onTaskUpdated]);
 
-  const navigateToChat = useCallback(() => router.push("/chat"), [router]);
-
-  /* ─── Widget: Floating button + expandable panel ─── */
-  /* Portal to body so position:fixed works despite backdrop-filter ancestors */
-  if (isWidget) {
-    const widget = (
-      <>
-        {/* Floating trigger button */}
-        {fabVisible && !widgetOpen && (
-          <button
-            onClick={openWidget}
-            className="animate-fab-pop fixed bottom-5 right-5 z-[999] flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-[var(--accent-blue)] shadow-[0_8px_32px_rgba(74,167,255,0.35)] transition-shadow hover:shadow-[0_12px_40px_rgba(74,167,255,0.45)] md:bottom-7 md:right-7 md:size-[60px] md:rounded-[22px]"
-            aria-label="Open AI assistant"
-          >
-            <MessageSquareText className="size-6 text-[#04121f] md:size-7" />
-            {messages.length > 0 && (
-              <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[var(--accent-ice)] text-[10px] font-bold text-[#04121f]">
-                {messages.length}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Expanded widget panel */}
-        {widgetOpen && (
-          <>
-            {/* Backdrop (mobile) */}
-            <div
-              className={cn(
-                "fixed inset-0 z-40 bg-[rgba(6,8,14,0.5)] backdrop-blur-sm transition-opacity duration-200 sm:hidden",
-                widgetVisible ? "opacity-100" : "opacity-0"
-              )}
-              onClick={closeWidget}
-            />
-
-            <div
-              className={cn(
-                "fixed z-50 flex flex-col overflow-hidden border border-white/10 bg-(--bg-elevated) shadow-[0_24px_80px_rgba(0,0,0,0.5)] transition-all duration-300",
-                /* Mobile: full width bottom sheet */
-                "inset-x-0 bottom-0 h-[85vh] rounded-t-[28px] md:rounded-[28px]",
-                /* Desktop: anchored bottom-right card */
-                "md:inset-x-auto md:bottom-7 md:right-7 md:top-auto md:h-[540px] md:w-[400px]",
-                widgetVisible
-                  ? "translate-y-0 scale-100 opacity-100"
-                  : "translate-y-6 scale-[0.95] opacity-0"
-              )}
-            >
-              {/* Widget header */}
-              <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-9 items-center justify-center rounded-xl border border-white/8 bg-white/6 text-(--accent-ice)">
-                    <Bot className="size-4" />
-                  </span>
-                  <div>
-                    <div className="text-sm font-semibold text-white">AI assistant</div>
-                    <div className="text-[11px] text-(--text-faint)">
-                      Session {shortSessionId} &middot; {messages.length} messages
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleNewConversation}
-                    className="btn-press action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
-                  >
-                    <Plus className="size-3" /> New
-                  </button>
-                  <button
-                    type="button"
-                    onClick={navigateToChat}
-                    className="btn-press action-button-secondary inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs"
-                  >
-                    <ArrowUp className="size-3 rotate-45" /> Full chat
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeWidget}
-                    className="flex size-8 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-(--text-dim) transition hover:bg-white/8 hover:text-white"
-                    aria-label="Close widget"
-                  >
-                    <X className="size-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Progress / operation status */}
-              {(progressEvents.length > 0 || operationMeta) && (
-                <div className="space-y-3 border-b border-white/8 px-4 py-3">
-                  {progressEvents.length > 0 ? <ProgressCard progressEvents={progressEvents} /> : null}
-                  {operationMeta ? <OperationCard operation={operationPerformed} /> : null}
-                </div>
-              )}
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-4 py-3">
-                {messages.length === 0 ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                    <div className="flex size-16 items-center justify-center rounded-2xl border border-white/8 bg-white/6 text-(--accent-ice) shadow-[0_0_40px_rgba(144,229,255,0.1)]">
-                      <Sparkles className="size-7" />
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold text-white">
-                        Ask the assistant
-                      </div>
-                      <div className="mt-1.5 text-sm text-(--text-dim)">
-                        Create, update, or search tasks with natural language.
-                      </div>
-                    </div>
-                    <div className="grid w-full gap-2">
-                      {suggestions.slice(0, 2).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setInputText(s)}
-                          className="rounded-xl border border-white/8 border-(--bg-strong) px-3 py-2.5 text-left text-sm text-(--text-secondary) transition hover:border-white/12 hover:bg-white/8 hover:text-white"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {visibleMessages
-                      .filter((m) => !(m.sender === "ai" && m.isStreaming && !m.text))
-                      .map((m) => (
-                        <ChatBubble
-                          key={m.id}
-                          message={m}
-                          formatMessage={formatMessage}
-                          isWidget
-                        />
-                      ))}
-                    {isLoading && progressEvents.length === 0 && (
-                      <div className="inline-flex items-center gap-2 rounded-xl border border-white/8 border-(--bg-strong) px-3 py-2 text-xs text-(--text-dim)">
-                        <LoaderCircle className="thinking-spinner size-3.5 text-(--accent-ice)" />
-                        <span>Preparing response</span>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                )}
-              </div>
-
-              {/* Composer */}
-              <div className="border-t border-white/8 p-3">
-                {!userLoaded ? (
-                  <div className="py-3 text-center text-xs text-(--text-dim)">
-                    Loading chat access...
-                  </div>
-                ) : !user ? (
-                  <div className="py-3 text-center text-xs text-(--text-dim)">
-                    Please{" "}
-                    <Link href="/sign-in" className="text-(--accent-ice) underline">
-                      sign in
-                    </Link>{" "}
-                    to use the assistant.
-                  </div>
-                ) : (
-                  <Composer
-                    inputText={inputText}
-                    setInputText={setInputText}
-                    onSend={handleSend}
-                    isLoading={isLoading}
-                    disabled={false}
-                    inputRef={inputRef}
-                    compact
-                    hint="Ask the assistant to act on your tasks..."
-                  />
-                )}
-              </div>
-            </div>
-          </>
-        )}
-      </>
-    );
-
-    if (typeof document === "undefined") return widget;
-    return createPortal(widget, document.body);
-  }
-
-  /* ─── Full chat workspace ─── */
   return (
     <div className="section-card flex h-full min-h-[640px] flex-col overflow-hidden rounded-[30px]">
       {/* Header */}
@@ -670,28 +754,15 @@ const ChatInterface = ({
             }}
             className="border-t border-white/8 px-4 py-4 md:px-6 lg:px-8"
           >
-            {!userLoaded ? (
-              <div className="py-4 text-center text-sm text-(--text-dim)">
-                Loading chat access...
-              </div>
-            ) : !user ? (
-              <div className="py-4 text-center text-sm text-(--text-dim)">
-                Please{" "}
-                <Link href="/sign-in" className="text-(--accent-ice) underline">
-                  sign in
-                </Link>{" "}
-                to use the assistant.
-              </div>
-            ) : (
-              <Composer
-                inputText={inputText}
-                setInputText={setInputText}
-                onSend={handleSend}
-                isLoading={isLoading}
-                disabled={false}
-                inputRef={inputRef}
-              />
-            )}
+            <ChatComposerSection
+              userLoaded={userLoaded}
+              user={user}
+              inputText={inputText}
+              setInputText={setInputText}
+              onSend={handleSend}
+              isLoading={isLoading}
+              inputRef={inputRef}
+            />
           </form>
         </div>
 
@@ -732,12 +803,20 @@ const ChatInterface = ({
                 </div>
               </div>
             </div>
-
           </div>
         </aside>
       </div>
     </div>
   );
+}
+
+/* ─── Main Component ─── */
+
+const ChatInterface = (props: ChatInterfaceProps) => {
+  if (props.variant === "widget") {
+    return <ChatWidgetView {...props} />;
+  }
+  return <ChatFullView {...props} />;
 };
 
 export default ChatInterface;

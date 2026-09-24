@@ -6,14 +6,29 @@ from ..models.user import User
 from fastapi import HTTPException
 from ..schemas.task import TaskCreateRequest, TaskUpdateRequest
 from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import selectinload
 import re
 import logging
 
 
+ERR_TASK_ID_POSITIVE = "Task ID must be positive"
+ERR_USER_ID_POSITIVE = "User ID must be positive"
+
+
+def _validate_task_id(task_id: int):
+    if task_id <= 0:
+        raise ValueError(ERR_TASK_ID_POSITIVE)
+
+
+def _validate_user_id(user_id: int):
+    if user_id <= 0:
+        raise ValueError(ERR_USER_ID_POSITIVE)
+
+
 class TaskService:
     def __init__(self):
+        # Service is stateless; no state initialization needed
         pass
 
     def _get_tags_for_user(
@@ -93,6 +108,44 @@ class TaskService:
             db_session.rollback()
             raise HTTPException(status_code=500, detail="Failed to create task")
 
+    @staticmethod
+    def _validate_get_tasks_params(limit: Optional[int], offset: Optional[int], sort_by: Optional[str], order: Optional[str]):
+        if limit is not None and limit > 100:
+            raise ValueError("Limit cannot exceed 100")
+        if offset is not None and offset < 0:
+            raise ValueError("Offset cannot be negative")
+        if sort_by not in ["created_at", "updated_at", "due_date", "priority"]:
+            raise ValueError(f"Invalid sort_by value: {sort_by}")
+        if order not in ["asc", "desc"]:
+            raise ValueError(f"Invalid order value: {order}")
+
+    @staticmethod
+    def _apply_task_filters(query, completed, priority, due_date_from, due_date_to, search):
+        if completed is not None:
+            query = query.where(Task.completed == completed)
+        if priority is not None:
+            if priority not in ["LOW", "MEDIUM", "HIGH"]:
+                raise ValueError(f"Invalid priority value: {priority}")
+            query = query.where(Task.priority == priority)
+        if due_date_from is not None:
+            query = query.where(Task.due_date >= datetime.fromisoformat(due_date_from))
+        if due_date_to is not None:
+            query = query.where(Task.due_date <= datetime.fromisoformat(due_date_to))
+        if search is not None:
+            query = query.where(Task.title.contains(search) | Task.description.contains(search))
+        return query
+
+    @staticmethod
+    def _apply_task_sorting(query, sort_by: Optional[str], order: Optional[str]):
+        column_map = {
+            "created_at": Task.created_at,
+            "updated_at": Task.updated_at,
+            "due_date": Task.due_date,
+            "priority": Task.priority,
+        }
+        col = column_map.get(sort_by or "created_at", Task.created_at)
+        return query.order_by(col.desc() if order == "desc" else col.asc())
+
     def get_tasks(
         self,
         user_id: int,
@@ -112,66 +165,14 @@ class TaskService:
         Get all tasks for a user with optional filters
         """
         try:
-            # Validate parameters
-            if limit is not None and limit > 100:
-                raise ValueError("Limit cannot exceed 100")
-            if offset is not None and offset < 0:
-                raise ValueError("Offset cannot be negative")
-            if sort_by not in ["created_at", "updated_at", "due_date", "priority"]:
-                raise ValueError(f"Invalid sort_by value: {sort_by}")
-            if order not in ["asc", "desc"]:
-                raise ValueError(f"Invalid order value: {order}")
+            self._validate_get_tasks_params(limit, offset, sort_by, order)
 
-            # Start with base query for user's tasks
             query = select(Task).where(Task.user_id == user_id)
             if include_tags:
                 query = query.options(selectinload(Task.tags))
 
-            # Apply filters
-            if completed is not None:
-                query = query.where(Task.completed == completed)
-
-            if priority is not None:
-                if priority not in ["LOW", "MEDIUM", "HIGH"]:
-                    raise ValueError(f"Invalid priority value: {priority}")
-                query = query.where(Task.priority == priority)
-
-            if due_date_from is not None:
-                date_from = datetime.fromisoformat(due_date_from)
-                query = query.where(Task.due_date >= date_from)
-
-            if due_date_to is not None:
-                date_to = datetime.fromisoformat(due_date_to)
-                query = query.where(Task.due_date <= date_to)
-
-            if search is not None:
-                query = query.where(
-                    Task.title.contains(search) | Task.description.contains(search)
-                )
-
-            # Apply sorting
-            if sort_by == "created_at":
-                if order == "desc":
-                    query = query.order_by(Task.created_at.desc())
-                else:
-                    query = query.order_by(Task.created_at.asc())
-            elif sort_by == "updated_at":
-                if order == "desc":
-                    query = query.order_by(Task.updated_at.desc())
-                else:
-                    query = query.order_by(Task.updated_at.asc())
-            elif sort_by == "due_date":
-                if order == "desc":
-                    query = query.order_by(Task.due_date.desc())
-                else:
-                    query = query.order_by(Task.due_date.asc())
-            elif sort_by == "priority":
-                if order == "desc":
-                    query = query.order_by(Task.priority.desc())
-                else:
-                    query = query.order_by(Task.priority.asc())
-
-            # Apply pagination
+            query = self._apply_task_filters(query, completed, priority, due_date_from, due_date_to, search)
+            query = self._apply_task_sorting(query, sort_by, order)
             query = query.offset(offset).limit(limit)
 
             tasks = db_session.exec(query).all()
@@ -195,10 +196,8 @@ class TaskService:
         """
         try:
             # Validate parameters
-            if task_id <= 0:
-                raise ValueError("Task ID must be positive")
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_task_id(task_id)
+            _validate_user_id(user_id)
 
             statement = (
                 select(Task)
@@ -214,6 +213,17 @@ class TaskService:
             logging.error(f"Error getting task {task_id} for user {user_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to retrieve task")
 
+    @staticmethod
+    def _apply_task_field_updates(task: Task, update_data: dict):
+        for field, value in update_data.items():
+            if hasattr(task, field) and field != "id":
+                if field in ("priority", "recurrence_rule") and hasattr(value, "value"):
+                    setattr(task, field, str(value.value))
+                elif field == "priority" and isinstance(value, str):
+                    setattr(task, field, value)
+                else:
+                    setattr(task, field, value)
+
     def update_task(
         self,
         task_id: int,
@@ -226,10 +236,8 @@ class TaskService:
         """
         try:
             # Validate parameters
-            if task_id <= 0:
-                raise ValueError("Task ID must be positive")
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_task_id(task_id)
+            _validate_user_id(user_id)
 
             # Validate task data
             if task_data.title and len(task_data.title.strip()) > 255:
@@ -242,23 +250,13 @@ class TaskService:
             # Update fields that are provided in task_data
             update_data = task_data.model_dump(exclude_unset=True)
             tag_ids = update_data.pop("tag_ids", None)
-            for field, value in update_data.items():
-                if hasattr(task, field) and field != "id":
-                    # Convert enum to string if it's a priority field
-                    if field == "priority" and hasattr(value, 'value'):
-                        setattr(task, field, str(value.value))
-                    elif field == "recurrence_rule" and hasattr(value, 'value'):
-                        setattr(task, field, str(value.value))
-                    elif field == "priority" and isinstance(value, str):
-                        setattr(task, field, value)
-                    else:
-                        setattr(task, field, value)
+            self._apply_task_field_updates(task, update_data)
 
             if tag_ids is not None:
                 task.tags = self._get_tags_for_user(tag_ids, user_id, db_session)
 
             # Update the updated_at timestamp
-            task.updated_at = datetime.utcnow()
+            task.updated_at = datetime.now(timezone.utc)
 
             db_session.add(task)
             db_session.commit()
@@ -285,10 +283,8 @@ class TaskService:
         """
         try:
             # Validate parameters
-            if task_id <= 0:
-                raise ValueError("Task ID must be positive")
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_task_id(task_id)
+            _validate_user_id(user_id)
 
             task = self.get_task_by_id(task_id, user_id, db_session)
             if not task:
@@ -328,10 +324,8 @@ class TaskService:
         """
         try:
             # Validate parameters
-            if task_id <= 0:
-                raise ValueError("Task ID must be positive")
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_task_id(task_id)
+            _validate_user_id(user_id)
 
             task = self.get_task_by_id(task_id, user_id, db_session)
             if not task:
@@ -339,7 +333,7 @@ class TaskService:
 
             # Toggle the completed status
             task.completed = not task.completed
-            task.updated_at = datetime.utcnow()
+            task.updated_at = datetime.now(timezone.utc)
 
             db_session.add(task)
             db_session.commit()

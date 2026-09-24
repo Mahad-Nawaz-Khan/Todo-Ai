@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/v1/chat", tags=["chat-streaming"])
 
+MEDIA_TYPE_EVENT_STREAM = "text/event-stream"
+
 
 def _sse_payload(data: Dict[str, Any]) -> str:
     return f"data: {json.dumps(data)}\n\n"
@@ -172,7 +174,7 @@ async def stream_chat_get(
                 conversation_history=conversation_history,
                 user_info=_build_user_info(current_user),
             ),
-            media_type="text/event-stream",
+            media_type=MEDIA_TYPE_EVENT_STREAM,
             headers=_stream_headers(),
         )
 
@@ -217,7 +219,7 @@ async def send_chat_message_stream(
 
             return StreamingResponse(
                 welcome_response_generator(),
-                media_type="text/event-stream",
+                media_type=MEDIA_TYPE_EVENT_STREAM,
                 headers=_stream_headers(),
             )
 
@@ -238,7 +240,7 @@ async def send_chat_message_stream(
                 conversation_history=conversation_history,
                 user_info=_build_user_info(current_user),
             ),
-            media_type="text/event-stream",
+            media_type=MEDIA_TYPE_EVENT_STREAM,
             headers=_stream_headers(),
         )
 

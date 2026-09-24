@@ -6,6 +6,19 @@ from ..models.user import User
 from fastapi import HTTPException
 import logging
 
+ERR_USER_ID_POSITIVE = "User ID must be positive"
+ERR_TAG_ID_POSITIVE = "Tag ID must be positive"
+
+
+def _validate_user_id(user_id: int):
+    if user_id <= 0:
+        raise ValueError(ERR_USER_ID_POSITIVE)
+
+
+def _validate_tag_id(tag_id: int):
+    if tag_id <= 0:
+        raise ValueError(ERR_TAG_ID_POSITIVE)
+
 
 class TagService:
     def create_tag(self, tag_data: dict, user_id: int, db_session: Session) -> Tag:
@@ -14,8 +27,7 @@ class TagService:
         """
         try:
             # Validate parameters
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_user_id(user_id)
             if not tag_data.get("name") or len(tag_data["name"].strip()) == 0:
                 raise ValueError("Tag name is required")
             if len(tag_data["name"].strip()) > 100:
@@ -61,10 +73,8 @@ class TagService:
         """
         try:
             # Validate parameters
-            if tag_id <= 0:
-                raise ValueError("Tag ID must be positive")
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_tag_id(tag_id)
+            _validate_user_id(user_id)
 
             tag = db_session.exec(
                 select(Tag).where(
@@ -87,8 +97,7 @@ class TagService:
         """
         try:
             # Validate parameters
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_user_id(user_id)
             if limit is not None and limit > 100:
                 raise ValueError("Limit cannot exceed 100")
             if offset is not None and offset < 0:
@@ -111,45 +120,51 @@ class TagService:
             logging.error(f"Error getting tags for user {user_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to retrieve tags")
 
+    @staticmethod
+    def _validate_update_data(tag_data: dict):
+        if "name" in tag_data:
+            name = tag_data["name"]
+            if name is None or len(str(name).strip()) == 0:
+                raise ValueError("Tag name is required")
+            if len(str(name).strip()) > 100:
+                raise ValueError("Tag name must be less than 100 characters")
+
+    @staticmethod
+    def _check_tag_name_conflict(name: str, user_id: int, exclude_tag_id: int, db_session: Session):
+        existing_tag = db_session.exec(
+            select(Tag).where(
+                Tag.name == name,
+                Tag.user_id == user_id,
+                Tag.id != exclude_tag_id
+            )
+        ).first()
+        if existing_tag:
+            raise ValueError("Tag with this name already exists for the user")
+
+    @staticmethod
+    def _apply_tag_updates(tag: Tag, tag_data: dict):
+        for field, value in tag_data.items():
+            if value is not None and hasattr(tag, field):
+                setattr(tag, field, value)
+
     def update_tag(self, tag_id: int, tag_data: dict, user_id: int, db_session: Session) -> Optional[Tag]:
         """
         Update a tag for a user
         """
         try:
             # Validate parameters
-            if tag_id <= 0:
-                raise ValueError("Tag ID must be positive")
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
-            if "name" in tag_data:
-                if tag_data["name"] is None or len(str(tag_data["name"]).strip()) == 0:
-                    raise ValueError("Tag name is required")
-                if len(str(tag_data["name"]).strip()) > 100:
-                    raise ValueError("Tag name must be less than 100 characters")
+            _validate_tag_id(tag_id)
+            _validate_user_id(user_id)
+            self._validate_update_data(tag_data)
 
             tag = self.get_tag_by_id(tag_id, user_id, db_session)
             if not tag:
                 return None
 
-            # Check if the new name already exists for this user (excluding current tag)
             if "name" in tag_data:
-                existing_tag = db_session.exec(
-                    select(Tag).where(
-                        Tag.name == tag_data["name"],
-                        Tag.user_id == user_id,
-                        Tag.id != tag_id
-                    )
-                ).first()
+                self._check_tag_name_conflict(tag_data["name"], user_id, tag_id, db_session)
 
-                if existing_tag:
-                    raise ValueError("Tag with this name already exists for the user")
-
-            # Update fields
-            for field, value in tag_data.items():
-                if value is None:
-                    continue
-                if hasattr(tag, field):
-                    setattr(tag, field, value)
+            self._apply_tag_updates(tag, tag_data)
 
             db_session.add(tag)
             db_session.commit()
@@ -171,10 +186,8 @@ class TagService:
         """
         try:
             # Validate parameters
-            if tag_id <= 0:
-                raise ValueError("Tag ID must be positive")
-            if user_id <= 0:
-                raise ValueError("User ID must be positive")
+            _validate_tag_id(tag_id)
+            _validate_user_id(user_id)
 
             tag = self.get_tag_by_id(tag_id, user_id, db_session)
             if not tag:

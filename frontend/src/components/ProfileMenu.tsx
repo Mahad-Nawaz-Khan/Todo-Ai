@@ -21,7 +21,7 @@ function getProviderLabel(provider: string | null | undefined) {
   return provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
-function InitialsAvatar({ name, email, className }: { name: string | null | undefined; email: string | null | undefined; className?: string }) {
+function InitialsAvatar({ name, email, className }: Readonly<{ name: string | null | undefined; email: string | null | undefined; className?: string }>) {
   const letter = getInitialsLabel(name, email);
   return <span className={className}>{letter}</span>;
 }

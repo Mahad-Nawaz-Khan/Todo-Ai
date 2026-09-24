@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { useUser } from "@/context/AuthContext";
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
+export default function ProtectedRoute({ children }: Readonly<{ children: ReactNode }>) {
   const { isSignedIn, isLoaded } = useUser();
 
   if (!isLoaded) {

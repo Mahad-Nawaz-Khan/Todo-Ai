@@ -23,6 +23,8 @@ load_dotenv(override=True)
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
+SERVICE_NAME = "TODO API"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -83,7 +85,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="TODO API",
+    title=SERVICE_NAME,
     description="API for the TODO application with JWT-based authentication",
     version="1.0.0",
     lifespan=lifespan,
@@ -188,7 +190,7 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "service": "TODO API", "version": "1.0.0"}
+    return {"status": "healthy", "service": SERVICE_NAME, "version": "1.0.0"}
 
 
 @app.get("/health/detailed")
@@ -197,12 +199,12 @@ def detailed_health_check():
     Detailed health check with component status
     """
     import sys
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     health_status = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "service": "TODO API",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "service": SERVICE_NAME,
         "version": "1.0.0",
         "components": {
             "database": {

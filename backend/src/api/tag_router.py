@@ -16,6 +16,8 @@ limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/api/v1", tags=["tags"])
 
+TAG_NOT_FOUND_MSG = "Tag not found or access denied"
+
 
 class TagCreateRequest(BaseModel):
     name: str
@@ -114,7 +116,7 @@ async def get_tag_by_id(
     )
 
     if not tag:
-        raise HTTPException(status_code=404, detail="Tag not found or access denied")
+        raise HTTPException(status_code=404, detail=TAG_NOT_FOUND_MSG)
 
     return TagResponse(
         id=tag.id,
@@ -144,7 +146,7 @@ async def update_tag(
         )
 
         if not updated_tag:
-            raise HTTPException(status_code=404, detail="Tag not found or access denied")
+            raise HTTPException(status_code=404, detail=TAG_NOT_FOUND_MSG)
 
         return TagResponse(
             id=updated_tag.id,
@@ -173,6 +175,4 @@ async def delete_tag(
     )
 
     if not success:
-        raise HTTPException(status_code=404, detail="Tag not found or access denied")
-
-    return
+        raise HTTPException(status_code=404, detail=TAG_NOT_FOUND_MSG)

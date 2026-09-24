@@ -18,6 +18,11 @@ mcp_server = FastMCP(
     instructions="AI assistant for managing tasks. You can create, read, update, delete, and search tasks.",
 )
 
+ERR_NO_DB_CONTEXT = "Database context not set"
+ERR_INTERNAL_SERVER = "Internal server error"
+ERR_TASK_NOT_FOUND = "Task not found"
+
+
 
 class TaskManager:
     """
@@ -91,8 +96,8 @@ def create_task(title: str, description: Optional[str] = None,
         if not manager._db_session or not manager._user_id:
             return {
                 "success": False,
-                "error": "Database context not set",
-                "message": "Internal server error"
+                "error": ERR_NO_DB_CONTEXT,
+                "message": ERR_INTERNAL_SERVER
             }
 
         from ..schemas.task import TaskCreateRequest
@@ -169,8 +174,8 @@ def update_task(task_id: int,
         if not manager._db_session or not manager._user_id:
             return {
                 "success": False,
-                "error": "Database context not set",
-                "message": "Internal server error"
+                "error": ERR_NO_DB_CONTEXT,
+                "message": ERR_INTERNAL_SERVER
             }
 
         from ..schemas.task import TaskUpdateRequest
@@ -182,7 +187,7 @@ def update_task(task_id: int,
         if not current_task:
             return {
                 "success": False,
-                "error": "Task not found",
+                "error": ERR_TASK_NOT_FOUND,
                 "message": "Could not find the task to update."
             }
 
@@ -248,8 +253,8 @@ def toggle_task_completion(task_id: int):
         if not manager._db_session or not manager._user_id:
             return {
                 "success": False,
-                "error": "Database context not set",
-                "message": "Internal server error"
+                "error": ERR_NO_DB_CONTEXT,
+                "message": ERR_INTERNAL_SERVER
             }
 
         task = manager.task_service.toggle_task_completion(
@@ -293,8 +298,8 @@ def delete_task(task_id: int):
         if not manager._db_session or not manager._user_id:
             return {
                 "success": False,
-                "error": "Database context not set",
-                "message": "Internal server error"
+                "error": ERR_NO_DB_CONTEXT,
+                "message": ERR_INTERNAL_SERVER
             }
 
         # Get task first for confirmation message
@@ -304,7 +309,7 @@ def delete_task(task_id: int):
         if not task:
             return {
                 "success": False,
-                "error": "Task not found",
+                "error": ERR_TASK_NOT_FOUND,
                 "message": "Could not find the task to delete."
             }
 
@@ -356,8 +361,8 @@ def search_tasks(search: Optional[str] = None,
         if not manager._db_session or not manager._user_id:
             return {
                 "success": False,
-                "error": "Database context not set",
-                "message": "Internal server error"
+                "error": ERR_NO_DB_CONTEXT,
+                "message": ERR_INTERNAL_SERVER
             }
 
         # Search tasks using task service
@@ -412,8 +417,8 @@ def list_today_tasks():
         if not manager._db_session or not manager._user_id:
             return {
                 "success": False,
-                "error": "Database context not set",
-                "message": "Internal server error"
+                "error": ERR_NO_DB_CONTEXT,
+                "message": ERR_INTERNAL_SERVER
             }
 
         today = datetime.now().strftime("%Y-%m-%d")
@@ -472,8 +477,8 @@ def get_task(task_id: int):
         if not manager._db_session or not manager._user_id:
             return {
                 "success": False,
-                "error": "Database context not set",
-                "message": "Internal server error"
+                "error": ERR_NO_DB_CONTEXT,
+                "message": ERR_INTERNAL_SERVER
             }
 
         task = manager.task_service.get_task_by_id(
@@ -483,7 +488,7 @@ def get_task(task_id: int):
         if not task:
             return {
                 "success": False,
-                "error": "Task not found",
+                "error": ERR_TASK_NOT_FOUND,
                 "message": "Could not find the specified task."
             }
 
@@ -530,8 +535,6 @@ def get_pending_tasks() -> str:
         completed=False,
         limit=20
     )
-
-    import json
     task_list = []
     for task in tasks:
         task_list.append({
@@ -569,8 +572,6 @@ def get_tasks_summary() -> str:
     for t in all_tasks:
         if t.due_date and t.due_date.date() < today and not t.completed:
             overdue += 1
-
-    import json
     return json.dumps({
         "total": total,
         "completed": completed,
@@ -583,6 +584,33 @@ def get_tasks_summary() -> str:
 # ============================================================================
 # MCP Prompts (Optional - for predefined prompt templates)
 # ============================================================================
+
+
+def _priority_label(priority: Optional[str]) -> str:
+    if priority == "HIGH":
+        return "[HIGH]"
+    if priority == "MEDIUM":
+        return "[MED]"
+    return "[LOW]"
+
+
+def _priority_emoji(priority: Optional[str]) -> str:
+    if priority == "HIGH":
+        return "🔴"
+    if priority == "MEDIUM":
+        return "🟡"
+    return "🟢"
+
+
+def _partition_daily_tasks(tasks: List[Any], today: str):
+    today_tasks = []
+    other_tasks = []
+    for task in tasks:
+        if task.due_date and task.due_date.strftime("%Y-%m-%d") == today:
+            today_tasks.append(task)
+        else:
+            other_tasks.append(task)
+    return today_tasks, other_tasks
 
 
 @mcp_server.prompt()
@@ -606,7 +634,7 @@ def task_review() -> str:
 
     prompt = "Here are your pending tasks:\n\n"
     for task in tasks:
-        status = "[HIGH]" if task.priority == "HIGH" else "[MED]" if task.priority == "MEDIUM" else "[LOW]"
+        status = _priority_label(task.priority)
         prompt += f"{status} {task.title}"
         if task.due_date:
             prompt += f" (Due: {task.due_date.strftime('%Y-%m-%d')})"
@@ -634,21 +662,14 @@ def daily_plan() -> str:
         limit=50
     )
 
-    today_tasks = []
-    other_tasks = []
-
-    for task in tasks:
-        if task.due_date and task.due_date.strftime("%Y-%m-%d") == today:
-            today_tasks.append(task)
-        else:
-            other_tasks.append(task)
+    today_tasks, other_tasks = _partition_daily_tasks(tasks, today)
 
     prompt = f"📅 Daily Plan for {today}\n\n"
 
     if today_tasks:
         prompt += "Today's Tasks:\n"
         for task in today_tasks:
-            status = "🔴" if task.priority == "HIGH" else "🟡" if task.priority == "MEDIUM" else "🟢"
+            status = _priority_emoji(task.priority)
             prompt += f"{status} {task.title}\n"
         prompt += "\n"
 

@@ -22,7 +22,7 @@ const nav = [
   { href: "/chat/advanced", label: "Lab", icon: Sparkles },
 ];
 
-export default function AppShell({ children, title, subtitle, signedIn, userLabel }: AppShellProps) {
+export default function AppShell({ children, title, subtitle, signedIn, userLabel }: Readonly<AppShellProps>) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -143,8 +143,10 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
             )}
             style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}
           >
-            <div
-              className="absolute inset-0 bg-[rgba(6,8,14,0.68)] backdrop-blur-sm"
+            <button
+              type="button"
+              aria-label="Close navigation drawer"
+              className="absolute inset-0 border-0 bg-[rgba(6,8,14,0.68)] backdrop-blur-sm"
               onClick={closeDrawer}
             />
             <div
@@ -152,7 +154,6 @@ export default function AppShell({ children, title, subtitle, signedIn, userLabe
                 "slide-panel absolute left-0 top-0 h-full w-[86%] max-w-[320px] border-r border-white/8 bg-[rgba(8,12,20,0.98)] p-4",
                 mobileOpen ? "translate-x-0 opacity-100" : "-translate-x-9 opacity-0"
               )}
-              onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-6 flex items-center gap-3 animate-fade-in-up">
                 <div className="icon-glow flex size-11 items-center justify-center rounded-2xl border border-white/8 bg-white/6">

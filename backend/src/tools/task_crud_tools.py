@@ -57,6 +57,7 @@ class TaskCRUDTools:
     """
 
     def __init__(self):
+        # Tools class is stateless; no state initialization needed
         pass
 
     def create_task(

@@ -27,7 +27,7 @@ export async function handleProviderCallback(
   const user = await new Promise<AppUser>((resolve, reject) => {
     configuredPassport.authenticate(provider, { session: false }, (error: unknown, authUser?: AppUser) => {
       if (error) {
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
         return;
       }
       if (!authUser) {
