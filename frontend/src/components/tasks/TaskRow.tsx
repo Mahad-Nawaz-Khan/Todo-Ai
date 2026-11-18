@@ -50,7 +50,7 @@ export const TaskRow = memo(function TaskRow({
     <li
       data-task-id={task.id}
       className={cn(
-        "group relative flex min-h-[56px] items-center gap-2.5 rounded-md px-3 py-2 transition-colors duration-[var(--dur-fast)] md:min-h-[40px] md:py-1.5",
+        "group relative flex min-h-[56px] items-center gap-2.5 rounded-md px-3 py-2 transition-colors duration-[var(--dur-fast)] has-[>button:focus-visible]:outline-2 has-[>button:focus-visible]:outline-offset-2 has-[>button:focus-visible]:outline-[var(--focus-ring)] md:min-h-[40px] md:py-1.5",
         selected || active
           ? "bg-selected shadow-[inset_0_0_0_1px_var(--accent-border)]"
           : "hover:bg-hover",

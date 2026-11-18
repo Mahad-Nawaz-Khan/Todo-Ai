@@ -125,7 +125,7 @@ function QuickAddFormBody({
           onClose();
         }
       }}
-      className="rounded-lg border border-line bg-surface p-3 shadow-sm"
+      className="field-shell rounded-lg border border-line bg-surface dark:bg-surface-2 p-3 shadow-sm transition-[border-color,box-shadow] duration-[var(--dur-fast)]"
     >
       <input
         ref={titleInputRef}
