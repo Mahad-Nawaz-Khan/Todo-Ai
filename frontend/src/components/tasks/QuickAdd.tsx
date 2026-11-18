@@ -125,7 +125,7 @@ function QuickAddFormBody({
           onClose();
         }
       }}
-      className="field-shell rounded-lg border border-line bg-surface dark:bg-surface-2 p-3 shadow-sm transition-[border-color,box-shadow] duration-[var(--dur-fast)]"
+      className="rounded-lg border border-line bg-surface dark:bg-surface-2 p-3 shadow-sm"
     >
       <input
         ref={titleInputRef}
@@ -134,17 +134,18 @@ function QuickAddFormBody({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Task name (try: Submit report tomorrow !high #work)"
-        className="w-full bg-transparent text-[15px] font-medium text-fg outline-none placeholder:text-fg-subtle"
+        className="w-full bg-transparent text-[15px] font-medium text-fg outline-none focus:outline-none focus-visible:outline-none placeholder:text-fg-subtle"
         aria-label="Task title"
       />
 
       <Textarea
+        variant="plain"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Description"
         rows={1}
         maxHeight={140}
-        className="mt-1 border-0 bg-transparent px-0 py-1 text-[13px] text-fg-muted shadow-none focus:shadow-none dark:bg-transparent"
+        className="mt-1 py-1 text-[13px] text-fg-muted"
         aria-label="Task description"
       />
 

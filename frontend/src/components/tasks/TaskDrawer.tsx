@@ -234,22 +234,24 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
           </div>
           <div className="min-w-0 flex-1">
             <Textarea
+              variant="plain"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               rows={1}
               maxHeight={120}
               placeholder="Task title"
               aria-label="Task title"
-              className="border-0 bg-transparent px-0 py-0 text-[19px] leading-7 font-semibold tracking-[-0.015em] text-fg shadow-none focus:shadow-none dark:bg-transparent"
+              className="text-[19px] leading-7 font-semibold tracking-[-0.015em] text-fg"
             />
             <Textarea
+              variant="plain"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               maxHeight={260}
               placeholder="Add notes…"
               aria-label="Task notes"
-              className="mt-1.5 border-0 bg-transparent px-0 py-0 text-[15px] leading-6 text-fg-muted shadow-none focus:shadow-none dark:bg-transparent"
+              className="mt-1.5 text-[15px] leading-6 text-fg-muted"
             />
           </div>
         </div>
