@@ -14,8 +14,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const isPublicRoute = publicRoutes.has(pathname);
   const sessionCookie = request.cookies.get("todo_ai_session")?.value;
+
+  if (pathname === "/" && sessionCookie) {
+    return NextResponse.redirect(new URL("/today", request.url));
+  }
+
+  const isPublicRoute = publicRoutes.has(pathname);
 
   if (!isPublicRoute && !sessionCookie) {
     const signInUrl = new URL("/sign-in", request.url);

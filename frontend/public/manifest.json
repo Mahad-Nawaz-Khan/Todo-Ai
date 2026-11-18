@@ -1,11 +1,11 @@
 {
-  "name": "TODO AI",
-  "short_name": "TODO AI",
-  "description": "AI-Powered TODO Application with Clerk Authentication",
+  "name": "Todo AI",
+  "short_name": "Todo AI",
+  "description": "Calm, keyboard-first task management with an integrated AI assistant.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "background_color": "#0B0D10",
+  "theme_color": "#1E40AF",
   "icons": [
     {
       "src": "/favicon.ico",

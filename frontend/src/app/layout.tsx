@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import dynamic from "next/dynamic";
+import type { ReactNode } from "react";
 
 import ScrollToTop from "@/components/ScrollToTop";
+import { ThemedToaster } from "@/components/ui/ThemedToaster";
 import { AuthProvider } from "@/context/AuthContext";
-import Footer from "@/components/Footer";
-
-const AppCommandPalette = dynamic(() => import("@/components/AppCommandPalette"));
+import { ThemeProvider } from "@/context/ThemeContext";
+import { themeScript } from "@/lib/theme-script";
 
 import "./globals.css";
-import type { ReactNode } from "react";
-import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,21 +21,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Todo AI Command Center",
-  description: "A premium task and AI workspace built on the existing Todo AI backend.",
+  title: {
+    default: "Todo AI",
+    template: "%s · Todo AI",
+  },
+  description: "Calm, keyboard-first task management with an integrated AI assistant.",
+  manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f7f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0d10" },
+  ],
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>
-          <ScrollToTop />
-          {children}
-          <AppCommandPalette />
-          <Toaster theme="dark" richColors position="top-right" />
-          <Footer />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ScrollToTop />
+            {children}
+            <ThemedToaster />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

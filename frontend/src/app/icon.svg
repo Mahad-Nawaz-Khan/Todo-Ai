@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="todoai-bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1E3A8A" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#todoai-bg)" />
+  <path
+    d="M8.5 16.5L13.5 21.5L23.5 10.5"
+    stroke="#FFFFFF"
+    stroke-width="2.75"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M24 5.5L24.75 7.25L26.5 8L24.75 8.75L24 10.5L23.25 8.75L21.5 8L23.25 7.25Z"
+    fill="#FFFFFF"
+  />
+</svg>
