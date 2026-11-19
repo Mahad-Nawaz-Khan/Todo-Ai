@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,41 @@ export interface MenuProps {
   children: (props: { close: () => void }) => ReactNode;
 }
 
+function MenuList({
+  minWidth,
+  children,
+}: Readonly<{ minWidth: number; children: ReactNode }>) {
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = listRef.current;
+    if (!container) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      const items = Array.from(
+        container.querySelectorAll<HTMLButtonElement>("button:not([disabled])")
+      );
+      if (!items.length) return;
+
+      event.preventDefault();
+      const currentIndex = items.findIndex((el) => el === document.activeElement);
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex = (currentIndex + delta + items.length) % items.length;
+      items[nextIndex]?.focus();
+    };
+
+    container.addEventListener("keydown", handleKeyDown);
+    return () => container.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <div ref={listRef} style={{ minWidth }} className="flex flex-col gap-0.5">
+      {children}
+    </div>
+  );
+}
+
 export function Menu({
   trigger,
   align = "end",
@@ -23,36 +58,9 @@ export function Menu({
   className,
   children,
 }: Readonly<MenuProps>) {
-  const listRef = useRef<HTMLDivElement | null>(null);
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    const container = listRef.current;
-    if (!container) return;
-    const items = Array.from(
-      container.querySelectorAll<HTMLButtonElement>("button:not([disabled])")
-    );
-    if (!items.length) return;
-
-    event.preventDefault();
-    const currentIndex = items.findIndex((el) => el === document.activeElement);
-    const delta = event.key === "ArrowDown" ? 1 : -1;
-    const nextIndex = (currentIndex + delta + items.length) % items.length;
-    items[nextIndex]?.focus();
-  };
-
   return (
     <Popover align={align} maxWidth={Math.max(240, minWidth)} trigger={trigger} className={className}>
-      {({ close }) => (
-        <div
-          ref={listRef}
-          onKeyDown={handleKeyDown}
-          style={{ minWidth }}
-          className="flex flex-col gap-0.5"
-        >
-          {children({ close })}
-        </div>
-      )}
+      {({ close }) => <MenuList minWidth={minWidth}>{children({ close })}</MenuList>}
     </Popover>
   );
 }

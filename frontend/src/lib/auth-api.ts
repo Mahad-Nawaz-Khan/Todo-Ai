@@ -19,6 +19,26 @@ export function authenticateProvider(provider: "google" | "github", req: NextApi
   return configuredPassport.authenticate(provider, options)(req, res);
 }
 
+function toAuthError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const msg = error.message;
+    if (typeof msg === "string") {
+      return new Error(msg);
+    }
+  }
+  try {
+    return new Error(JSON.stringify(error) ?? "Authentication failed");
+  } catch {
+    return new Error("Authentication failed");
+  }
+}
+
 export async function handleProviderCallback(
   provider: "google" | "github",
   req: NextApiRequest,
@@ -27,7 +47,7 @@ export async function handleProviderCallback(
   const user = await new Promise<AppUser>((resolve, reject) => {
     configuredPassport.authenticate(provider, { session: false }, (error: unknown, authUser?: AppUser) => {
       if (error) {
-        reject(error instanceof Error ? error : new Error(String(error)));
+        reject(toAuthError(error));
         return;
       }
       if (!authUser) {

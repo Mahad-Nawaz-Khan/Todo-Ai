@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/Menu";
+import type { PopoverProps } from "@/components/ui/Popover";
 import { useAuth } from "@/context/AuthContext";
 import { useTasks } from "@/context/TasksContext";
 import { useUI } from "@/context/UIContext";
@@ -18,6 +19,23 @@ import type { TagsChangedDetail } from "@/types/events";
 import type { Tag } from "@/types/tag";
 
 import { TagColorPicker } from "./TagColorPicker";
+
+function createTagActionsTrigger(tagName: string): PopoverProps["trigger"] {
+  return function TagActionsTrigger({ ref, isOpen, toggle }) {
+    return (
+      <Button
+        ref={ref}
+        variant="ghost"
+        size="icon-sm"
+        onClick={toggle}
+        aria-expanded={isOpen}
+        aria-label={`Actions for tag ${tagName}`}
+      >
+        <MoreHorizontal className="size-4" />
+      </Button>
+    );
+  };
+}
 
 export function TagsSection() {
   const { tags, isLoading } = useTags();
@@ -176,7 +194,9 @@ export function TagsSection() {
                 <TagColorPicker
                   color={tag.color}
                   tagName={tag.name}
-                  onSelect={(hex) => void handleUpdate(tag, { color: hex })}
+                  onSelect={(hex) => {
+                    handleUpdate(tag, { color: hex }).catch(() => {});
+                  }}
                 />
 
                 {isEditing ? (
@@ -185,7 +205,7 @@ export function TagsSection() {
                       e.preventDefault();
                       const trimmed = editingName.trim();
                       if (trimmed && trimmed !== tag.name) {
-                        void handleUpdate(tag, { name: trimmed });
+                        handleUpdate(tag, { name: trimmed }).catch(() => {});
                       } else {
                         setEditingId(null);
                       }
@@ -236,18 +256,7 @@ export function TagsSection() {
                     <Menu
                       align="end"
                       minWidth={150}
-                      trigger={({ ref, isOpen, toggle }) => (
-                        <Button
-                          ref={ref}
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={toggle}
-                          aria-expanded={isOpen}
-                          aria-label={`Actions for tag ${tag.name}`}
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </Button>
-                      )}
+                      trigger={createTagActionsTrigger(tag.name)}
                     >
                       {({ close }) => (
                         <>
@@ -267,7 +276,7 @@ export function TagsSection() {
                             danger
                             onSelect={() => {
                               close();
-                              void handleDelete(tag);
+                              handleDelete(tag).catch(() => {});
                             }}
                           />
                         </>

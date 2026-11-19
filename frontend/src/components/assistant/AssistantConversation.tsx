@@ -67,7 +67,7 @@ export function AssistantConversation({
 
   const handleNewChat = useCallback(() => {
     setRetainedOp(null);
-    void startNewConversation();
+    startNewConversation().catch(() => {});
     toast.success("Started a new chat");
   }, [startNewConversation]);
 
@@ -99,7 +99,7 @@ export function AssistantConversation({
     const trimmed = inputText.trim();
     if (!trimmed || isLoading) return;
     setRetainedOp(null);
-    void sendMessage(trimmed);
+    sendMessage(trimmed).catch(() => {});
     setInputText("");
   }, [inputText, isLoading, sendMessage, user]);
 

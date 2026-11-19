@@ -41,7 +41,15 @@ export function Sheet({
     } else if (!open && dialog.open) {
       dialog.close?.();
     }
-  }, [open]);
+
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) {
+        onClose();
+      }
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -61,11 +69,6 @@ export function Sheet({
       onCancel={(e) => {
         e.preventDefault();
         onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === dialogRef.current) {
-          onClose();
-        }
       }}
       className={cn(
         "ui-sheet fixed m-0 flex max-w-none flex-col overflow-hidden",

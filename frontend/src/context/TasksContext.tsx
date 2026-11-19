@@ -122,13 +122,13 @@ export function TasksProvider({ children }: Readonly<{ children: ReactNode }>) {
       return;
     }
     setLoading(true);
-    void refreshTasks();
+    refreshTasks().catch(() => {});
     return () => abortRef.current?.abort();
   }, [isLoaded, isSignedIn, refreshTasks]);
 
   useEffect(() => {
     const onTasksUpdated = () => {
-      void refreshTasks();
+      refreshTasks().catch(() => {});
     };
     const onTagsChanged = (event: Event) => {
       const detail = (event as CustomEvent<TagsChangedDetail>).detail;
@@ -178,7 +178,7 @@ export function TasksProvider({ children }: Readonly<{ children: ReactNode }>) {
       const optimistic: Task = {
         ...previous,
         ...payload,
-        description: payload.description !== undefined ? payload.description : previous.description,
+        description: payload.description ?? previous.description,
         tags: resolvedTags ?? previous.tags,
         updated_at: new Date().toISOString(),
       };
@@ -223,7 +223,7 @@ export function TasksProvider({ children }: Readonly<{ children: ReactNode }>) {
         setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
 
         if (task.recurrence_rule && updated.completed) {
-          void refreshTasks();
+          refreshTasks().catch(() => {});
         }
 
         if (allowUndo) {
@@ -232,7 +232,7 @@ export function TasksProvider({ children }: Readonly<{ children: ReactNode }>) {
             action: {
               label: "Undo",
               onClick: () => {
-                void toggleTask(updated, false);
+                toggleTask(updated, false).catch(() => {});
               },
             },
           });

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
-import { Popover } from "@/components/ui/Popover";
+import { Popover, type PopoverProps } from "@/components/ui/Popover";
 import { useAuth } from "@/context/AuthContext";
 import { useTasks } from "@/context/TasksContext";
 import { useTags } from "@/hooks/useTags";
@@ -20,6 +20,36 @@ export interface TagPickerProps {
   onChange: (nextIds: number[]) => void;
   triggerLabel?: string;
   renderTrigger?: (props: { isOpen: boolean; toggle: () => void }) => ReactNode;
+}
+
+function createTagPickerTrigger(
+  renderTrigger: TagPickerProps["renderTrigger"],
+  selectedCount: number,
+  buttonText: string
+): PopoverProps["trigger"] {
+  return function TagPickerTrigger({ ref, isOpen, toggle }) {
+    return renderTrigger ? (
+      <span ref={ref as React.RefObject<HTMLSpanElement | null>} className="inline-flex">
+        {renderTrigger({ isOpen, toggle })}
+      </span>
+    ) : (
+      <button
+        ref={ref}
+        type="button"
+        onClick={toggle}
+        aria-expanded={isOpen}
+        className={cn(
+          "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors duration-[var(--dur-fast)]",
+          selectedCount > 0
+            ? "border-accent-border bg-accent-subtle text-accent-text"
+            : "border-line bg-surface dark:bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg"
+        )}
+      >
+        <Hash className="size-3.5" aria-hidden="true" />
+        <span>{buttonText}</span>
+      </button>
+    );
+  };
 }
 
 export function TagPicker({
@@ -89,29 +119,7 @@ export function TagPicker({
     <Popover
       align="start"
       maxWidth={260}
-      trigger={({ ref, isOpen, toggle }) =>
-        renderTrigger ? (
-          <span ref={ref as React.RefObject<HTMLSpanElement | null>} className="inline-flex">
-            {renderTrigger({ isOpen, toggle })}
-          </span>
-        ) : (
-          <button
-            ref={ref}
-            type="button"
-            onClick={toggle}
-            aria-expanded={isOpen}
-            className={cn(
-              "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors duration-[var(--dur-fast)]",
-              selectedCount > 0
-                ? "border-accent-border bg-accent-subtle text-accent-text"
-                : "border-line bg-surface dark:bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg"
-            )}
-          >
-            <Hash className="size-3.5" aria-hidden="true" />
-            <span>{buttonText}</span>
-          </button>
-        )
-      }
+      trigger={createTagPickerTrigger(renderTrigger, selectedCount, buttonText)}
     >
       {() => (
         <div className="flex w-[244px] flex-col gap-1.5 p-1">
@@ -122,7 +130,7 @@ export function TagPicker({
             onKeyDown={(e) => {
               if (e.key === "Enter" && normalized && !hasExactMatch) {
                 e.preventDefault();
-                void handleCreate();
+                handleCreate().catch(() => {});
               }
             }}
             placeholder="Search or create tag…"
@@ -170,7 +178,9 @@ export function TagPicker({
               <button
                 type="button"
                 disabled={creating}
-                onClick={() => void handleCreate()}
+                onClick={() => {
+                  handleCreate().catch(() => {});
+                }}
                 className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-[13px] font-medium text-accent-text hover:bg-accent-subtle"
               >
                 <Plus className="size-3.5 shrink-0" aria-hidden="true" />

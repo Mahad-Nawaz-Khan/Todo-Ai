@@ -5,9 +5,25 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Menu, MenuItem } from "@/components/ui/Menu";
+import type { PopoverTriggerProps } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
 
 import { AssistantConversation } from "./AssistantConversation";
+
+function renderSessionOptionsTrigger({ ref, isOpen, toggle }: PopoverTriggerProps) {
+  return (
+    <Button
+      ref={ref}
+      variant="ghost"
+      size="icon-sm"
+      onClick={toggle}
+      aria-expanded={isOpen}
+      aria-label="Session options"
+    >
+      <MoreHorizontal className="size-4" />
+    </Button>
+  );
+}
 
 export function AssistantFullPage() {
   const [isThinking, setIsThinking] = useState(false);
@@ -49,18 +65,7 @@ export function AssistantFullPage() {
           <Menu
             align="end"
             minWidth={210}
-            trigger={({ ref, isOpen, toggle }) => (
-              <Button
-                ref={ref}
-                variant="ghost"
-                size="icon-sm"
-                onClick={toggle}
-                aria-expanded={isOpen}
-                aria-label="Session options"
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            )}
+            trigger={renderSessionOptionsTrigger}
           >
             {({ close }) => (
               <>

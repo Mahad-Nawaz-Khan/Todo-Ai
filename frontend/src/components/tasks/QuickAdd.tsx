@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Sparkles } from "lucide-react";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -47,6 +47,20 @@ function QuickAddFormBody({
   const { createTask } = useTasks();
   const { tags } = useTags();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    form.addEventListener("keydown", handleEscape);
+    return () => form.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -118,13 +132,8 @@ function QuickAddFormBody({
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.stopPropagation();
-          onClose();
-        }
-      }}
       className="rounded-lg border border-line bg-surface dark:bg-surface-2 p-3 shadow-sm"
     >
       <input

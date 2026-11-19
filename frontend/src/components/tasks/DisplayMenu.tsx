@@ -2,10 +2,25 @@
 
 import { ArrowUpDown, SlidersHorizontal } from "lucide-react";
 
-import { Popover } from "@/components/ui/Popover";
+import { Popover, type PopoverTriggerProps } from "@/components/ui/Popover";
 import { Select } from "@/components/ui/Select";
 import { Switch } from "@/components/ui/Switch";
 import type { TaskGroupMode, TaskSortField, TaskSortOrder } from "@/lib/taskViews";
+
+function renderDisplayMenuTrigger({ ref, isOpen, toggle }: PopoverTriggerProps) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={toggle}
+      aria-expanded={isOpen}
+      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-fg-muted transition-colors duration-[var(--dur-fast)] hover:border-line-strong hover:text-fg"
+    >
+      <SlidersHorizontal className="size-3.5" aria-hidden="true" />
+      <span>Display</span>
+    </button>
+  );
+}
 
 export interface DisplaySettings {
   groupBy?: TaskGroupMode;
@@ -31,18 +46,7 @@ export function DisplayMenu({
     <Popover
       align="end"
       maxWidth={260}
-      trigger={({ ref, isOpen, toggle }) => (
-        <button
-          ref={ref}
-          type="button"
-          onClick={toggle}
-          aria-expanded={isOpen}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 text-[13px] font-medium text-fg-muted transition-colors duration-[var(--dur-fast)] hover:border-line-strong hover:text-fg"
-        >
-          <SlidersHorizontal className="size-3.5" aria-hidden="true" />
-          <span>Display</span>
-        </button>
-      )}
+      trigger={renderDisplayMenuTrigger}
     >
       {() => (
         <div className="flex w-[240px] flex-col gap-3 p-2.5 text-sm">

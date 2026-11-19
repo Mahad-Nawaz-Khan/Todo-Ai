@@ -5,10 +5,48 @@ import { useRouter } from "next/navigation";
 
 import { Avatar } from "@/components/ui/Avatar";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/Menu";
+import type { PopoverProps } from "@/components/ui/Popover";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useUI } from "@/context/UIContext";
 import { cn } from "@/lib/utils";
+
+function createUserMenuTrigger(options: {
+  displayName: string;
+  imageUrl?: string | null;
+  avatarName?: string | null;
+  email?: string | null;
+  collapsed: boolean;
+  compactTrigger: boolean;
+}): PopoverProps["trigger"] {
+  const { displayName, imageUrl, avatarName, email, collapsed, compactTrigger } = options;
+  return function UserMenuTrigger({ ref, isOpen, toggle }) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        onClick={toggle}
+        aria-expanded={isOpen}
+        aria-label="Open account menu"
+        className={cn(
+          "flex items-center gap-2.5 rounded-md text-left transition-colors duration-[var(--dur-fast)] hover:bg-hover",
+          compactTrigger ? "size-8 justify-center" : "h-9 w-full px-2",
+          collapsed && !compactTrigger && "justify-center px-0"
+        )}
+      >
+        <Avatar src={imageUrl} name={avatarName} email={email} size={24} />
+        {!collapsed && !compactTrigger ? (
+          <>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">
+              {displayName}
+            </span>
+            <ChevronsUpDown className="size-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />
+          </>
+        ) : null}
+      </button>
+    );
+  };
+}
 
 export function UserMenu({ collapsed = false, compactTrigger = false }: Readonly<{ collapsed?: boolean; compactTrigger?: boolean }>) {
   const { user, signOut } = useAuth();
@@ -26,37 +64,14 @@ export function UserMenu({ collapsed = false, compactTrigger = false }: Readonly
     <Menu
       align={compactTrigger ? "end" : "start"}
       minWidth={220}
-      trigger={({ ref, isOpen, toggle }) => (
-        <button
-          ref={ref}
-          type="button"
-          onClick={toggle}
-          aria-expanded={isOpen}
-          aria-label="Open account menu"
-          className={cn(
-            "flex items-center gap-2.5 rounded-md text-left transition-colors duration-[var(--dur-fast)] hover:bg-hover",
-            compactTrigger
-              ? "size-8 justify-center"
-              : "h-9 w-full px-2",
-            collapsed && !compactTrigger && "justify-center px-0"
-          )}
-        >
-          <Avatar
-            src={user?.imageUrl}
-            name={user?.name || user?.firstName}
-            email={user?.email}
-            size={24}
-          />
-          {!collapsed && !compactTrigger ? (
-            <>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">
-                {displayName}
-              </span>
-              <ChevronsUpDown className="size-3.5 shrink-0 text-fg-subtle" aria-hidden="true" />
-            </>
-          ) : null}
-        </button>
-      )}
+      trigger={createUserMenuTrigger({
+        displayName,
+        imageUrl: user?.imageUrl,
+        avatarName: user?.name || user?.firstName,
+        email: user?.email,
+        collapsed,
+        compactTrigger,
+      })}
     >
       {({ close }) => (
         <>
@@ -123,7 +138,7 @@ export function UserMenu({ collapsed = false, compactTrigger = false }: Readonly
             danger
             onSelect={() => {
               close();
-              void signOut();
+              signOut().catch(() => {});
             }}
           />
         </>

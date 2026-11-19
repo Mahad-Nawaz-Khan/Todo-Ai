@@ -35,22 +35,29 @@ export function Tooltip({ label, shortcut, children, side = "top" }: Readonly<To
     setOpen(false);
   }, []);
 
-  useEffect(() => () => window.clearTimeout(timerRef.current), []);
+  useEffect(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    el.addEventListener("mouseenter", show);
+    el.addEventListener("mouseleave", hide);
+    el.addEventListener("focusin", show);
+    el.addEventListener("focusout", hide);
+    return () => {
+      el.removeEventListener("mouseenter", show);
+      el.removeEventListener("mouseleave", hide);
+      el.removeEventListener("focusin", show);
+      el.removeEventListener("focusout", hide);
+      window.clearTimeout(timerRef.current);
+    };
+  }, [show, hide]);
 
   return (
-    <span
-      ref={triggerRef}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      className="inline-flex items-center"
-    >
+    <span ref={triggerRef} className="inline-flex items-center">
       {children}
       {open && typeof document !== "undefined"
         ? createPortal(
             <span
-              role="presentation"
+              role="tooltip"
               style={{
                 top: coords.top,
                 left: coords.left,

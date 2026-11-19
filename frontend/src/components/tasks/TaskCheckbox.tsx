@@ -27,15 +27,13 @@ export function TaskCheckbox({
   const actionLabel = checked ? `Reopen “${title}”` : `Complete “${title}”`;
 
   return (
-    <label
-      onClick={(e) => e.stopPropagation()}
-      className="relative -m-2 inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full md:-m-1.5 md:size-8"
-    >
+    <label className="relative -m-2 inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full md:-m-1.5 md:size-8">
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={onToggle}
+        onClick={(e) => e.stopPropagation()}
         aria-label={actionLabel}
         className="peer sr-only"
       />

@@ -4,6 +4,7 @@ import { MoreHorizontal, Pencil, Repeat2, Trash2 } from "lucide-react";
 import { memo } from "react";
 
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/Menu";
+import type { PopoverProps } from "@/components/ui/Popover";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { getTodayKey, getTomorrowKey } from "@/lib/dates";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,29 @@ const RECURRENCE_LABELS: Record<RecurrenceValue, string> = {
   WEEKLY: "Repeats weekly",
   MONTHLY: "Repeats monthly",
 };
+
+function createTaskRowActionsTrigger(taskTitle: string): PopoverProps["trigger"] {
+  return function TaskRowActionsTrigger({ ref, isOpen, toggle }) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          toggle();
+        }}
+        aria-expanded={isOpen}
+        aria-label={`Actions for “${taskTitle}”`}
+        className={cn(
+          "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-opacity duration-[var(--dur-fast)] hover:bg-selected hover:text-fg focus-visible:opacity-100",
+          isOpen ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"
+        )}
+      >
+        <MoreHorizontal className="size-4" aria-hidden="true" />
+      </button>
+    );
+  };
+}
 
 export interface TaskRowProps {
   task: Task;
@@ -113,24 +137,7 @@ export const TaskRow = memo(function TaskRow({
       <Menu
         align="end"
         minWidth={190}
-        trigger={({ ref, isOpen, toggle }) => (
-          <button
-            ref={ref}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggle();
-            }}
-            aria-expanded={isOpen}
-            aria-label={`Actions for “${task.title}”`}
-            className={cn(
-              "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg-subtle transition-opacity duration-[var(--dur-fast)] hover:bg-selected hover:text-fg focus-visible:opacity-100",
-              isOpen ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"
-            )}
-          >
-            <MoreHorizontal className="size-4" aria-hidden="true" />
-          </button>
-        )}
+        trigger={createTaskRowActionsTrigger(task.title)}
       >
         {({ close }) => (
           <>

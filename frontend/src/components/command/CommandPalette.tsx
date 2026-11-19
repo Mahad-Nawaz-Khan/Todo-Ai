@@ -309,7 +309,7 @@ export function CommandPalette() {
               className={ITEM_CLASS}
               onSelect={() => {
                 close();
-                void signOut();
+                signOut().catch(() => {});
               }}
             >
               <LogOut className="size-4 shrink-0 text-fg-subtle" aria-hidden="true" />

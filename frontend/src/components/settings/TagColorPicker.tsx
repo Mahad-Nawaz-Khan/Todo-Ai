@@ -2,9 +2,32 @@
 
 import { Check } from "lucide-react";
 
-import { Popover } from "@/components/ui/Popover";
+import { Popover, type PopoverProps } from "@/components/ui/Popover";
 import { resolveTagColor, TAG_PALETTE } from "@/lib/tagColors";
 import { cn } from "@/lib/utils";
+
+function createTagColorTrigger(
+  tagName: string,
+  activeHex: string
+): PopoverProps["trigger"] {
+  return function TagColorTrigger({ ref, isOpen, toggle }) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        onClick={toggle}
+        aria-expanded={isOpen}
+        aria-label={`Change color for tag ${tagName}`}
+        className="flex size-7 items-center justify-center rounded-md hover:bg-hover"
+      >
+        <span
+          className="size-3 rounded-full ring-1 ring-black/10 dark:ring-white/15"
+          style={{ backgroundColor: activeHex }}
+        />
+      </button>
+    );
+  };
+}
 
 export function TagColorPicker({
   color,
@@ -21,21 +44,7 @@ export function TagColorPicker({
     <Popover
       align="start"
       maxWidth={190}
-      trigger={({ ref, isOpen, toggle }) => (
-        <button
-          ref={ref}
-          type="button"
-          onClick={toggle}
-          aria-expanded={isOpen}
-          aria-label={`Change color for tag ${tagName}`}
-          className="flex size-7 items-center justify-center rounded-md hover:bg-hover"
-        >
-          <span
-            className="size-3 rounded-full ring-1 ring-black/10 dark:ring-white/15"
-            style={{ backgroundColor: activeHex }}
-          />
-        </button>
-      )}
+      trigger={createTagColorTrigger(tagName, activeHex)}
     >
       {({ close }) => (
         <fieldset className="p-2">

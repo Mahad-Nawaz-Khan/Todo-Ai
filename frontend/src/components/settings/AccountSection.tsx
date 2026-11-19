@@ -19,7 +19,7 @@ export function AccountSection() {
       <Button
         variant="secondary"
         leadingIcon={<LogOut className="size-4" />}
-        onClick={() => void signOut()}
+        onClick={() => signOut().catch(() => {})}
       >
         Sign out
       </Button>

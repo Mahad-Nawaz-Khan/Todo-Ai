@@ -5,18 +5,20 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type R
 import { useAnchorPosition } from "@/hooks/useAnchorPosition";
 import { cn } from "@/lib/utils";
 
+export interface PopoverTriggerProps {
+  ref: RefObject<HTMLButtonElement | null>;
+  popoverTarget: string;
+  isOpen: boolean;
+  toggle: () => void;
+}
+
 export interface PopoverProps {
   open?: boolean;
   onOpenChange?: (next: boolean) => void;
   align?: "start" | "end";
   maxWidth?: number;
   className?: string;
-  trigger: (props: {
-    ref: RefObject<HTMLButtonElement | null>;
-    popoverTarget: string;
-    isOpen: boolean;
-    toggle: () => void;
-  }) => ReactNode;
+  trigger: (props: PopoverTriggerProps) => ReactNode;
   children: (props: { close: () => void }) => ReactNode;
 }
 

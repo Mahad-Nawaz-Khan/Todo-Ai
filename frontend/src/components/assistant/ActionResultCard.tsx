@@ -22,6 +22,18 @@ const TILE_CLASSES: Record<OpTone, string> = {
   warning: "bg-warning-subtle text-warning",
 };
 
+function formatTaskDetail(taskId: number | undefined, suffix: string, fallback: string): string {
+  return taskId ? `Task #${taskId} ${suffix}` : fallback;
+}
+
+function formatSearchDetail(count?: number): string {
+  if (typeof count !== "number") {
+    return "Inspected your tasks.";
+  }
+  const plural = count === 1 ? "" : "s";
+  return `Found ${count} matching task${plural}.`;
+}
+
 function getOperationMeta(op: OperationShape): {
   title: string;
   detail: string;
@@ -41,7 +53,7 @@ function getOperationMeta(op: OperationShape): {
   if (type.includes("CREATE")) {
     return {
       title: "Task created",
-      detail: op.task_id ? `Task #${op.task_id} added to your workspace.` : "New task created.",
+      detail: formatTaskDetail(op.task_id, "added to your workspace.", "New task created."),
       tone: "success",
       icon: CheckCircle2,
     };
@@ -49,7 +61,7 @@ function getOperationMeta(op: OperationShape): {
   if (type.includes("UPDATE") || type.includes("EDIT")) {
     return {
       title: "Task updated",
-      detail: op.task_id ? `Task #${op.task_id} has been updated.` : "Task updated.",
+      detail: formatTaskDetail(op.task_id, "has been updated.", "Task updated."),
       tone: "accent",
       icon: PencilLine,
     };
@@ -57,7 +69,7 @@ function getOperationMeta(op: OperationShape): {
   if (type.includes("DELETE")) {
     return {
       title: "Task deleted",
-      detail: op.task_id ? `Task #${op.task_id} was removed.` : "Task removed.",
+      detail: formatTaskDetail(op.task_id, "was removed.", "Task removed."),
       tone: "danger",
       icon: Trash2,
     };
@@ -65,10 +77,7 @@ function getOperationMeta(op: OperationShape): {
   if (type.includes("READ") || type.includes("SEARCH") || type.includes("LIST")) {
     return {
       title: "Tasks searched",
-      detail:
-        typeof op.count === "number"
-          ? `Found ${op.count} matching task${op.count === 1 ? "" : "s"}.`
-          : "Inspected your tasks.",
+      detail: formatSearchDetail(op.count),
       tone: "warning",
       icon: Search,
     };

@@ -51,7 +51,15 @@ export function Dialog({
     } else if (!open && dialog.open) {
       dialog.close?.();
     }
-  }, [open]);
+
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) {
+        onClose();
+      }
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -63,11 +71,6 @@ export function Dialog({
       onCancel={(e) => {
         e.preventDefault();
         onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === dialogRef.current) {
-          onClose();
-        }
       }}
       className={cn(
         "ui-dialog m-auto w-[calc(100%-2rem)] overflow-hidden rounded-xl",

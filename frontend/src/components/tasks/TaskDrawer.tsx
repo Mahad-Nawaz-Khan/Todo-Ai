@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Kbd } from "@/components/ui/Kbd";
 import { Menu, MenuItem, MenuSeparator } from "@/components/ui/Menu";
+import type { PopoverTriggerProps } from "@/components/ui/Popover";
 import { Sheet } from "@/components/ui/Sheet";
 import { Textarea } from "@/components/ui/Textarea";
 import { useTasks } from "@/context/TasksContext";
@@ -23,6 +24,21 @@ import type { Priority, RecurrenceInput, Task } from "@/types/task";
 
 import { TaskCheckbox } from "./TaskCheckbox";
 import { TaskProperties } from "./TaskProperties";
+
+function renderTaskMoreActionsTrigger({ ref, isOpen, toggle }: PopoverTriggerProps) {
+  return (
+    <Button
+      ref={ref}
+      variant="ghost"
+      size="icon-sm"
+      onClick={toggle}
+      aria-expanded={isOpen}
+      aria-label="More task actions"
+    >
+      <MoreHorizontal className="size-4" />
+    </Button>
+  );
+}
 
 interface TaskDrawerFormProps {
   task: Task;
@@ -132,7 +148,7 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
 
   useEffect(() => {
     requestCloseRef.current = () => {
-      void handleRequestClose();
+      handleRequestClose().catch(() => {});
     };
   }, [handleRequestClose, requestCloseRef]);
 
@@ -157,7 +173,7 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
       allowInInput: true,
       when: isDirty,
       handler: () => {
-        void handleSave();
+        handleSave().catch(() => {});
       },
     },
   ]);
@@ -173,18 +189,7 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
           <Menu
             align="end"
             minWidth={170}
-            trigger={({ ref, isOpen, toggle }) => (
-              <Button
-                ref={ref}
-                variant="ghost"
-                size="icon-sm"
-                onClick={toggle}
-                aria-expanded={isOpen}
-                aria-label="More task actions"
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            )}
+            trigger={renderTaskMoreActionsTrigger}
           >
             {({ close }) => (
               <>
@@ -193,7 +198,7 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
                   label="Copy link"
                   onSelect={() => {
                     close();
-                    void navigator.clipboard?.writeText(window.location.href);
+                    navigator.clipboard?.writeText(window.location.href)?.catch(() => {});
                     toast.success("Task link copied");
                   }}
                 />
@@ -204,7 +209,7 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
                   danger
                   onSelect={() => {
                     close();
-                    void handleDelete();
+                    handleDelete().catch(() => {});
                   }}
                 />
               </>
@@ -214,7 +219,9 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => void handleRequestClose()}
+            onClick={() => {
+              handleRequestClose().catch(() => {});
+            }}
             aria-label="Close task details"
           >
             <X className="size-4" />
@@ -282,7 +289,7 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
         <div className="flex items-center justify-between gap-3 border-t border-line-subtle bg-surface px-5 py-3">
           <span className="flex items-center gap-2 text-xs font-medium text-warning">
             <span className="size-1.5 rounded-full bg-warning" aria-hidden="true" />
-            Unsaved changes
+            <span>Unsaved changes</span>
           </span>
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={handleDiscard} disabled={saving}>
@@ -293,7 +300,9 @@ function TaskDrawerForm({ task, onCloseForce, requestCloseRef }: Readonly<TaskDr
               size="sm"
               loading={saving}
               disabled={!title.trim()}
-              onClick={() => void handleSave()}
+              onClick={() => {
+                handleSave().catch(() => {});
+              }}
               trailingIcon={<Kbd className="border-white/25 bg-white/15 text-white shadow-none">⌘↵</Kbd>}
             >
               Save

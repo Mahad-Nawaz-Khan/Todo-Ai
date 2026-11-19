@@ -155,6 +155,111 @@ function renderEmptyView(
   );
 }
 
+function countGroupTasks(groups: TaskGroupBucket[]): number {
+  return groups.reduce((sum, g) => sum + g.tasks.length, 0);
+}
+
+function restoreGroupTasks(
+  groups: TaskGroupBucket[],
+  taskById: Map<number, Task>
+): TaskGroupBucket[] {
+  return groups.map((group) => ({
+    ...group,
+    tasks: group.tasks.map((t) => taskById.get(t.id) ?? t),
+  }));
+}
+
+function computeTaskViewData(params: {
+  view: TaskViewKind;
+  tagId?: number;
+  tasks: Task[];
+  display: DisplaySettings;
+  allFilters: AllTasksFilter;
+  graceIds: Set<number>;
+}) {
+  const { view, tagId, tasks, display, allFilters, graceIds } = params;
+  const tasksWithGrace = tasks.map((t) =>
+    graceIds.has(t.id) && t.completed ? { ...t, completed: false, __graceCompleted: true } : t
+  );
+  const taskById = new Map(tasks.map((t) => [t.id, t]));
+
+  if (view === "today") {
+    const realToday = selectToday(tasks, {
+      showCompleted: display.showCompleted,
+      sortBy: display.sortBy,
+      order: display.order,
+    });
+    if (!graceIds.size || display.showCompleted) {
+      return {
+        groups: realToday.groups,
+        progress: { completed: realToday.completedTodayCount, total: realToday.totalTodayScope },
+        count: countGroupTasks(realToday.groups),
+      };
+    }
+    const displayToday = selectToday(tasksWithGrace, {
+      showCompleted: false,
+      sortBy: display.sortBy,
+      order: display.order,
+    });
+    const restoredGroups = restoreGroupTasks(displayToday.groups, taskById);
+    return {
+      groups: restoredGroups,
+      progress: { completed: realToday.completedTodayCount, total: realToday.totalTodayScope },
+      count: countGroupTasks(restoredGroups),
+    };
+  }
+
+  if (view === "upcoming") {
+    const groups = restoreGroupTasks(
+      selectUpcomingGroups(tasksWithGrace, {
+        showCompleted: display.showCompleted,
+        sortBy: display.sortBy,
+        order: display.order,
+      }),
+      taskById
+    );
+    return { groups, progress: null, count: countGroupTasks(groups) };
+  }
+
+  if (view === "completed") {
+    const groups = selectCompletedGroups(tasks);
+    return { groups, progress: null, count: countGroupTasks(groups) };
+  }
+
+  if (view === "tag" && tagId) {
+    const res = selectByTag(tasksWithGrace, tagId, {
+      showCompleted: display.showCompleted,
+      sortBy: display.sortBy,
+      order: display.order,
+      groupBy: display.groupBy,
+    });
+    return { groups: restoreGroupTasks(res.groups, taskById), progress: null, count: res.matchCount };
+  }
+
+  const res = selectAllTasks(tasksWithGrace, allFilters);
+  return { groups: restoreGroupTasks(res.groups, taskById), progress: null, count: res.matchCount };
+}
+
+function getTaskViewHeading(
+  view: TaskViewKind,
+  count: number,
+  currentTagName?: string | null
+): { title: string; subtitle: string } {
+  if (view === "today") {
+    return { title: "Today", subtitle: formatFullDateHeading() };
+  }
+  if (view === "upcoming") {
+    return { title: "Upcoming", subtitle: "Next 7 days and beyond" };
+  }
+  if (view === "completed") {
+    return { title: "Completed", subtitle: `${count} completed` };
+  }
+  if (view === "tag") {
+    return { title: currentTagName ? `#${currentTagName}` : "Tag", subtitle: `${count} tasks` };
+  }
+  return { title: "All tasks", subtitle: `${count} matching` };
+}
+
 export function TaskView({ view, tagId }: Readonly<TaskViewProps>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -245,7 +350,7 @@ export function TaskView({ view, tagId }: Readonly<TaskViewProps>) {
         }, 800);
         graceTimersRef.current.set(task.id, timer);
       }
-      void toggleTask(task, true);
+      toggleTask(task, true).catch(() => {});
     },
     [allFilters.showCompleted, allFilters.status, display.showCompleted, toggleTask, view]
   );
@@ -267,7 +372,7 @@ export function TaskView({ view, tagId }: Readonly<TaskViewProps>) {
 
   const handleQuickUpdate = useCallback(
     (taskId: number, patch: { priority?: Priority; due_date?: string | null }) => {
-      void updateTask(taskId, patch);
+      updateTask(taskId, patch).catch(() => {});
     },
     [updateTask]
   );
@@ -277,87 +382,10 @@ export function TaskView({ view, tagId }: Readonly<TaskViewProps>) {
     [tagId, tags, view]
   );
 
-  const computed = useMemo(() => {
-    const applyGraceShowCompleted = (baseShow: boolean) => baseShow;
-    const tasksWithGrace = tasks.map((t) =>
-      graceIds.has(t.id) && t.completed ? { ...t, completed: false, __graceCompleted: true } : t
-    );
-
-    if (view === "today") {
-      const realToday = selectToday(tasks, {
-        showCompleted: applyGraceShowCompleted(display.showCompleted),
-        sortBy: display.sortBy,
-        order: display.order,
-      });
-      if (!graceIds.size || display.showCompleted) {
-        return {
-          groups: realToday.groups,
-          progress: { completed: realToday.completedTodayCount, total: realToday.totalTodayScope },
-          count: realToday.groups.reduce((sum, g) => sum + g.tasks.length, 0),
-        };
-      }
-      const displayToday = selectToday(tasksWithGrace, {
-        showCompleted: false,
-        sortBy: display.sortBy,
-        order: display.order,
-      });
-      const restoredGroups = displayToday.groups.map((g) => ({
-        ...g,
-        tasks: g.tasks.map((t) => tasks.find((orig) => orig.id === t.id) ?? t),
-      }));
-      return {
-        groups: restoredGroups,
-        progress: { completed: realToday.completedTodayCount, total: realToday.totalTodayScope },
-        count: restoredGroups.reduce((sum, g) => sum + g.tasks.length, 0),
-      };
-    }
-
-    if (view === "upcoming") {
-      const groups = selectUpcomingGroups(tasksWithGrace, {
-        showCompleted: display.showCompleted,
-        sortBy: display.sortBy,
-        order: display.order,
-      }).map((g) => ({
-        ...g,
-        tasks: g.tasks.map((t) => tasks.find((orig) => orig.id === t.id) ?? t),
-      }));
-      return {
-        groups,
-        progress: null,
-        count: groups.reduce((sum, g) => sum + g.tasks.length, 0),
-      };
-    }
-
-    if (view === "completed") {
-      const groups = selectCompletedGroups(tasks);
-      return {
-        groups,
-        progress: null,
-        count: groups.reduce((sum, g) => sum + g.tasks.length, 0),
-      };
-    }
-
-    if (view === "tag" && tagId) {
-      const res = selectByTag(tasksWithGrace, tagId, {
-        showCompleted: display.showCompleted,
-        sortBy: display.sortBy,
-        order: display.order,
-        groupBy: display.groupBy,
-      });
-      const groups = res.groups.map((g) => ({
-        ...g,
-        tasks: g.tasks.map((t) => tasks.find((orig) => orig.id === t.id) ?? t),
-      }));
-      return { groups, progress: null, count: res.matchCount };
-    }
-
-    const res = selectAllTasks(tasksWithGrace, allFilters);
-    const groups: TaskGroupBucket[] = res.groups.map((g) => ({
-      ...g,
-      tasks: g.tasks.map((t) => tasks.find((orig) => orig.id === t.id) ?? t),
-    }));
-    return { groups, progress: null, count: res.matchCount };
-  }, [allFilters, display.groupBy, display.order, display.showCompleted, display.sortBy, graceIds, tagId, tasks, view]);
+  const computed = useMemo(
+    () => computeTaskViewData({ view, tagId, tasks, display, allFilters, graceIds }),
+    [allFilters, display, graceIds, tagId, tasks, view]
+  );
 
   const orderedTasks = useMemo(
     () => computed.groups.flatMap((g) => g.tasks),
@@ -378,21 +406,7 @@ export function TaskView({ view, tagId }: Readonly<TaskViewProps>) {
     return {};
   }, [tagId, view]);
 
-  let title = "All tasks";
-  let subtitle = `${computed.count} matching`;
-  if (view === "today") {
-    title = "Today";
-    subtitle = formatFullDateHeading();
-  } else if (view === "upcoming") {
-    title = "Upcoming";
-    subtitle = "Next 7 days and beyond";
-  } else if (view === "completed") {
-    title = "Completed";
-    subtitle = `${computed.count} completed`;
-  } else if (view === "tag") {
-    title = currentTag ? `#${currentTag.name}` : "Tag";
-    subtitle = `${computed.count} tasks`;
-  }
+  const { title, subtitle } = getTaskViewHeading(view, computed.count, currentTag?.name);
 
   const displaySettingsForMenu: DisplaySettings =
     view === "tasks"
@@ -466,7 +480,13 @@ export function TaskView({ view, tagId }: Readonly<TaskViewProps>) {
           tone="error"
           title="Could not load tasks"
           action={
-            <Button variant="secondary" size="sm" onClick={() => void refreshTasks()}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                refreshTasks().catch(() => {});
+              }}
+            >
               Retry
             </Button>
           }

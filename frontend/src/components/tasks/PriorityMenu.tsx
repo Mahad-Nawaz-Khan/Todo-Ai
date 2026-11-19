@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 
-import { Popover } from "@/components/ui/Popover";
+import { Popover, type PopoverProps } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
 import type { Priority } from "@/types/task";
 
@@ -15,6 +15,31 @@ const LABELS: Record<Priority, string> = {
 };
 
 const OPTIONS: Priority[] = ["HIGH", "MEDIUM", "LOW"];
+
+function createPriorityTrigger(
+  value: Priority,
+  hasExplicitValue: boolean
+): PopoverProps["trigger"] {
+  return function PriorityTrigger({ ref, isOpen, toggle }) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        onClick={toggle}
+        aria-expanded={isOpen}
+        className={cn(
+          "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors duration-[var(--dur-fast)]",
+          hasExplicitValue
+            ? "border-accent-border bg-accent-subtle text-accent-text"
+            : "border-line bg-surface dark:bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg"
+        )}
+      >
+        <PriorityIcon priority={value} />
+        <span>{hasExplicitValue ? LABELS[value] : "Priority"}</span>
+      </button>
+    );
+  };
+}
 
 export function PriorityMenu({
   value,
@@ -29,23 +54,7 @@ export function PriorityMenu({
     <Popover
       align="start"
       maxWidth={180}
-      trigger={({ ref, isOpen, toggle }) => (
-        <button
-          ref={ref}
-          type="button"
-          onClick={toggle}
-          aria-expanded={isOpen}
-          className={cn(
-            "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors duration-[var(--dur-fast)]",
-            hasExplicitValue
-              ? "border-accent-border bg-accent-subtle text-accent-text"
-              : "border-line bg-surface dark:bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg"
-          )}
-        >
-          <PriorityIcon priority={value} />
-          <span>{hasExplicitValue ? LABELS[value] : "Priority"}</span>
-        </button>
-      )}
+      trigger={createPriorityTrigger(value, hasExplicitValue)}
     >
       {({ close }) => (
         <div className="flex w-[160px] flex-col gap-0.5">

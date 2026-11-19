@@ -155,7 +155,7 @@ class ChatService:
     @staticmethod
     def _extract_task_title(message_lower: str) -> Optional[str]:
         title_match = re.search(
-            r'\b(create|add|make|new)\s+(a\s+)?task\s+(to|for|about)?\s*(.+?)(?:\s+(?:with|by|priority)|$)',
+            r'\b(create|add|make|new)\s+(a\s+)?task\s+(to|for|about)?\s*(.+)',
             message_lower
         )
         if not title_match:

@@ -747,24 +747,31 @@ def _clean_properties_subschemas(properties: dict):
         _normalize_strict_tool_schema(sub_value)
 
 
+def _normalize_object_schema(schema: dict) -> None:
+    if schema.get("type") != "object":
+        return
+    properties = schema.get("properties")
+    if isinstance(properties, dict) and properties:
+        schema["required"] = list(properties.keys())
+    else:
+        schema.pop("required", None)
+    schema["additionalProperties"] = False
+
+
 def _normalize_strict_tool_schema(schema: Any) -> Any:
     """Apply Groq's strict-mode JSON schema rules throughout a tool schema."""
-    if isinstance(schema, dict):
-        if schema.get("type") == "object":
-            properties = schema.get("properties")
-            if isinstance(properties, dict) and properties:
-                schema["required"] = list(properties.keys())
-            else:
-                schema.pop("required", None)
-            schema["additionalProperties"] = False
-        for key, value in schema.items():
-            if key == "properties" and isinstance(value, dict):
-                _clean_properties_subschemas(value)
-            else:
-                _normalize_strict_tool_schema(value)
-    elif isinstance(schema, list):
+    if isinstance(schema, list):
         for item in schema:
             _normalize_strict_tool_schema(item)
+        return schema
+    if not isinstance(schema, dict):
+        return schema
+    _normalize_object_schema(schema)
+    for key, value in schema.items():
+        if key == "properties" and isinstance(value, dict):
+            _clean_properties_subschemas(value)
+        else:
+            _normalize_strict_tool_schema(value)
     return schema
 
 
@@ -915,7 +922,7 @@ class AgentService:
             return response_text
         return self._post_validate_response(response_text, None, context)
 
-    async def _build_final_response(self, result, provider_label: str, context: ToolContext) -> Dict[str, Any]:
+    def _build_final_response(self, result, provider_label: str, context: ToolContext) -> Dict[str, Any]:
         operation_performed = self._extract_operations(result, context)
         final_content = self._finalize_response_text(self._provider_result_output_text(result), operation_performed, context)
         return {"success": True, "content": final_content, "operation_performed": operation_performed, "model_used": self._get_model_used_label(provider_label)}
@@ -1062,7 +1069,7 @@ class AgentService:
             self._last_task_context = self._build_task_grounding_context(content, user_id, db_session)
             input_text = self._build_input_text(content, conversation_history, user_info, self._last_task_context)
             result, provider_label = await self._run_with_provider_fallback(input_text, tool_context)
-            return await self._build_final_response(result, provider_label, tool_context)
+            return self._build_final_response(result, provider_label, tool_context)
         except Exception as error:
             logger.exception(f"Error processing message with OpenAI Agents SDK: {error}")
             return self._provider_graceful_failure_response()

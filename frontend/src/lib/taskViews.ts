@@ -171,6 +171,27 @@ export interface TodaySelection {
   overdueCount: number;
 }
 
+function isCompletedToday(task: Task, todayKey: string): boolean {
+  const dueKey = extractDateKey(task.due_date);
+  const updatedKey = extractDateKey(task.updated_at);
+  return dueKey === todayKey || updatedKey === todayKey;
+}
+
+function appendTodayCompleted(
+  task: Task,
+  todayKey: string,
+  showCompleted: boolean,
+  todayTasks: Task[]
+): number {
+  if (!isCompletedToday(task, todayKey)) {
+    return 0;
+  }
+  if (showCompleted) {
+    todayTasks.push(task);
+  }
+  return 1;
+}
+
 export function selectToday(
   tasks: Task[],
   options: { showCompleted?: boolean; sortBy?: TaskSortField; order?: TaskSortOrder } = {},
@@ -184,19 +205,12 @@ export function selectToday(
   let completedTodayCount = 0;
 
   for (const task of tasks) {
-    const dueKey = extractDateKey(task.due_date);
-    const updatedKey = extractDateKey(task.updated_at);
-
     if (task.completed) {
-      if (dueKey === todayKey || updatedKey === todayKey) {
-        completedTodayCount += 1;
-        if (showCompleted) {
-          todayTasks.push(task);
-        }
-      }
+      completedTodayCount += appendTodayCompleted(task, todayKey, showCompleted, todayTasks);
       continue;
     }
 
+    const dueKey = extractDateKey(task.due_date);
     if (dueKey && dueKey < todayKey) {
       overdue.push(task);
     } else if (dueKey === todayKey) {
@@ -225,6 +239,38 @@ export function selectToday(
   };
 }
 
+function addDayBucket(
+  dayBuckets: Map<string, TaskGroupBucket>,
+  dueKey: string,
+  tomorrowKey: string,
+  task: Task
+): void {
+  const existing = dayBuckets.get(dueKey);
+  if (existing) {
+    existing.tasks.push(task);
+    return;
+  }
+  const dateObj = parseDateKey(dueKey);
+  const dayText = dateObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const label = dueKey === tomorrowKey ? `Tomorrow · ${dayText}` : dayText;
+  dayBuckets.set(dueKey, { key: `up-${dueKey}`, label, tone: "default", tasks: [task] });
+}
+
+function addMonthBucket(
+  laterBuckets: Map<string, TaskGroupBucket>,
+  dueKey: string,
+  task: Task
+): void {
+  const monthKey = dueKey.slice(0, 7);
+  const existingMonth = laterBuckets.get(monthKey);
+  if (existingMonth) {
+    existingMonth.tasks.push(task);
+    return;
+  }
+  const monthLabel = parseDateKey(dueKey).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  laterBuckets.set(monthKey, { key: `later-${monthKey}`, label: monthLabel, tone: "default", tasks: [task] });
+}
+
 export function selectUpcomingGroups(
   tasks: Task[],
   options: { showCompleted?: boolean; sortBy?: TaskSortField; order?: TaskSortOrder } = {},
@@ -250,25 +296,9 @@ export function selectUpcomingGroups(
     if (!dueKey) continue;
 
     if (dueKey <= horizonKey) {
-      const existing = dayBuckets.get(dueKey);
-      if (existing) {
-        existing.tasks.push(task);
-      } else {
-        const dateObj = parseDateKey(dueKey);
-        const dayText = dateObj.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-        const label = dueKey === tomorrowKey ? `Tomorrow · ${dayText}` : dayText;
-        dayBuckets.set(dueKey, { key: `up-${dueKey}`, label, tone: "default", tasks: [task] });
-      }
-      continue;
-    }
-
-    const monthKey = dueKey.slice(0, 7);
-    const existingMonth = laterBuckets.get(monthKey);
-    if (existingMonth) {
-      existingMonth.tasks.push(task);
+      addDayBucket(dayBuckets, dueKey, tomorrowKey, task);
     } else {
-      const monthLabel = parseDateKey(dueKey).toLocaleDateString(undefined, { month: "long", year: "numeric" });
-      laterBuckets.set(monthKey, { key: `later-${monthKey}`, label: monthLabel, tone: "default", tasks: [task] });
+      addMonthBucket(laterBuckets, dueKey, task);
     }
   }
 

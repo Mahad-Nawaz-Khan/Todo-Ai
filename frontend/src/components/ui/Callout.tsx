@@ -36,22 +36,29 @@ export interface CalloutProps {
 
 export function Callout({ tone = "info", title, children, action, className }: Readonly<CalloutProps>) {
   const Icon = TONE_ICONS[tone];
-
-  return (
-    <div
-      role={tone === "error" ? "alert" : "status"}
-      className={cn(
-        "flex items-start gap-3 rounded-lg border p-3 text-sm",
-        TONE_CLASSES[tone],
-        className
-      )}
-    >
+  const containerClassName = cn(
+    "flex items-start gap-3 rounded-lg border p-3 text-sm",
+    TONE_CLASSES[tone],
+    className
+  );
+  const body = (
+    <>
       <Icon className={cn("mt-0.5 size-4 shrink-0", ICON_CLASSES[tone])} aria-hidden="true" />
       <div className="min-w-0 flex-1">
         {title ? <div className="font-medium text-fg">{title}</div> : null}
         <div className="text-[13px] leading-5 text-fg-muted">{children}</div>
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
+    </>
   );
+
+  if (tone === "error") {
+    return (
+      <div role="alert" className={containerClassName}>
+        {body}
+      </div>
+    );
+  }
+
+  return <output className={containerClassName}>{body}</output>;
 }

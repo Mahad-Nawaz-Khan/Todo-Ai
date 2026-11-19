@@ -2,11 +2,39 @@
 
 import { Calendar, CalendarArrowUp, CalendarDays, Sun, X } from "lucide-react";
 
-import { Popover } from "@/components/ui/Popover";
+import { Popover, type PopoverProps } from "@/components/ui/Popover";
 import { extractDateKey, getNextWeekKey, getTodayKey, getTomorrowKey } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 import { DueChip } from "./DueChip";
+
+function createDueDateTrigger(dateKey: string): PopoverProps["trigger"] {
+  return function DueDateTrigger({ ref, isOpen, toggle }) {
+    return (
+      <button
+        ref={ref}
+        type="button"
+        onClick={toggle}
+        aria-expanded={isOpen}
+        className={cn(
+          "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors duration-[var(--dur-fast)]",
+          dateKey
+            ? "border-accent-border bg-accent-subtle text-accent-text"
+            : "border-line bg-surface dark:bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg"
+        )}
+      >
+        {dateKey ? (
+          <DueChip dueDate={dateKey} className="text-current" />
+        ) : (
+          <>
+            <Calendar className="size-3.5 text-fg-subtle" aria-hidden="true" />
+            <span>Due date</span>
+          </>
+        )}
+      </button>
+    );
+  };
+}
 
 export interface DueDateMenuProps {
   value: string;
@@ -30,29 +58,7 @@ export function DueDateMenu({ value, onChange, align = "start" }: Readonly<DueDa
     <Popover
       align={align}
       maxWidth={240}
-      trigger={({ ref, isOpen, toggle }) => (
-        <button
-          ref={ref}
-          type="button"
-          onClick={toggle}
-          aria-expanded={isOpen}
-          className={cn(
-            "inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors duration-[var(--dur-fast)]",
-            dateKey
-              ? "border-accent-border bg-accent-subtle text-accent-text"
-              : "border-line bg-surface dark:bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg"
-          )}
-        >
-          {dateKey ? (
-            <DueChip dueDate={dateKey} className="text-current" />
-          ) : (
-            <>
-              <Calendar className="size-3.5 text-fg-subtle" aria-hidden="true" />
-              <span>Due date</span>
-            </>
-          )}
-        </button>
-      )}
+      trigger={createDueDateTrigger(dateKey)}
     >
       {({ close }) => (
         <div className="flex w-[220px] flex-col gap-0.5">

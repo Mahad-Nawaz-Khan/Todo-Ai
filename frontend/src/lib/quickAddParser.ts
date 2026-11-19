@@ -58,21 +58,40 @@ function stripPhrase(input: string, phrase: string): { text: string; matched: bo
   return { text: input.replace(pattern, " "), matched: true };
 }
 
-export function parseQuickAddText(raw: string, now: Date = new Date()): ParsedQuickAdd {
-  let working = raw;
-  let dueDate: string | null = null;
-  let priority: Priority | null = null;
-  let recurrence: RecurrenceValue | null = null;
-  const tagNames: string[] = [];
-
+function extractRecurrence(raw: string): { working: string; recurrence: RecurrenceValue | null } {
   for (const [phrase, rule] of RECURRENCE_PHRASES) {
-    const res = stripPhrase(working, phrase);
+    const res = stripPhrase(raw, phrase);
     if (res.matched) {
-      working = res.text;
-      recurrence = rule;
-      break;
+      return { working: res.text, recurrence: rule };
     }
   }
+  return { working: raw, recurrence: null };
+}
+
+function parseTagToken(token: string): string | null {
+  if (!token.startsWith("#") || token.length <= 1) {
+    return null;
+  }
+  const name = token.slice(1).replace(/[^\w-]/g, "");
+  return name || null;
+}
+
+function parseDueDateToken(lower: string, now: Date): string | null {
+  if (lower === "today") {
+    return getTodayKey(now);
+  }
+  if (lower === "tomorrow" || lower === "tmrw") {
+    return getTomorrowKey(now);
+  }
+  const weekday = WEEKDAY_MAP[lower];
+  return weekday === undefined ? null : nextWeekdayKey(weekday, now);
+}
+
+export function parseQuickAddText(raw: string, now: Date = new Date()): ParsedQuickAdd {
+  const { working, recurrence } = extractRecurrence(raw);
+  let dueDate: string | null = null;
+  let priority: Priority | null = null;
+  const tagNames: string[] = [];
 
   const tokens = working.trim().split(/\s+/).filter(Boolean);
   const keptTokens: string[] = [];
@@ -85,27 +104,18 @@ export function parseQuickAddText(raw: string, now: Date = new Date()): ParsedQu
       continue;
     }
 
-    if (lower.startsWith("#") && token.length > 1) {
-      const name = token.slice(1).replace(/[^\w-]/g, "");
-      if (name) {
-        tagNames.push(name);
+    const tagName = parseTagToken(token);
+    if (tagName) {
+      tagNames.push(tagName);
+      continue;
+    }
+
+    if (!dueDate) {
+      const parsedDate = parseDueDateToken(lower, now);
+      if (parsedDate) {
+        dueDate = parsedDate;
         continue;
       }
-    }
-
-    if (!dueDate && lower === "today") {
-      dueDate = getTodayKey(now);
-      continue;
-    }
-
-    if (!dueDate && (lower === "tomorrow" || lower === "tmrw")) {
-      dueDate = getTomorrowKey(now);
-      continue;
-    }
-
-    if (!dueDate && WEEKDAY_MAP[lower] !== undefined) {
-      dueDate = nextWeekdayKey(WEEKDAY_MAP[lower], now);
-      continue;
     }
 
     keptTokens.push(token);
